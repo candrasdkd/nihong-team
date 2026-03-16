@@ -26,8 +26,6 @@ import {
   Wallet,
   Activity,
   ArrowRight,
-  LayoutDashboard,
-  AppWindow,
   Settings,
   Bell,
   BellOff,
@@ -36,8 +34,14 @@ import {
   Clock,
   XCircle,
   Crown,
+  CalendarDays,
+  Plane,
+  ShoppingCart,
 } from "lucide-react";
 import { notificationService } from "../services/notificationService";
+import { subscribeSchedules } from "../services/scheduleFirebase";
+import { JadwalKeberangkatan } from "../types";
+import { KursInfoCard } from "../components/KursInfoCard";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -160,15 +164,89 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+// ─── Jadwal Terdekat Card ────────────────────────────────────────────────────
+
+function toInputDateDash(d: Date) {
+  const iso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
+  return iso.slice(0, 10);
+}
+
+const JADWAL_STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  open:   { label: "Open",   color: "text-emerald-600", bg: "bg-emerald-50" },
+  full:   { label: "Full",   color: "text-rose-600",    bg: "bg-rose-50"    },
+  closed: { label: "Closed", color: "text-slate-600",   bg: "bg-slate-100"  },
+};
+
+function JadwalTerdekatCard({ onNavigate }: { onNavigate: () => void }) {
+  const [schedules, setSchedules] = React.useState<JadwalKeberangkatan[]>([]);
+
+  React.useEffect(() => {
+    const today = toInputDateDash(new Date());
+    const unsub = subscribeSchedules({ fromDate: today }, (rows) => {
+      setSchedules(rows.slice(0, 5));
+    });
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Plane size={15} className="text-indigo-500" />
+          <h3 className="text-sm font-bold text-slate-800">Jadwal Terdekat</h3>
+        </div>
+        <button
+          onClick={onNavigate}
+          className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors"
+        >
+          Lihat Semua <ArrowRight size={12} />
+        </button>
+      </div>
+      {schedules.length === 0 ? (
+        <div className="flex flex-col items-center text-center py-4 gap-2">
+          <CalendarDays size={28} className="text-slate-200" />
+          <p className="text-xs text-slate-400">Belum ada jadwal mendatang</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {schedules.map((s) => {
+            const cfg = JADWAL_STATUS_CFG[s.status] ?? JADWAL_STATUS_CFG.open;
+            const isIndoToJp = s.rute === "Indo → Jepang";
+            const date = new Date(s.tanggal + "T00:00:00").toLocaleDateString("id-ID", {
+              day: "numeric", month: "short", year: "numeric",
+            });
+            return (
+              <div key={s.id} className="flex items-center gap-4 group">
+                <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-lg shadow-sm">
+                  {isIndoToJp ? "🇮🇩" : "🇯🇵"}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <p className="text-sm font-bold text-slate-700 truncate">{s.rute}</p>
+                  <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">{date}{s.keterangan ? ` • ${s.keterangan}` : ""}</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                  {cfg.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Dashboard View ───────────────────────────────────────────────────────────
 
 function DashboardView({
-  orders, customers, unitPrice, onSeeAllOrders,
+  orders, customers, unitPrice, globalJastipYen, onSeeAllOrders, onNavigateToSchedule,
 }: {
   orders: Order[];
   customers: Customer[];
   unitPrice: number;
+  globalJastipYen: number;
   onSeeAllOrders: () => void;
+  onNavigateToSchedule: () => void;
 }) {
   const [period, setPeriod] = useState<PeriodType>("12m");
 
@@ -287,9 +365,9 @@ function DashboardView({
       <StatusBar orders={orders} />
 
       {/* ── Chart + Recent Orders ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         {/* Chart */}
-        <Card className="xl:col-span-2 p-6 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-[420px]">
+        <Card className="xl:col-span-2 p-6 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-[400px] xl:h-[600px] xl:sticky xl:top-24">
           <div className="flex justify-between items-start mb-4 shrink-0">
             <div>
               <h3 className="text-base font-bold text-slate-800">Analisis Keuangan</h3>
@@ -321,22 +399,26 @@ function DashboardView({
           </div>
         </Card>
 
-        {/* Right column: Recent + Top Customers */}
+        {/* Right column: Recent + Top Customers + Kurs/Jadwal */}
         <div className="flex flex-col gap-4">
+          
+          {/* Info Kurs & Jastip Calculator */}
+          <KursInfoCard globalJastipYen={globalJastipYen} />
+
           {/* Recent Orders */}
-          <Card className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col flex-1 min-h-0">
+          <Card className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col">
             <div className="flex items-center justify-between mb-4 shrink-0">
               <h3 className="text-sm font-bold text-slate-800">Pesanan Terbaru</h3>
               <button onClick={onSeeAllOrders} className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors">
                 Lihat Semua <ArrowRight size={12} />
               </button>
             </div>
-            <div className="space-y-2 overflow-y-auto flex-1">
+            <div className="space-y-2">
               {recentOrders.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-6">Belum ada pesanan</p>
               ) : recentOrders.map((order: any, i) => (
                 <div key={i} className="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors group">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-white group-hover:shadow-sm transition-all">
+                  <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-white group-hover:shadow-sm transition-all">
                     <ShoppingBag size={14} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -350,7 +432,7 @@ function DashboardView({
                         compute(order, unitPrice).currency
                       )}
                     </p>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${DONE_SET.has(order.status) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold inline-block text-center w-full mt-1 ${DONE_SET.has(order.status) ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
                       {order.status}
                     </span>
                   </div>
@@ -365,49 +447,55 @@ function DashboardView({
               <Crown size={14} className="text-amber-500" />
               <h3 className="text-sm font-bold text-slate-800">Top Pelanggan</h3>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-4">
               {topCustomers.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-2">Belum ada data</p>
               ) : topCustomers.map((c, i) => (
-                <div key={i} className="flex items-center gap-2.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${i === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"}`}>
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-slate-700 truncate flex-1">{c.name}</p>
-                      <div className="text-xs font-bold text-slate-600 shrink-0 text-right">
-                        {c.revIdr > 0 && <div>{formatIDR(c.revIdr)}</div>}
-                        {c.revJpy > 0 && <div>¥{c.revJpy.toLocaleString("id-ID")}</div>}
-                      </div>
+                <div key={i} className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${i === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-50 border border-slate-100 text-slate-500"}`}>
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-700 truncate">{c.name}</p>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1 mt-1">
+                    <div className="text-xs font-bold text-slate-700 shrink-0 text-right">
+                      {c.revIdr > 0 && <span>{formatIDR(c.revIdr)}</span>}
+                      {c.revJpy > 0 && <span>{c.revIdr > 0 ? ' + ' : ''}¥{c.revJpy.toLocaleString("id-ID")}</span>}
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0 w-4 text-right">{c.count}x</span>
+                  </div>
+                  <div className="pl-8 flex items-center">
+                    <div className="w-full bg-slate-50 rounded-full h-1.5">
                       <div
-                        className="bg-gradient-to-r from-slate-400 to-slate-600 h-1 rounded-full transition-all"
+                        className="bg-slate-700 h-1.5 rounded-full transition-all"
                         style={{ width: `${topCustomers[0] ? (c.sortScore / topCustomers[0].sortScore) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">{c.count}x</span>
                 </div>
               ))}
             </div>
           </Card>
+
+          {/* Jadwal Terdekat */}
+          <JadwalTerdekatCard onNavigate={onNavigateToSchedule} />
         </div>
       </div>
     </div>
   );
 }
-
 // ─── Application View ─────────────────────────────────────────────────────────
 
-function ApplicationView({
+export function ApplicationView({
   user, registerFCM, setActiveFeature,
 }: {
   user: any; registerFCM: () => void; setActiveFeature: (v: string) => void;
 }) {
   const FEATURES = [
-    { id: "generator", title: "Generator Story", desc: "Buat story IG otomatis.", icon: Settings, color: "text-slate-600", bg: "bg-slate-100" },
+    { id: "purchase",  title: "Pembelian",           desc: "Kelola pembelian barang jastip.",       icon: ShoppingCart,  color: "text-violet-600", bg: "bg-violet-50" },
+    { id: "schedule",  title: "Jadwal Keberangkatan", desc: "Kelola jadwal jastip Indo ⇄ Jepang.",  icon: CalendarDays,  color: "text-indigo-600", bg: "bg-indigo-50" },
+    { id: "generator", title: "Generator Story",      desc: "Buat story IG otomatis.",               icon: Settings,      color: "text-slate-600",  bg: "bg-slate-100"  },
   ];
 
   return (
@@ -494,14 +582,11 @@ function NotificationCard({ user, registerFCM }: { user: any; registerFCM: () =>
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
-type TabType = "dashboard" | "application";
-
-export function Dashboard({ user, orders, customers, unitPrice, onSeeAllOrders, setActiveFeature }: {
-  user: any; orders: Order[]; customers: Customer[]; unitPrice: number;
-  onSeeAllOrders: () => void; setActiveFeature: (v: string) => void;
+export function Dashboard({ user, orders, customers, unitPrice, globalJastipYen, onSeeAllOrders, setActiveFeature }: {
+  user: any; orders: Order[]; customers: Customer[]; unitPrice: number; globalJastipYen: number;
+  onSeeAllOrders: () => void;
+  setActiveFeature: (v: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
-
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "granted" && user?.uid) registerFCM();
   }, [user?.uid]);
@@ -517,27 +602,14 @@ export function Dashboard({ user, orders, customers, unitPrice, onSeeAllOrders, 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Tab nav */}
-        <div className="flex items-center justify-center">
-          <div className="bg-white p-1.5 rounded-full border border-slate-200 shadow-sm inline-flex">
-            {([
-              { id: "dashboard" as TabType, label: "Dashboard", icon: LayoutDashboard },
-              { id: "application" as TabType, label: "Aplikasi", icon: AppWindow },
-            ] as const).map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${activeTab === id ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}>
-                <Icon size={16} />{label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        {activeTab === "dashboard" ? (
-          <DashboardView orders={orders} customers={customers} unitPrice={unitPrice} onSeeAllOrders={onSeeAllOrders} />
-        ) : (
-          <ApplicationView user={user} registerFCM={registerFCM} setActiveFeature={setActiveFeature} />
-        )}
+        <DashboardView
+          orders={orders}
+          customers={customers}
+          unitPrice={unitPrice}
+          globalJastipYen={globalJastipYen}
+          onSeeAllOrders={onSeeAllOrders}
+          onNavigateToSchedule={() => setActiveFeature("apps")}
+        />
       </div>
     </div>
   );

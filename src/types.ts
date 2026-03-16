@@ -7,7 +7,21 @@ export type TabId =
   | "purchase"
   | "cash"
   | "generator"
+  | "schedule"
+  | "apps"
   | string;
+
+export type JadwalRute = "Indo → Jepang" | "Jepang → Indo";
+export type JadwalStatus = "open" | "closed" | "full";
+
+export type JadwalKeberangkatan = {
+  id: string;
+  rute: JadwalRute;
+  tanggal: string; // 'YYYY-MM-DD'
+  keterangan?: string | null;
+  status: JadwalStatus;
+  createdAt?: number;
+};
 export interface Order {
   id?: string;
   no: string;
@@ -130,4 +144,10 @@ export interface ItemContent {
   status: "AVAILABLE" | "LIMITED" | "SOLD OUT";
   date: string;
   value: number;
+}
+
+export interface AppSettings {
+  jastipYenPerKg?: number;
+  unitPriceIdr?: number; // legacy fallbacks / future global master unit price
+  updatedAt?: string;
 }

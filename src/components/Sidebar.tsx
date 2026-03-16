@@ -1,15 +1,16 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User } from "firebase/auth";
-import { 
-  Home, 
-  PackageSearch, 
-  Users, 
-  ShoppingCart, 
-  Wallet, 
+import {
+  Home,
+  PackageSearch,
+  Users,
+  ShoppingCart,
+  Wallet,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  CalendarDays
 } from "lucide-react";
 import { TabId } from "../types";
 import logoLight from "../assets/logo-admin.png";
@@ -29,6 +30,7 @@ const MENU_ITEMS = [
   { id: "customers", label: "Customers", icon: Users },
   { id: "purchase", label: "Purchase", icon: ShoppingCart },
   { id: "cash", label: "Kas", icon: Wallet },
+  { id: "schedule", label: "Jadwal", icon: CalendarDays },
 ];
 
 export function Sidebar({
@@ -61,7 +63,7 @@ export function Sidebar({
             />
           </motion.div>
           {!isCollapsed && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
@@ -79,7 +81,7 @@ export function Sidebar({
 
         {/* Toggle Button - Float right when expanded, hide when collapsed (only show absolute toggle) */}
         {!isCollapsed && (
-          <button 
+          <button
             onClick={onToggleCollapse}
             className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           >
@@ -90,7 +92,7 @@ export function Sidebar({
 
       {/* Absolute Toggle Button for Collapsed State */}
       {isCollapsed && (
-        <button 
+        <button
           onClick={onToggleCollapse}
           className="absolute -right-3 top-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-full p-1 text-neutral-500 hover:text-indigo-600 shadow-sm z-50"
         >
@@ -103,14 +105,14 @@ export function Sidebar({
         {MENU_ITEMS.map((item) => {
           const isActive = currentTab === item.id;
           const Icon = item.icon;
-          
+
           return (
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none
-                ${isActive 
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold" 
+                ${isActive
+                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold"
                   : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-100"
                 }
                 ${isCollapsed ? "justify-center" : ""}
@@ -118,7 +120,7 @@ export function Sidebar({
               title={isCollapsed ? item.label : undefined}
             >
               <Icon size={20} className={`shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
-              
+
               {!isCollapsed && (
                 <span className="truncate">{item.label}</span>
               )}
@@ -133,7 +135,7 @@ export function Sidebar({
           <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 grid place-items-center text-white text-sm font-bold shadow-inner">
             {user.email?.[0].toUpperCase() || "A"}
           </div>
-          
+
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate">
@@ -144,7 +146,7 @@ export function Sidebar({
               </p>
             </div>
           )}
-          
+
           {!isCollapsed && (
             <button
               onClick={onLogout}
@@ -155,7 +157,7 @@ export function Sidebar({
             </button>
           )}
         </div>
-        
+
         {/* Logout via icon full width if collapsed */}
         {isCollapsed && (
           <button

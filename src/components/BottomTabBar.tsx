@@ -1,5 +1,5 @@
 import { TabId } from "../types";
-import { Home, ClipboardList, Users, Calculator, Wallet } from "lucide-react";
+import { Home, ClipboardList, Users, Wallet, LayoutGrid } from "lucide-react";
 
 export function BottomTabBar({
   current,
@@ -9,11 +9,11 @@ export function BottomTabBar({
   setTab: (t: TabId) => void;
 }) {
   const TAB_CONFIG: { id: TabId; label: string; Icon: React.ElementType }[] = [
-    { id: "home", label: "Home", Icon: Home },
-    { id: "orders", label: "Pesanan", Icon: ClipboardList },
+    { id: "home",      label: "Home",     Icon: Home },
+    { id: "orders",    label: "Pesanan",  Icon: ClipboardList },
     { id: "customers", label: "Konsumen", Icon: Users },
-    { id: "purchase", label: "Pembelian", Icon: Calculator },
-    { id: "cash", label: "Kas", Icon: Wallet },
+    { id: "cash",      label: "Kas",      Icon: Wallet },
+    { id: "apps",      label: "Aplikasi", Icon: LayoutGrid },
   ];
 
   return (
@@ -31,7 +31,7 @@ export function BottomTabBar({
                 key={id}
                 onClick={() => setTab(id)}
                 aria-current={active ? "page" : undefined}
-                className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 transition
+                className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition
                   ${
                     active
                       ? "bg-[#0a2342] text-white"
@@ -43,7 +43,7 @@ export function BottomTabBar({
                   className={`h-5 w-5 ${active ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}
                 />
                 <span
-                  className={`text-[11px] leading-none ${active ? "font-semibold" : ""}`}
+                  className={`text-[10px] leading-none ${active ? "font-semibold" : ""}`}
                 >
                   {label}
                 </span>

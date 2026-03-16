@@ -3,12 +3,13 @@ import { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Pages
-import { Dashboard } from "./pages/Dashboard";
+import { Dashboard, ApplicationView } from "./pages/Dashboard";
 import { OrdersPage } from "./pages/OrdersPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { LedgerPage } from "./pages/LedgerPage";
 import { LoginPage } from "./pages/LoginPage";
 import PurchasesPage from "./pages/PurchasesPage";
+import { SchedulePage } from "./pages/SchedulePage";
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -24,6 +25,7 @@ import { Customer, Order, TabId } from "./types";
 import { listenCustomers } from "./services/customersFirebase";
 import { subscribeOrders, toExtended } from "./services/ordersFirebase";
 import { listenAuth, logout } from "./services/authFirebase";
+import { subscribeSettings } from "./services/settingsFirebase";
 import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
 import StoryGeneratorDynamic from "./pages/StoryGeneratorPage";
 import { LogoutModal } from "./components/ModalLogout";
@@ -36,6 +38,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [unitPrice, setUnitPrice] = useState<number>(100_000);
+  const [globalJastipYen, setGlobalJastipYen] = useState<number>(1000); // from global settings
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modal States
@@ -79,6 +82,20 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const unsub = listenCustomers((rows) => setCustomers(rows as Customer[]));
+    return () => unsub();
+  }, [user]);
+
+  // 🔊 Realtime Global Settings
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeSettings((data) => {
+      if (data?.jastipYenPerKg) {
+        setGlobalJastipYen(data.jastipYenPerKg);
+      }
+      if (data?.unitPriceIdr) {
+        setUnitPrice(data.unitPriceIdr); // future proofing
+      }
+    });
     return () => unsub();
   }, [user]);
 
@@ -204,8 +221,9 @@ export default function App() {
                 orders={orders}
                 customers={customers}
                 unitPrice={unitPrice}
+                globalJastipYen={globalJastipYen}
                 onSeeAllOrders={() => setTab("orders")}
-                setActiveFeature={(value: string) => setTab(value)}
+                setActiveFeature={(feature) => setTab(feature as any)}
               />
             )}
             {tab === "orders" && (
@@ -220,6 +238,18 @@ export default function App() {
             {tab === "purchase" && <PurchasesPage />}
             {tab === "cash" && <LedgerPage />}
             {tab === "generator" && <StoryGeneratorDynamic />}
+            {tab === "schedule" && <SchedulePage />}
+            {tab === "apps" && (
+              <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+                  <ApplicationView
+                    user={user}
+                    registerFCM={() => {}}
+                    setActiveFeature={(v) => setTab(v as any)}
+                  />
+                </div>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
           </main>
