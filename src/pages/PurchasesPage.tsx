@@ -440,7 +440,7 @@ export default function PurchasesPage() {
     if (itemsForPic.length === 0) return;
 
     let message = `*Daftar Belanja - ${picName}*\n`;
-    message += `📅 Tanggal: ${formatAndAddYear(date)}\n\n`;
+    message += `📅 Tanggal Pengiriman: ${formatAndAddYear(date)}\n\n`;
 
     const byCustomer = itemsForPic.reduce((acc, i) => {
       const c = i.customer || "Tanpa Customer";
@@ -1816,13 +1816,13 @@ export default function PurchasesPage() {
                             </span>
                             <div className="flex flex-wrap gap-1.5">
                               {Array.from(new Set(items.filter(i => i.pic === pic).map(i => i.shippingDate))).sort().map(date => (
-                                  <button
-                                    key={date}
-                                    onClick={() => handleShareToAdmin(pic, date)}
-                                    className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-[9px] font-black hover:bg-orange-700 transition-colors shadow-sm"
-                                  >
-                                    {formatDateDayMonth(date)}
-                                  </button>
+                                <button
+                                  key={date}
+                                  onClick={() => handleShareToAdmin(pic, date)}
+                                  className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-[9px] font-black hover:bg-orange-700 transition-colors shadow-sm"
+                                >
+                                  {formatDateDayMonth(date)}
+                                </button>
                               ))}
                             </div>
                           </div>

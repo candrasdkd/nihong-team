@@ -20,7 +20,7 @@ import { BG } from "../utils/constants";
 import {
   TrendingUp, TrendingDown, Wallet, Search, Filter,
   Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft,
-  X, FileText, Download,
+  X, FileText, Download, Check
 } from "lucide-react";
 import { exportLedgerToExcel } from "../utils/exportExcel";
 
@@ -114,6 +114,7 @@ export function LedgerPage() {
   // ===== Data =====
   const [rows, setRows] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -148,6 +149,41 @@ export function LedgerPage() {
     }
     return { totalMasuk: masuk, totalKeluar: keluar, saldo: masuk - keluar };
   }, [filtered]);
+
+  // ===== Selection Logic =====
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(r => r.id)));
+    }
+  };
+
+  const { selectedTotalMasuk, selectedTotalKeluar, selectedSaldo, selectedCount } = useMemo(() => {
+    let masuk = 0, keluar = 0, count = 0;
+    for (const r of filtered) {
+      if (selectedIds.has(r.id)) {
+        count++;
+        if (r.tipe === "Masuk") masuk += Number(r.jumlah || 0);
+        else keluar += Number(r.jumlah || 0);
+      }
+    }
+    return {
+      selectedTotalMasuk: masuk,
+      selectedTotalKeluar: keluar,
+      selectedSaldo: masuk - keluar,
+      selectedCount: count
+    };
+  }, [filtered, selectedIds]);
 
   // ===== Fetch + Realtime =====
   useEffect(() => {
@@ -338,6 +374,7 @@ export function LedgerPage() {
                 <thead className="bg-slate-50/50 border-b border-slate-100">
                   <tr>
                     {[
+                      "",
                       "Tanggal",
                       "Keterangan",
                       "Kategori",
@@ -347,9 +384,16 @@ export function LedgerPage() {
                     ].map((h, i) => (
                       <th
                         key={i}
-                        className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${i === 4 ? "text-right" : "text-left"}`}
+                        className={`px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${i === 5 ? "text-right" : "text-left"}`}
                       >
-                        {h}
+                        {i === 0 ? (
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            checked={selectedIds.size === filtered.length && filtered.length > 0}
+                            onChange={toggleSelectAll}
+                          />
+                        ) : h}
                       </th>
                     ))}
                   </tr>
@@ -358,8 +402,16 @@ export function LedgerPage() {
                   {filtered.map((r) => (
                     <tr
                       key={r.id}
-                      className="group hover:bg-slate-50/80 transition-colors"
+                      className={`group hover:bg-slate-50/80 transition-colors ${selectedIds.has(r.id) ? "bg-indigo-50/50" : ""}`}
                     >
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          checked={selectedIds.has(r.id)}
+                          onChange={() => toggleSelect(r.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                         {formatAndAddYear(r.tanggal)}
                       </td>
@@ -428,6 +480,15 @@ export function LedgerPage() {
                   className="p-4 active:bg-slate-50 transition-colors group"
                 >
                   <div className="flex items-start gap-3">
+                    {/* Checkbox Mobile */}
+                    <div className="pt-3 pl-1">
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={selectedIds.has(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </div>
                     {/* Area Klik untuk Edit (Kiri & Tengah) */}
                     <div
                       className="flex-1 flex items-start gap-3 cursor-pointer"
@@ -548,6 +609,48 @@ export function LedgerPage() {
       >
         <Plus className="w-6 h-6" />
       </button>
+
+      {/* Selection Summary Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl animate-in slide-in-from-bottom-10 duration-300">
+          <div className="bg-slate-900 text-white rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+            <div className="px-4 py-3 sm:px-6 flex items-center justify-between border-b border-slate-800/50">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {selectedCount}
+                </div>
+                <span className="text-sm font-medium text-slate-300">Item dipilih</span>
+              </div>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1 px-3 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+              >
+                Batalkan
+              </button>
+            </div>
+            <div className="px-4 py-4 sm:px-6 grid grid-cols-3 gap-2 text-center bg-slate-900/50">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 font-bold">Pemasukan</div>
+                <div className="text-sm font-bold text-emerald-400 font-mono">
+                  +{formatIDR(selectedTotalMasuk)}
+                </div>
+              </div>
+              <div className="border-x border-slate-800">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 font-bold">Pengeluaran</div>
+                <div className="text-sm font-bold text-rose-400 font-mono">
+                  -{formatIDR(selectedTotalKeluar)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 font-bold">Total Saldo</div>
+                <div className="text-sm font-bold text-white font-mono">
+                  {formatIDR(selectedSaldo)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
