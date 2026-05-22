@@ -29,7 +29,8 @@ import {
   X, Maximize2, ChevronLeft, ChevronRight, MessageCircle,
   Plus, FileText, ChevronDown, Search, Box, Trash2, Pencil,
   AlertCircle, CheckCircle2, Download, Scale, ShoppingBag, 
-  DollarSign, TrendingUp, Wallet, ClipboardList, HelpCircle
+  DollarSign, TrendingUp, Wallet, ClipboardList, HelpCircle,
+  ArrowUpDown
 } from "lucide-react";
 import { exportOrdersToExcel } from "../utils/exportExcel";
 
@@ -312,6 +313,8 @@ export function OrdersPage({
 }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("tanggal");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Date Logic
   const now = useMemo(() => new Date(), []);
@@ -359,6 +362,44 @@ export function OrdersPage({
     () => orders.filter((o) => selectedIds.includes(o.id)),
     [orders, selectedIds],
   );
+
+  // Client-side sorting based on active filters
+  const sortedOrders = useMemo(() => {
+    const list = [...orders];
+    list.sort((a, b) => {
+      let valA: any;
+      let valB: any;
+
+      if (sortBy === "keuntungan") {
+        const compA = compute(a, unitPrice);
+        const compB = compute(b, unitPrice);
+        valA = compA.totalKeuntungan;
+        valB = compB.totalKeuntungan;
+      } else if (sortBy === "totalPembayaran") {
+        const compA = compute(a, unitPrice);
+        const compB = compute(b, unitPrice);
+        valA = compA.totalPembayaran;
+        valB = compB.totalPembayaran;
+      } else if (sortBy === "namaPelanggan") {
+        valA = String(a.namaPelanggan || "").toLowerCase();
+        valB = String(b.namaPelanggan || "").toLowerCase();
+      } else {
+        valA = String(a.tanggal || "");
+        valB = String(b.tanggal || "");
+      }
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      } else {
+        const numA = Number(valA || 0);
+        const numB = Number(valB || 0);
+        return sortOrder === "asc" ? numA - numB : numB - numA;
+      }
+    });
+    return list;
+  }, [orders, sortBy, sortOrder, unitPrice]);
 
   // Live filtered metrics based on currently computed list of orders
   const metrics = useMemo(() => {
@@ -540,7 +581,7 @@ export function OrdersPage({
               </Button>
               <Button
                 variant="outline"
-                onClick={() => exportOrdersToExcel(orders, unitPrice)}
+                onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)}
                 className="border-white/15 hover:bg-white/10 text-white font-bold bg-white/5 px-5 py-2.5 rounded-xl transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
               >
                 <Download className="w-4 h-4 mr-2" /> Export Excel
@@ -600,31 +641,55 @@ export function OrdersPage({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full xl:w-auto">
             {/* Filter Tanggal Inline */}
-            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shrink-0">
+            <div className="flex items-center justify-between w-full sm:w-auto gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shrink-0">
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-[110px] sm:w-[130px]"
+                className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-[130px] text-center"
                 title="Dari Tanggal"
               />
-              <span className="text-slate-400 text-[10px] font-extrabold px-0.5">s/d</span>
+              <span className="text-slate-400 text-[10px] font-extrabold px-1 shrink-0">s/d</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-[110px] sm:w-[130px]"
+                className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-[130px] text-center"
                 title="Sampai Tanggal"
               />
             </div>
 
+            {/* Sort Dropdown */}
+            <div className="flex items-center w-full sm:w-auto gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shrink-0">
+              <ArrowUpDown size={13} className="text-slate-500 stroke-[2.5] shrink-0" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none pr-0.5 shrink-0">Urutkan</span>
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split("-");
+                  setSortBy(field);
+                  setSortOrder(order as "asc" | "desc");
+                }}
+                className="flex-1 min-w-0 px-2 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+              >
+                <option value="tanggal-desc">Terbaru (Tanggal ↓)</option>
+                <option value="tanggal-asc">Terlama (Tanggal ↑)</option>
+                <option value="keuntungan-desc">Profit Terbesar (Profit ↓)</option>
+                <option value="keuntungan-asc">Profit Terkecil (Profit ↑)</option>
+                <option value="namaPelanggan-asc">Nama Pelanggan (A-Z)</option>
+                <option value="namaPelanggan-desc">Nama Pelanggan (Z-A)</option>
+                <option value="totalPembayaran-desc">Tagihan Terbesar</option>
+                <option value="totalPembayaran-asc">Tagihan Terkecil</option>
+              </select>
+            </div>
+
             {/* Filter Status modern tab melayang */}
-            <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/20 overflow-x-auto max-w-full">
+            <div className="flex w-full sm:w-auto bg-slate-100/80 p-1 rounded-xl border border-slate-200/20 overflow-x-auto max-w-full">
               <button
                 onClick={() => setStatusFilter("")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
               >
                 Semua
               </button>
@@ -632,7 +697,7 @@ export function OrdersPage({
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   {s === "Belum Membayar" ? "Belum Bayar" : "Selesai"}
                 </button>
@@ -652,27 +717,72 @@ export function OrdersPage({
                       type="checkbox"
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       checked={
-                        orders.length > 0 &&
-                        selectedIds.length === orders.length
+                        sortedOrders.length > 0 &&
+                        selectedIds.length === sortedOrders.length
                       }
                       onChange={(e) =>
                         setSelectedIds(
-                          e.target.checked ? orders.map((o) => o.id) : [],
+                          e.target.checked ? sortedOrders.map((o) => o.id) : [],
                         )
                       }
                     />
                   </th>
-                  <th className="px-6 py-4">Pelanggan</th>
+                  <th
+                    className="px-6 py-4 cursor-pointer hover:text-slate-700 select-none group"
+                    onClick={() => {
+                      if (sortBy === "namaPelanggan") {
+                        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortBy("namaPelanggan");
+                        setSortOrder("asc");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Pelanggan</span>
+                      <ArrowUpDown size={11} className={`transition-opacity duration-200 ${sortBy === "namaPelanggan" ? "opacity-100 text-blue-500" : "opacity-0 group-hover:opacity-50"}`} />
+                    </div>
+                  </th>
                   <th className="px-6 py-4">Detail Barang</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Tagihan</th>
-                  <th className="px-6 py-4 text-right">Profit</th>
+                  <th
+                    className="px-6 py-4 text-right cursor-pointer hover:text-slate-700 select-none group"
+                    onClick={() => {
+                      if (sortBy === "totalPembayaran") {
+                        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortBy("totalPembayaran");
+                        setSortOrder("desc");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span>Tagihan</span>
+                      <ArrowUpDown size={11} className={`transition-opacity duration-200 ${sortBy === "totalPembayaran" ? "opacity-100 text-blue-500" : "opacity-0 group-hover:opacity-50"}`} />
+                    </div>
+                  </th>
+                  <th
+                    className="px-6 py-4 text-right cursor-pointer hover:text-slate-700 select-none group"
+                    onClick={() => {
+                      if (sortBy === "keuntungan") {
+                        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortBy("keuntungan");
+                        setSortOrder("desc");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span>Profit</span>
+                      <ArrowUpDown size={11} className={`transition-opacity duration-200 ${sortBy === "keuntungan" ? "opacity-100 text-blue-500" : "opacity-0 group-hover:opacity-50"}`} />
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-center">Foto</th>
                   <th className="px-6 py-4 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/70">
-                {orders.length === 0 ? (
+                {sortedOrders.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
@@ -685,7 +795,7 @@ export function OrdersPage({
                     </td>
                   </tr>
                 ) : (
-                  orders.map((o) => (
+                  sortedOrders.map((o) => (
                     <ExpandableRow
                       key={o.id}
                       order={o}
@@ -726,7 +836,7 @@ export function OrdersPage({
 
         {/* ── Mobile Card View ── */}
         <div className="sm:hidden space-y-4">
-          {orders.map((o) => (
+          {sortedOrders.map((o) => (
             <MobileCard
               key={o.id}
               order={o}
@@ -751,7 +861,7 @@ export function OrdersPage({
               onShowDetail={() => setSelectedOrderDetail(o)}
             />
           ))}
-          {orders.length === 0 && (
+          {sortedOrders.length === 0 && (
             <div className="py-16 text-center">
               <div className="inline-block bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3">
                 <Box className="w-6 h-6 text-slate-300" />
