@@ -33,6 +33,7 @@ import {
   ArrowUpDown
 } from "lucide-react";
 import { exportOrdersToExcel } from "../utils/exportExcel";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 // ===== IMAGE PREVIEW MODAL =====
 function ImagePreview({
@@ -338,6 +339,19 @@ export function OrdersPage({
   const [previewPhone, setPreviewPhone] = useState<string | undefined>(undefined);
   const [previewCustomerName, setPreviewCustomerName] = useState<string | undefined>(undefined);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<ExtendedOrder | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   const openPreview = (src: string | string[], phone?: string, customerName?: string) => {
     if (!src || (Array.isArray(src) && src.length === 0)) return;
@@ -473,9 +487,17 @@ export function OrdersPage({
 
   // Handlers
   async function handleDelete(id: string) {
-    if (!confirm("Yakin ingin menghapus pesanan ini secara permanen?")) return;
-    await deleteOrder(id);
-    showToast("Pesanan berhasil dihapus", "success");
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Pesanan",
+      message: "Apakah Anda yakin ingin menghapus pesanan ini secara permanen dari database?",
+      confirmText: "Hapus",
+      type: "danger",
+      onConfirm: async () => {
+        await deleteOrder(id);
+        showToast("Pesanan berhasil dihapus", "success");
+      },
+    });
   }
 
   // --- REFACTORED INVOICE CLICK (NO ALERTS) ---
@@ -989,6 +1011,21 @@ export function OrdersPage({
       >
         <Plus className="w-6 h-6 stroke-[3]" />
       </button>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmModal.onConfirm}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            confirmText={confirmModal.confirmText}
+            type={confirmModal.type}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

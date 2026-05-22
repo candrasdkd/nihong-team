@@ -16,6 +16,7 @@ import {
   type LedgerUpsert,
 } from "../services/ledgerFirebase";
 import { LedgerFormModal } from "../components/LedgerFormModal";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { formatAndAddYear, MONTH_LABEL_ID } from "../utils/helpers";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import {
@@ -66,6 +67,53 @@ function getMethodIcon(method: string | null) {
   if (m.includes("wallet") || m.includes("gopay") || m.includes("ovo") || m.includes("dana")) return CreditCard;
   return CircleDollarSign;
 }
+
+const LedgerTableSkeleton = () => (
+  <>
+    {[1, 2, 3, 4, 5].map((i) => (
+      <tr key={i} className="animate-pulse border-b border-slate-100">
+        <td className="px-6 py-4 w-10 align-middle">
+          <div className="w-4 h-4 bg-slate-200/75 rounded" />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap align-middle">
+          <div className="w-16 h-4 bg-slate-200/70 rounded" />
+        </td>
+        <td className="px-6 py-4 align-middle">
+          <div className="w-48 h-4 bg-slate-200/85 rounded mb-2" />
+          <div className="w-20 h-3 bg-slate-200/60 rounded" />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap align-middle">
+          <div className="w-16 h-5 bg-slate-200/70 rounded-lg" />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap align-middle">
+          <div className="w-14 h-5 bg-slate-200/70 rounded-full" />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-right align-middle">
+          <div className="w-24 h-4 bg-slate-200/85 rounded ml-auto" />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-right align-middle">
+          <div className="w-12 h-4 bg-slate-200/70 rounded ml-auto" />
+        </td>
+      </tr>
+    ))}
+  </>
+);
+
+const LedgerMobileSkeleton = () => (
+  <div className="divide-y divide-slate-100 bg-white border-y border-slate-100 animate-pulse">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="p-4 flex items-center gap-3">
+        <div className="w-5 h-5 bg-slate-200/75 rounded shrink-0" />
+        <div className="w-10 h-10 rounded-full bg-slate-200/70 shrink-0" />
+        <div className="flex-1 space-y-2 min-w-0">
+          <div className="h-4 bg-slate-200/85 rounded w-1/2" />
+          <div className="h-3 bg-slate-200/60 rounded w-1/3" />
+        </div>
+        <div className="w-5 h-5 bg-slate-200/75 rounded shrink-0" />
+      </div>
+    ))}
+  </div>
+);
 
 // ===== Sub Components =====
 
@@ -464,25 +512,54 @@ export function LedgerPage() {
   }>({ open: false, editing: null });
   const [showFilter, setShowFilter] = useState(false);
   const [showStats, setShowStats] = useState(false); // Mobile stats panel
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   async function handleDelete(id: string) {
-    if (!confirm("Hapus transaksi ini permanen?")) return;
-    await deleteLedgerEntry(id);
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Transaksi",
+      message: "Apakah Anda yakin ingin menghapus transaksi ini secara permanen dari kas?",
+      confirmText: "Hapus",
+      type: "danger",
+      onConfirm: async () => {
+        await deleteLedgerEntry(id);
+      },
+    });
   }
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Hapus ${selectedIds.size} transaksi terpilih secara permanen?`)) return;
-    setLoading(true);
-    try {
-      await Promise.all(Array.from(selectedIds).map(id => deleteLedgerEntry(id)));
-      setSelectedIds(new Set());
-    } catch (error) {
-      console.error("Gagal menghapus transaksi terpilih:", error);
-      alert("Terjadi kesalahan saat menghapus beberapa transaksi.");
-    } finally {
-      setLoading(false);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Transaksi Terpilih",
+      message: `Apakah Anda yakin ingin menghapus ${selectedIds.size} transaksi terpilih secara permanen?`,
+      confirmText: "Hapus Semua",
+      type: "danger",
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          await Promise.all(Array.from(selectedIds).map((id) => deleteLedgerEntry(id)));
+          setSelectedIds(new Set());
+        } catch (error) {
+          console.error("Gagal menghapus transaksi terpilih:", error);
+          alert("Terjadi kesalahan saat menghapus beberapa transaksi.");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   }
 
   async function handleSubmitForm(val: LedgerUpsert) {
@@ -676,51 +753,45 @@ export function LedgerPage() {
 
         {/* Content Area */}
         <Card className="bg-white shadow-sm border border-slate-100 overflow-hidden rounded-2xl">
-          {loading && (
-            <div className="p-12 text-center text-slate-500">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto mb-3"></div>
-              Memuat data transaksi...
-            </div>
-          )}
-
-          {!loading && filtered.length === 0 && (
-            <div className="p-16 text-center flex flex-col items-center justify-center text-slate-500">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-slate-300" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">
-                Tidak ada transaksi
-              </h3>
-              <p className="text-sm mt-1 max-w-xs mx-auto text-slate-400">
-                Coba ubah filter pencarian Anda atau tambahkan transaksi baru.
-              </p>
-            </div>
-          )}
-
           {/* Desktop Table View */}
-          {!loading && filtered.length > 0 && (
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100">
-                <thead className="bg-slate-50/50">
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  <th scope="col" className="px-6 py-3.5 text-left w-10">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={selectedIds.size === filtered.length && filtered.length > 0}
+                      onChange={toggleSelectAll}
+                      disabled={loading}
+                    />
+                  </th>
+                  <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Tanggal</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Keterangan</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Kategori</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Nominal</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/60 bg-white">
+                {loading ? (
+                  <LedgerTableSkeleton />
+                ) : filtered.length === 0 ? (
                   <tr>
-                    <th scope="col" className="px-6 py-3.5 text-left w-10">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                        checked={selectedIds.size === filtered.length && filtered.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Tanggal</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Keterangan</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Kategori</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
-                    <th className="px-6 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Nominal</th>
-                    <th className="px-6 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Aksi</th>
+                    <td colSpan={7} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center justify-center text-slate-400">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                          <FileText className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Tidak ada transaksi</h3>
+                        <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau tambah transaksi baru.</p>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60 bg-white">
-                  {groupedTransactions.map(({ date, items }) => (
+                ) : (
+                  groupedTransactions.map(({ date, items }) => (
                     <React.Fragment key={date}>
                       {/* Group Header Row */}
                       <tr className="bg-slate-50/30">
@@ -800,103 +871,117 @@ export function LedgerPage() {
                         );
                       })}
                     </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Mobile List View */}
-          {!loading && filtered.length > 0 && (
-            <div className="sm:hidden space-y-4 py-2">
-              {groupedTransactions.map(({ date, items }) => (
-                <div key={date} className="space-y-1.5">
-                  <div className="px-4 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-widest static sm:sticky sm:top-16 bg-white/95 backdrop-blur-sm z-10">
-                    {formatGroupDate(date)}
-                  </div>
-                  <div className="divide-y divide-slate-100/60 bg-white border-y border-slate-100">
-                    {items.map((r) => {
-                      const isSelected = selectedIds.has(r.id);
-                      const MethodIcon = getMethodIcon(r.metode);
-                      return (
-                        <div
-                          key={r.id}
-                          className={`p-4 active:bg-slate-50 transition-colors flex items-center gap-3 ${isSelected ? "bg-indigo-50/40" : ""}`}
-                        >
-                          <div className="pt-0.5">
-                            <input
-                              type="checkbox"
-                              className="w-5 h-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(r.id)}
-                            />
-                          </div>
-
+          <div className="sm:hidden">
+            {loading ? (
+              <LedgerMobileSkeleton />
+            ) : filtered.length === 0 ? (
+              <div className="p-16 text-center flex flex-col items-center justify-center text-slate-400">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800">Tidak ada transaksi</h3>
+                <p className="text-sm mt-1 max-w-xs mx-auto text-slate-400">
+                  Coba ubah filter pencarian Anda atau tambahkan transaksi baru.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 py-2">
+                {groupedTransactions.map(({ date, items }) => (
+                  <div key={date} className="space-y-1.5">
+                    <div className="px-4 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-widest static sm:sticky sm:top-16 bg-white/95 backdrop-blur-sm z-10">
+                      {formatGroupDate(date)}
+                    </div>
+                    <div className="divide-y divide-slate-100/60 bg-white border-y border-slate-100">
+                      {items.map((r) => {
+                        const isSelected = selectedIds.has(r.id);
+                        const MethodIcon = getMethodIcon(r.metode);
+                        return (
                           <div
-                            className="flex-1 flex items-center gap-3 cursor-pointer min-w-0"
-                            onClick={() => setShowForm({ open: true, editing: r })}
+                            key={r.id}
+                            className={`p-4 active:bg-slate-50 transition-colors flex items-center gap-3 ${isSelected ? "bg-indigo-50/40" : ""}`}
                           >
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                                r.tipe === "Masuk"
-                                  ? "bg-emerald-100 text-emerald-600"
-                                  : "bg-rose-100 text-rose-600"
-                              }`}
-                            >
-                              {r.tipe === "Masuk" ? (
-                                <ArrowDownLeft className="w-5 h-5" />
-                              ) : (
-                                <ArrowUpRight className="w-5 h-5" />
-                              )}
+                            <div className="pt-0.5">
+                              <input
+                                type="checkbox"
+                                className="w-5 h-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(r.id)}
+                              />
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold text-slate-800 line-clamp-1 break-all">
-                                {r.keterangan || "Tanpa Keterangan"}
-                              </h4>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
-                                <span className={`font-bold font-mono ${r.tipe === "Masuk" ? "text-emerald-600" : "text-rose-600"}`}>
-                                  {r.tipe === "Keluar" && "-"}
-                                  {formatIDR(Number(r.jumlah || 0))}
-                                </span>
-                                {r.metode && (
-                                  <>
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-slate-500 flex items-center gap-1">
-                                      <MethodIcon className="w-3 h-3 text-slate-400" />
-                                      {r.metode}
-                                    </span>
-                                  </>
+                            <div
+                              className="flex-1 flex items-center gap-3 cursor-pointer min-w-0"
+                              onClick={() => setShowForm({ open: true, editing: r })}
+                            >
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                  r.tipe === "Masuk"
+                                    ? "bg-emerald-100 text-emerald-600"
+                                    : "bg-rose-100 text-rose-600"
+                                }`}
+                              >
+                                {r.tipe === "Masuk" ? (
+                                  <ArrowDownLeft className="w-5 h-5" />
+                                ) : (
+                                  <ArrowUpRight className="w-5 h-5" />
                                 )}
                               </div>
-                              {r.kategori && (
-                                <div className="mt-1">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/50">
-                                    {r.kategori}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(r.id);
-                            }}
-                            className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                            aria-label="Hapus transaksi"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      );
-                    })}
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-semibold text-slate-800 line-clamp-1 break-all">
+                                  {r.keterangan || "Tanpa Keterangan"}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
+                                  <span className={`font-bold font-mono ${r.tipe === "Masuk" ? "text-emerald-600" : "text-rose-600"}`}>
+                                    {r.tipe === "Keluar" && "-"}
+                                    {formatIDR(Number(r.jumlah || 0))}
+                                  </span>
+                                  {r.metode && (
+                                    <>
+                                      <span className="text-slate-300">|</span>
+                                      <span className="text-slate-500 flex items-center gap-1">
+                                        <MethodIcon className="w-3 h-3 text-slate-400" />
+                                        {r.metode}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {r.kategori && (
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/50">
+                                      {r.kategori}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(r.id);
+                              }}
+                              className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                              aria-label="Hapus transaksi"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
       </div>
 
@@ -1015,6 +1100,18 @@ export function LedgerPage() {
             </motion.div>
           </div>
         )}
+
+        {confirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmModal.onConfirm}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            confirmText={confirmModal.confirmText}
+            type={confirmModal.type}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
@@ -1043,7 +1140,7 @@ function FilterModal({ initial, defaults, onApply, onReset, onClose }: any) {
         initial={{ opacity: 0, y: 50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.95 }}
-        className="relative w-full sm:w-[400px] bg-white rounded-2xl shadow-2xl transform transition-all flex flex-col max-h-[90vh]"
+        className="relative w-full sm:w-[400px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
       >
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-bold text-slate-800">Filter Transaksi</h3>

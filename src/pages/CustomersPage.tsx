@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { DocumentData, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { UserPlus, Pencil, Trash2, Search, Frown, MapPin } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 import { db } from "../lib/firebase";
 import { Customer } from "../types";
@@ -48,13 +50,46 @@ const Avatar = ({ name, size = "md" }: { name: string; size?: "sm" | "md" }) => 
 };
 
 const TableSkeleton = () => (
-  <div className="animate-pulse space-y-4">
-    {[1, 2, 3].map((i) => (
-      <div key={i} className="flex items-center space-x-4 p-4 border-b border-slate-100">
-        <div className="rounded-xl bg-slate-200 h-10 w-10 shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 bg-slate-200 rounded w-1/4" />
-          <div className="h-3 bg-slate-200 rounded w-1/3" />
+  <>
+    {[1, 2, 3, 4, 5].map((i) => (
+      <tr key={i} className="animate-pulse border-b border-slate-100">
+        <td className="px-6 py-4 w-[60px] align-middle">
+          <div className="rounded-xl bg-slate-200/85 h-10 w-10 shrink-0" />
+        </td>
+        <td className="px-6 py-4 align-middle">
+          <div className="h-4 bg-slate-200/85 rounded w-32 mb-2" />
+          <div className="h-3 bg-slate-200/60 rounded w-48" />
+        </td>
+        <td className="px-6 py-4 align-middle">
+          <div className="h-6 bg-slate-200/70 rounded-lg w-28" />
+        </td>
+        <td className="px-6 py-4 text-right align-middle">
+          <div className="flex items-center justify-end gap-2">
+            <div className="w-9 h-9 rounded-xl bg-slate-200/75" />
+            <div className="w-9 h-9 rounded-xl bg-slate-200/75" />
+            <div className="w-9 h-9 rounded-xl bg-slate-200/75" />
+          </div>
+        </td>
+      </tr>
+    ))}
+  </>
+);
+
+const MobileListSkeleton = () => (
+  <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-xs animate-pulse">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="px-4 py-3.5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-slate-200/85 shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="h-3.5 bg-slate-200/85 rounded w-1/3" />
+            <div className="h-2.5 bg-slate-200/60 rounded w-2/3" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-slate-200/75" />
+          <div className="w-8 h-8 rounded-full bg-slate-200/75" />
+          <div className="w-8 h-8 rounded-full bg-slate-200/75" />
         </div>
       </div>
     ))}
@@ -69,20 +104,39 @@ export function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [migrating, setMigrating] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   async function handleMigrate() {
-    if (!confirm("Apakah Anda yakin ingin mengubah semua data nama pelanggan lama dan pesanan lama menjadi HURUF KAPITAL (UPPERCASE)?\n\nTindakan ini akan memakan waktu beberapa saat dan tidak dapat dibatalkan.")) {
-      return;
-    }
-    setMigrating(true);
-    try {
-      await migrateCustomersAndOrdersToUppercase();
-      alert("Migrasi berhasil! Seluruh data nama pelanggan dan pesanan telah diubah menjadi huruf kapital.");
-    } catch (err: any) {
-      alert("Gagal melakukan migrasi: " + (err?.message || err));
-    } finally {
-      setMigrating(false);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Migrasi Huruf Kapital",
+      message: "Apakah Anda yakin ingin mengubah semua data nama pelanggan lama dan pesanan lama menjadi HURUF KAPITAL (UPPERCASE)? Tindakan ini akan memakan waktu beberapa saat dan tidak dapat dibatalkan.",
+      confirmText: "Ya, Migrasi",
+      type: "warning",
+      onConfirm: async () => {
+        setMigrating(true);
+        try {
+          await migrateCustomersAndOrdersToUppercase();
+          alert("Migrasi berhasil! Seluruh data nama pelanggan dan pesanan telah diubah menjadi huruf kapital.");
+        } catch (err: any) {
+          alert("Gagal melakukan migrasi: " + (err?.message || err));
+        } finally {
+          setMigrating(false);
+        }
+      },
+    });
   }
 
   useEffect(() => {
@@ -126,12 +180,20 @@ export function CustomersPage() {
 
   async function handleDelete(id?: string) {
     if (!id) return;
-    if (!confirm("Hapus pelanggan ini?")) return;
-    try {
-      await deleteCustomer(id);
-    } catch (err: any) {
-      alert("Gagal menghapus: " + (err?.message || err));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Pelanggan",
+      message: "Apakah Anda yakin ingin menghapus pelanggan ini secara permanen dari database?",
+      confirmText: "Hapus",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteCustomer(id);
+        } catch (err: any) {
+          alert("Gagal menghapus: " + (err?.message || err));
+        }
+      },
+    });
   }
 
   function openEditForm(c: Customer) {
@@ -192,7 +254,11 @@ export function CustomersPage() {
             </div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pelanggan</p>
             <h3 className="text-3xl font-black mt-2 tracking-tight">
-              {loading ? <span className="text-lg font-medium text-slate-500">Memuat...</span> : metrics.total}
+              {loading ? (
+                <span className="inline-block h-8 w-16 bg-slate-800 rounded animate-pulse" />
+              ) : (
+                metrics.total
+              )}
             </h3>
             <p className="text-[10px] text-slate-500 mt-2 font-medium">Terdaftar di database Firestore</p>
           </div>
@@ -204,7 +270,11 @@ export function CustomersPage() {
             </div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">WhatsApp Aktif</p>
             <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
-              {loading ? <span className="text-lg font-medium text-slate-400">Memuat...</span> : metrics.wa}
+              {loading ? (
+                <span className="inline-block h-8 w-16 bg-slate-200/85 rounded animate-pulse" />
+              ) : (
+                metrics.wa
+              )}
             </h3>
             <p className="text-[10px] text-slate-500 mt-2 font-semibold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -219,7 +289,11 @@ export function CustomersPage() {
             </div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Profil Lengkap</p>
             <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
-              {loading ? <span className="text-lg font-medium text-slate-400">Memuat...</span> : metrics.complete}
+              {loading ? (
+                <span className="inline-block h-8 w-16 bg-slate-200/85 rounded animate-pulse" />
+              ) : (
+                metrics.complete
+              )}
             </h3>
             <p className="text-[10px] text-slate-500 mt-2 font-medium">Memiliki Telepon & Alamat terisi</p>
           </div>
@@ -252,13 +326,7 @@ export function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {loading && (
-                  <tr>
-                    <td colSpan={4} className="p-6">
-                      <TableSkeleton />
-                    </td>
-                  </tr>
-                )}
+                {loading && <TableSkeleton />}
 
                 {!loading && filtered.length === 0 && (
                   <tr>
@@ -338,11 +406,7 @@ export function CustomersPage() {
 
         {/* List Mobile Sederhana */}
         <div className="sm:hidden">
-          {loading && (
-            <div className="p-4 bg-white rounded-xl shadow-xs border border-slate-200/50">
-              <TableSkeleton />
-            </div>
-          )}
+          {loading && <MobileListSkeleton />}
 
           {!loading && filtered.length === 0 && (
             <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center bg-white rounded-2xl border border-slate-200/60 shadow-xs">
@@ -463,6 +527,21 @@ export function CustomersPage() {
       >
         <UserPlus className="w-6 h-6" />
       </button>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmModal.onConfirm}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            confirmText={confirmModal.confirmText}
+            type={confirmModal.type}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

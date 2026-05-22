@@ -192,10 +192,14 @@ export function LedgerFormModal({
         initial={isSmall ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
         animate={isSmall ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
         exit={isSmall ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+        transition={
+          isSmall
+            ? { type: "tween", ease: "easeOut", duration: 0.25 }
+            : { type: "spring", stiffness: 350, damping: 28 }
+        }
         className={`relative w-full md:w-[560px] max-w-full rounded-t-2xl md:rounded-2xl bg-white shadow-2xl h-[88vh] md:h-auto max-h-[88vh] flex flex-col overflow-hidden border-t-4 ${
           isMasuk ? "border-t-emerald-500" : "border-t-rose-500"
-        } transition-all duration-300`}
+        } transition-colors duration-300`}
       >
         {/* Header */}
         <div className="sticky top-0 z-10 border-b border-slate-100 bg-white px-5 py-4">
