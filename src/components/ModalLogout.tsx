@@ -1,14 +1,13 @@
-import { LogOutIcon } from "lucide-react";
 import { motion } from "framer-motion";
-export const LogoutModal = ({
-  isOpen,
-  onClose,
-  onConfirm,
-}: {
+import { LogOutIcon } from "lucide-react";
+
+interface LogoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-}) => {
+}
+
+export function LogoutModal({ isOpen, onClose, onConfirm }: LogoutModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -22,7 +21,7 @@ export const LogoutModal = ({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
       />
 
-      {/* Modal Content */}
+      {/* Konten Modal */}
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -37,8 +36,7 @@ export const LogoutModal = ({
             Konfirmasi Logout
           </h3>
           <p className="text-sm text-neutral-500 mt-2">
-            Apakah Anda yakin ingin keluar dari sesi ini? Anda harus login
-            kembali untuk mengakses data.
+            Apakah Anda yakin ingin keluar dari sesi ini? Anda harus login kembali untuk mengakses data.
           </p>
         </div>
 
@@ -59,4 +57,4 @@ export const LogoutModal = ({
       </motion.div>
     </div>
   );
-};
+}

@@ -3,13 +3,12 @@ import { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Pages
-import { Dashboard, ApplicationView } from "./pages/Dashboard";
+import { Dashboard } from "./pages/Dashboard";
 import { OrdersPage } from "./pages/OrdersPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { LedgerPage } from "./pages/LedgerPage";
 import { LoginPage } from "./pages/LoginPage";
-import PurchasesPage from "./pages/PurchasesPage";
-import { SchedulePage } from "./pages/SchedulePage";
+
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -17,21 +16,21 @@ import { UnitPriceModal } from "./components/UnitPriceModal";
 import { BottomTabBar } from "./components/BottomTabBar";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
+import { LogoutModal } from "./components/ModalLogout";
 import UpdatePrompt from "./components/UpdatePrompt";
+import { LogOut } from "lucide-react";
 
-// Assets & Services
-import logoLight from "./assets/logo-admin.png";
+// Types & Services
 import { Customer, Order, TabId } from "./types";
+import { listenAuth, logout } from "./services/authFirebase";
 import { listenCustomers } from "./services/customersFirebase";
 import { subscribeOrders, toExtended } from "./services/ordersFirebase";
-import { listenAuth, logout } from "./services/authFirebase";
 import { subscribeSettings } from "./services/settingsFirebase";
-import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
-import StoryGeneratorDynamic from "./pages/StoryGeneratorPage";
-import { LogoutModal } from "./components/ModalLogout";
 import { notificationService } from "./services/notificationService";
-import { LogOut } from "lucide-react";
-// Icon Sederhana
+import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
+
+// Assets
+import logoLight from "./assets/logo-admin.png";
 
 export default function App() {
   const [tab, setTab] = useState<TabId>("home");
@@ -185,10 +184,29 @@ export default function App() {
   if (!user) return <LoginPage />;
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      {/* Background Pattern */}
-      <div className="fixed inset-0 z-[-1] pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.4] dark:opacity-[0.05]"></div>
+    <div className="min-h-screen text-slate-900 bg-[#f8fafc] relative">
+      {/* Background pattern & ambient glows */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
+        {/* Glow 1: Indigo Top-Right */}
+        <div className="absolute -top-[10%] right-[5%] w-[600px] h-[600px] rounded-full bg-indigo-400/8 blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: "8s" }} />
+        {/* Glow 2: Emerald Bottom-Left */}
+        <div className="absolute bottom-[10%] left-[5%] w-[550px] h-[550px] rounded-full bg-emerald-400/6 blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDuration: "12s" }} />
+        {/* Glow 3: Violet Center-Right */}
+        <div className="absolute top-[35%] right-[15%] w-[450px] h-[450px] rounded-full bg-violet-400/5 blur-[90px] mix-blend-multiply animate-pulse" style={{ animationDuration: "10s" }} />
+
+        {/* Fine Technical Grid Pattern with Radial Mask */}
+        <div 
+          className="absolute inset-0 opacity-[0.6]"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px)
+            `,
+            backgroundSize: "24px 24px",
+            maskImage: "radial-gradient(ellipse at 50% 50%, black 60%, transparent 100%)",
+            WebkitMaskImage: "radial-gradient(ellipse at 50% 50%, black 60%, transparent 100%)",
+          }}
+        />
       </div>
 
       {/* LAYOUT CONTAINER */}
@@ -205,53 +223,56 @@ export default function App() {
 
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0 relative custom-scrollbar">
+          {/* MOBILE TOP BAR */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur border-b border-slate-100/80 sticky top-0 z-30 shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg overflow-hidden ring-2 ring-[#0a2342]/10 shrink-0">
+                <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />
+              </div>
+              <span className="text-sm font-extrabold text-slate-800 tracking-tight">Nihong Jastip</span>
+            </div>
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              className="flex items-center justify-center p-2 rounded-xl bg-rose-50 hover:bg-rose-100/80 text-rose-600 border border-rose-100/30 transition-all duration-200 shadow-sm shrink-0"
+              title="Logout"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
 
           <main className="min-h-full">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {tab === "home" && (
-              <Dashboard
-                user={user!}
-                orders={orders}
-                customers={customers}
-                unitPrice={unitPrice}
-                globalJastipYen={globalJastipYen}
-                onSeeAllOrders={() => setTab("orders")}
-                setActiveFeature={(feature) => setTab(feature as any)}
-              />
-            )}
-            {tab === "orders" && (
-              <OrdersPage
-                customers={customers}
-                orders={orders}
-                setOrders={setOrders}
-                unitPrice={unitPrice}
-              />
-            )}
-            {tab === "customers" && <CustomersPage />}
-            {tab === "purchase" && <PurchasesPage />}
-            {tab === "cash" && <LedgerPage />}
-            {tab === "generator" && <StoryGeneratorDynamic />}
-            {tab === "schedule" && <SchedulePage />}
-            {tab === "apps" && (
-              <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
-                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-                  <ApplicationView
-                    user={user}
-                    registerFCM={() => {}}
-                    setActiveFeature={(v) => setTab(v as any)}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {tab === "home" && (
+                  <Dashboard
+                    user={user!}
+                    orders={orders}
+                    customers={customers}
+                    unitPrice={unitPrice}
+                    globalJastipYen={globalJastipYen}
+                    onSeeAllOrders={() => setTab("orders")}
+                    setActiveFeature={(feature) => setTab(feature as any)}
                   />
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+                )}
+                {tab === "orders" && (
+                  <OrdersPage
+                    customers={customers}
+                    orders={orders}
+                    setOrders={setOrders}
+                    unitPrice={unitPrice}
+                  />
+                )}
+                {tab === "customers" && <CustomersPage />}
+                {tab === "cash" && <LedgerPage />}
+
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
       </div>
@@ -269,7 +290,7 @@ export default function App() {
                   prev.map((o) => ({
                     ...o,
                     totalHarga:
-                      Math.ceil(Math.max(0, (o as any).jumlahKg || 0)) *
+                      (Math.ceil(Math.max(0, (o as any).jumlahKg || 0) * 2) / 2) *
                       newPrice,
                   })),
                 );

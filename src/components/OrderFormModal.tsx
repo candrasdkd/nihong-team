@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Customer, Order, OrderStatus } from "../types";
+import { Customer, Order } from "../types";
 import { todayStr } from "../utils/helpers";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
@@ -8,14 +8,47 @@ import { formatCurrency } from "../utils/format";
 import SearchableSelect from "./ui/SearchableSelect";
 import { Select } from "./ui/Select";
 import { RupiahInput } from "./ui/RupiahInput";
+import { FlagID, FlagJP } from "./ui/Flags";
 import { CATEGORY_OPTIONS, ORDER_STATUSES } from "../utils/constants";
-import { ImageIcon, Loader2, X, Upload } from "lucide-react";
+import {
+  ImageIcon,
+  Loader2,
+  X,
+  Upload,
+  Coins,
+  TrendingUp,
+  Package,
+  User,
+  Calendar,
+  Truck,
+  Scale,
+  AlertCircle,
+  Sparkles,
+  Trash2,
+  FileText,
+  Info,
+} from "lucide-react";
 import { compressImage } from "../utils/image";
 
 const toStr = (v: number) => (Number.isFinite(v) ? String(v) : "");
 const num = (v: any) => {
   const n = parseFloat(String(v));
   return Number.isFinite(n) ? n : 0;
+};
+
+// Emoji mapping for category select preview
+const CATEGORY_EMOJIS: Record<string, string> = {
+  "Makanan & Minuman": "🍔",
+  "Kesehatan & Suplemen": "💊",
+  "Skin Care & Kosmetik": "💄",
+  "Fashion & Pakaian": "👕",
+  "Tas & Aksesoris": "👜",
+  "Sepatu": "👟",
+  "Elektronik": "💻",
+  "Buku & Mainan": "🧸",
+  "Perlengkapan Rumah Tangga": "🏠",
+  "Hobi & Koleksi": "🎮",
+  "Lainnya": "📦",
 };
 
 export function OrderFormModal({
@@ -35,6 +68,26 @@ export function OrderFormModal({
 }) {
   const [loading, setLoading] = useState(false);
 
+  // Status and Style Helpers for Inputs (Required vs Optional, Empty vs Filled)
+  const renderLabel = (text: string, value: any, isRequired: boolean = false) => {
+    return (
+      <div className="flex justify-between items-center mb-1.5 select-none">
+        <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+          <span>{text}</span>
+          {isRequired && <span className="text-rose-500 font-extrabold">*</span>}
+        </span>
+      </div>
+    );
+  };
+
+  const getInputClass = (value: any, isRequired: boolean = false, extraClasses: string = "") => {
+    const borderStyle = "border-slate-200 hover:border-slate-350 focus:border-indigo-500";
+    const backgroundStyle = "bg-white text-slate-800 shadow-2xs";
+    const focusStyle = "focus:ring-4 focus:ring-indigo-500/10 focus:outline-hidden";
+
+    return `w-full rounded-xl transition-all duration-300 py-2.5 px-3 border text-sm ${borderStyle} ${backgroundStyle} ${focusStyle} ${extraClasses}`;
+  };
+
   // State Mata Uang
   const [currency, setCurrency] = useState<"IDR" | "JPY">(
     (initial as any)?.currency || "IDR"
@@ -43,13 +96,33 @@ export function OrderFormModal({
   // State Form Utama
   const [no] = useState(initial?.no || `ORD-${new Date().getTime()}`);
   const [namaBarang, setNamaBarang] = useState(initial?.namaBarang || "");
-  const [kategori, setKategori] = useState(initial?.kategori || "Makanan");
+  const [kategori, setKategori] = useState(initial?.kategori || "Makanan & Minuman");
   const [tanggal, setTanggal] = useState(initial?.tanggal || todayStr());
   const [namaPelanggan, setNamaPelanggan] = useState(initial?.namaPelanggan || "");
   const [jumlahKg, setJumlahKg] = useState<number>(initial?.jumlahKg || 1);
   const [pengiriman, setPengiriman] = useState<string>(
-    (initial as any)?.pengiriman || "INDO - JPG"
+    (initial as any)?.pengiriman || "INDO - JEPANG"
   );
+
+  const [routeOption, setRouteOption] = useState<"INDO - JEPANG" | "JEPANG - INDO" | "Lainnya">(() => {
+    const val = (initial as any)?.pengiriman || "INDO - JEPANG";
+    if (val === "INDO - JEPANG" || val === "JEPANG - INDO") {
+      return val;
+    }
+    return "Lainnya";
+  });
+
+  const handleRouteChange = (option: "INDO - JEPANG" | "JEPANG - INDO" | "Lainnya") => {
+    setRouteOption(option);
+    if (option === "Lainnya") {
+      if (pengiriman === "INDO - JEPANG" || pengiriman === "JEPANG - INDO") {
+        setPengiriman("");
+      }
+    } else {
+      setPengiriman(option);
+    }
+  };
+
   const [catatan, setCatatan] = useState<string>((initial as any)?.catatan || "");
   const [status, setStatus] = useState<string>(
     (initial?.status as any) || "Belum Membayar"
@@ -94,6 +167,16 @@ export function OrderFormModal({
       (Number(hargaJastipManual) || 0) -
       (Number(baseOngkir) || 0),
     [hargaJastipMarkup, hargaOngkirMarkup, hargaJastipManual, baseOngkir]
+  );
+
+  const profitJastip = useMemo(
+    () => (Number(hargaJastipMarkup) || 0) - (Number(hargaJastipManual) || 0),
+    [hargaJastipMarkup, hargaJastipManual]
+  );
+
+  const profitOngkir = useMemo(
+    () => (Number(hargaOngkirMarkup) || 0) - (Number(baseOngkir) || 0),
+    [hargaOngkirMarkup, baseOngkir]
   );
 
   const profitNegative = useMemo(
@@ -193,178 +276,575 @@ export function OrderFormModal({
     [customers]
   );
 
+  const activeCategoryEmoji = useMemo(() => {
+    return CATEGORY_EMOJIS[kategori] || "📦";
+  }, [kategori]);
+
   return (
     <Modal
-      onClose={loading ? () => { } : onClose}
+      onClose={loading ? () => {} : onClose}
       title={initial ? "Edit Pesanan" : "Tambah Pesanan"}
       size="5xl"
-      contentClassName="w-full"
+      contentClassName="w-full bg-slate-50/30"
     >
-      <div className="px-2 mb-4">
-        <label className="block mb-2 text-sm font-medium text-neutral-700">
-          Mata Uang Transaksi
-        </label>
-        <div className="flex p-1 bg-neutral-100 rounded-xl w-fit border border-neutral-200">
-          <button
-            type="button"
-            onClick={() => setCurrency("IDR")}
-            className={`px-6 py-1.5 rounded-lg text-sm font-bold transition-all ${currency === "IDR" ? "bg-white text-orange-600 shadow-sm" : "text-neutral-500 hover:text-neutral-700"}`}
-          >
-            IDR (Rp)
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrency("JPY")}
-            className={`px-6 py-1.5 rounded-lg text-sm font-bold transition-all ${currency === "JPY" ? "bg-white text-red-600 shadow-sm" : "text-neutral-500 hover:text-neutral-700"}`}
-          >
-            JPY (¥)
-          </button>
+      {/* HEADER INFO & CURRENCY SWITCHER */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 pb-4 border-b border-slate-100 mb-6">
+        <div className="bg-slate-100/60 border border-slate-200/50 px-4 py-2.5 rounded-2xl flex items-center gap-3 w-fit select-none">
+          <div className="p-1.5 bg-slate-200/80 text-slate-500 rounded-lg shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">No. Registrasi Pesanan</p>
+              <span className="text-[8px] font-black text-slate-500 bg-slate-250 border border-slate-300 px-1.5 py-0.5 rounded-md uppercase tracking-wider leading-none">
+                🔒 OTOMATIS / LOCKED
+              </span>
+            </div>
+            <span className="text-sm font-black text-slate-700 tracking-tight block mt-0.5">
+              {no}
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 tracking-wider uppercase mb-1.5 text-left sm:text-right">
+            Mata Uang Transaksi
+          </label>
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/50 w-fit">
+            <button
+              type="button"
+              onClick={() => setCurrency("IDR")}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                currency === "IDR"
+                  ? "bg-white text-orange-600 shadow-sm border border-orange-100"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FlagID />
+              <span>IDR (Rp)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency("JPY")}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                currency === "JPY"
+                  ? "bg-white text-rose-600 shadow-sm border border-rose-100"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FlagJP />
+              <span>JPY (¥)</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-h-[60vh] overflow-y-auto p-2">
-        <form id="order-form" onSubmit={submit} className="grid grid-cols-1 gap-6">
-          <fieldset disabled={loading} className={loading ? "opacity-70" : ""}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Input label="No Pesanan" value={no} disabled className="bg-neutral-50" />
-              <Input
-                label="Nama Barang"
-                value={namaBarang}
-                onChange={(e) => setNamaBarang(e.target.value)}
-                required
-              />
-              <div className="lg:col-span-1">
-                <label className="block mb-1 text-sm text-neutral-600">Kategori</label>
-                <Select value={kategori} onChange={(e) => setKategori(e.target.value)}>
-                  {CATEGORY_OPTIONS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <Input
-                label="Tanggal"
-                type="date"
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-                required
-              />
-              <div className="lg:col-span-1">
-                <SearchableSelect
-                  label="Nama Pelanggan *"
-                  value={namaPelanggan}
-                  onChange={setNamaPelanggan}
-                  options={customerOptions}
-                  disabled={loading}
-                />
-              </div>
-              <div className="relative">
-                <Input
-                  label="Berat (Kg)"
-                  type="number"
-                  step="0.01"
-                  value={toStr(jumlahKg)}
-                  onChange={(e) => setJumlahKg(num(e.target.value))}
-                  required
-                />
-                <div className="absolute right-0 top-0 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold mt-1.5 mr-2 border border-blue-100 italic">
-                  Dibulatkan: {ceilKg} kg
-                </div>
-              </div>
-              <Input
-                label="Lokasi Pengiriman"
-                value={pengiriman}
-                onChange={(e) => setPengiriman(e.target.value)}
-                className="lg:col-span-2"
-              />
-              <div className="lg:col-span-1">
-                <label className="block mb-1 text-sm text-neutral-600">Status</label>
-                <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {ORDER_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-
-            <div
-              className={`mt-6 rounded-2xl border p-4 bg-white/50 space-y-4 ${currency === "JPY" ? "border-red-100" : "border-orange-100"}`}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <RupiahInput
-                  currency={currency}
-                  label={`Jastip Asli (${currency})`}
-                  value={hargaJastipManual}
-                  onChange={setHargaJastipManual}
-                />
-                <RupiahInput
-                  currency={currency}
-                  label={`Jastip Nihong (${currency})`}
-                  value={hargaJastipMarkup}
-                  onChange={setHargaJastipMarkup}
-                />
-                <RupiahInput
-                  currency={currency}
-                  label={`Ongkir Asli (${currency})`}
-                  value={hargaOngkir}
-                  onChange={setHargaOngkir}
-                />
-                <RupiahInput
-                  currency={currency}
-                  label={`Ongkir Nihong (${currency})`}
-                  value={hargaOngkirMarkup}
-                  onChange={setHargaOngkirMarkup}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-neutral-600">
-                    Total Pembayaran
-                  </label>
-                  <div className="px-3 py-2 rounded-xl border border-[#0a2342]/20 bg-white font-bold text-lg text-[#0a2342]">
-                    {formatCurrency(totalPembayaran, currency)}
+      <div className="max-h-[65vh] overflow-y-auto pr-1">
+        <form id="order-form" onSubmit={submit} className="space-y-6">
+          <fieldset disabled={loading} className={`space-y-6 ${loading ? "opacity-70" : ""}`}>
+            
+            {/* GRID SECTIONS A & B */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* SECTION 1: INFORMASI PRODUK */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+                  <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg">
+                    <Package size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Informasi Produk</h4>
+                    <p className="text-[10px] text-slate-400">Nama barang & kategori pesanan</p>
                   </div>
                 </div>
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-neutral-600">
-                    Total Keuntungan
-                  </label>
-                  <div
-                    className={`px-3 py-2 rounded-xl border font-bold text-lg ${profitNegative ? "border-red-300 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}
-                  >
-                    {formatCurrency(totalKeuntungan, currency)}
+
+                <div className="space-y-4">
+                  <div>
+                    {renderLabel("Nama Barang", namaBarang, true)}
+                    <Input
+                      value={namaBarang}
+                      onChange={(e) => setNamaBarang(e.target.value)}
+                      required
+                      placeholder="Masukkan nama barang..."
+                      className={getInputClass(namaBarang, true)}
+                    />
                   </div>
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block mb-1 text-sm text-neutral-600">Ringkasan</label>
-                  <div className="px-3 py-2 rounded-xl bg-neutral-100 text-xs text-neutral-500 leading-relaxed">
-                    Berat: <b>{ceilKg}kg</b> <br />
-                    Mata Uang: <b>{currency}</b>
+
+                  <div className="relative">
+                    {renderLabel("Kategori", kategori, true)}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Select
+                          value={kategori}
+                          onChange={(e) => setKategori(e.target.value)}
+                          className={getInputClass(kategori, true)}
+                        >
+                          {CATEGORY_OPTIONS.map((k) => (
+                            <option key={k} value={k}>
+                              {k}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-xl shadow-inner shrink-0 select-none" title={kategori}>
+                        {activeCategoryEmoji}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    {renderLabel("Status Pesanan", status, true)}
+                    <div className="flex gap-2.5">
+                      <div className="flex-1">
+                        <Select
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                          className={getInputClass(status, true)}
+                        >
+                          {ORDER_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className={`px-4 py-2 text-xs font-bold rounded-xl border flex items-center justify-center shadow-sm transition-all shrink-0 select-none ${
+                        status === "Selesai"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                          : "bg-amber-50 text-amber-700 border-amber-200/60"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "Selesai" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
+                        {status}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block mb-1 text-sm text-neutral-600">
-                  Foto Produk ({imageUrls.length}/3)
-                </label>
-                <div className="flex flex-wrap items-center gap-4 p-3 border rounded-xl bg-white min-h-[88px]">
-                  {imageUrls.map((url, idx) => (
-                    <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border shadow-sm">
-                      <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+              {/* SECTION 2: DETAIL PELANGGAN & DISTRIBUSI */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+                  <div className="p-1.5 bg-[#0a2342]/10 text-[#0a2342] rounded-lg">
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Pelanggan & Distribusi</h4>
+                    <p className="text-[10px] text-slate-400">Identitas pelanggan & jadwal pengiriman</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    {renderLabel("Nama Pelanggan", namaPelanggan, true)}
+                    <SearchableSelect
+                      value={namaPelanggan}
+                      onChange={setNamaPelanggan}
+                      options={customerOptions}
+                      disabled={loading}
+                      placeholder="Cari atau pilih pelanggan..."
+                      buttonClassName={getInputClass(namaPelanggan, true)}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      {renderLabel("Tanggal Pesanan", tanggal, true)}
+                      <Input
+                        type="date"
+                        value={tanggal}
+                        onChange={(e) => setTanggal(e.target.value)}
+                        required
+                        className={getInputClass(tanggal, true)}
+                      />
+                    </div>
+
+                    <div>
+                      {renderLabel("Berat (Kg)", jumlahKg, true)}
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={toStr(jumlahKg)}
+                          onChange={(e) => setJumlahKg(num(e.target.value))}
+                          required
+                          placeholder="0.0"
+                          className={`${getInputClass(jumlahKg, true)} pr-20`}
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg font-bold border border-indigo-100 flex items-center gap-1 shadow-sm select-none">
+                          <Scale size={9} /> Dibulatkan: {ceilKg} kg
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    {renderLabel("Rute / Lokasi Pengiriman", pengiriman, false)}
+                    <div className="flex p-1 bg-slate-150/70 dark:bg-slate-800 rounded-2xl border border-slate-200/50 w-full gap-1 mb-2">
                       <button
                         type="button"
-                        onClick={() => setImageUrls((prev) => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-0.5 right-0.5 bg-white/80 p-0.5 rounded-full text-red-500 shadow-sm hover:bg-red-50"
+                        onClick={() => handleRouteChange("INDO - JEPANG")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                          routeOption === "INDO - JEPANG"
+                            ? "bg-white text-indigo-600 shadow-sm border border-indigo-150/60"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                        }`}
                       >
-                        <X size={10} />
+                        INDO - JEPANG
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRouteChange("JEPANG - INDO")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                          routeOption === "JEPANG - INDO"
+                            ? "bg-white text-indigo-600 shadow-sm border border-indigo-150/60"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                        }`}
+                      >
+                        JEPANG - INDO
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRouteChange("Lainnya")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                          routeOption === "Lainnya"
+                            ? "bg-white text-indigo-600 shadow-sm border border-indigo-150/60"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                        }`}
+                      >
+                        Lainnya
+                      </button>
+                    </div>
+                    {routeOption === "Lainnya" && (
+                      <div className="transition-all duration-300">
+                        <Input
+                          value={pengiriman}
+                          onChange={(e) => setPengiriman(e.target.value)}
+                          placeholder="Masukkan rute pengiriman khusus (misal: SINGAPURA - INDO)..."
+                          className={getInputClass(pengiriman, false)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* SECTION 3: PREMIUM FINTECH PRICING DASHBOARD */}
+            <div className="border rounded-2xl bg-white shadow-sm overflow-hidden transition-all border-slate-200/80">
+              {/* Card Ribbon Accent */}
+              <div className="h-1.5 w-full bg-slate-800"></div>
+
+              <div className="p-5 sm:p-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
+                    <Coins size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Rincian Keuangan & Markup Harga</h4>
+                    <p className="text-[10px] text-slate-400">
+                      Kelola harga modal jastip/ongkir dan harga markup yang ditagih ke pelanggan ({currency})
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-inputs Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* JASTIP BOX */}
+                  <div className="p-4 rounded-2xl border bg-slate-50/50 border-slate-150 space-y-4">
+                    <h5 className="text-xs font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-600"></span>
+                      Biaya Jasa Titip (Jastip)
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        {renderLabel("Jastip Asli (Modal)", hargaJastipManual, false)}
+                        <RupiahInput
+                          currency={currency}
+                          label=""
+                          value={hargaJastipManual}
+                          onChange={setHargaJastipManual}
+                          placeholder={currency === "JPY" ? "¥ 0" : "Rp 0"}
+                          className={getInputClass(hargaJastipManual)}
+                        />
+                      </div>
+                      <div>
+                        {renderLabel("Jastip Nihong (Jual)", hargaJastipMarkup, false)}
+                        <RupiahInput
+                          currency={currency}
+                          label=""
+                          value={hargaJastipMarkup}
+                          onChange={setHargaJastipMarkup}
+                          placeholder={currency === "JPY" ? "¥ 0" : "Rp 0"}
+                          className={getInputClass(hargaJastipMarkup)}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-normal">
+                      * Selisih Jastip Nihong dan Jastip Asli dihitung sebagai laba bersih jasa titip Anda.
+                    </p>
+                  </div>
+
+                  {/* SHIPPING / ONGKIR BOX */}
+                  <div className="p-4 rounded-2xl border bg-slate-50/50 border-slate-150 space-y-4">
+                    <h5 className="text-xs font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-600"></span>
+                      Biaya Ongkos Kirim (Shipping)
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        {renderLabel("Ongkir Asli (Modal)", hargaOngkir, false)}
+                        <RupiahInput
+                          currency={currency}
+                          label=""
+                          value={hargaOngkir}
+                          onChange={setHargaOngkir}
+                          placeholder={currency === "JPY" ? "¥ 0" : "Rp 0"}
+                          className={getInputClass(hargaOngkir)}
+                        />
+                      </div>
+                      <div>
+                        {renderLabel("Ongkir Nihong (Jual)", hargaOngkirMarkup, false)}
+                        <RupiahInput
+                          currency={currency}
+                          label=""
+                          value={hargaOngkirMarkup}
+                          onChange={setHargaOngkirMarkup}
+                          placeholder={currency === "JPY" ? "¥ 0" : "Rp 0"}
+                          className={getInputClass(hargaOngkirMarkup)}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-normal">
+                      * Ongkir dihitung berdasarkan markup pengiriman yang dibebankan kepada pelanggan.
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* VISUAL ANALYTICS BOARD */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-slate-100 pt-6">
+                  
+                  {/* CARD A: TOTAL TAGIHAN PELANGGAN */}
+                  <div className="bg-gradient-to-br from-slate-950 via-[#0d1e33] to-[#050e1a] text-white rounded-3xl p-5 shadow-xl border border-[#1e3a5f]/40 relative overflow-hidden flex flex-col justify-between min-h-[160px] group select-none">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-all duration-500"></div>
+                    
+                    <div>
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2.5 gap-2">
+                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#fbbf24]"></span>
+                          Tagihan Pelanggan
+                        </span>
+                        <span className="text-[8px] font-black text-blue-300 bg-blue-950 border border-blue-900 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                          🔒 AUTO-CALC
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-2xl font-black text-white leading-tight tracking-tight">
+                          {formatCurrency(totalPembayaran, currency)}
+                        </h4>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-400 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] text-slate-400 mt-2 bg-white/5 px-2.5 py-1 rounded-xl w-fit border border-white/5">
+                        <span>Jastip: <b className="text-slate-200">{formatCurrency(hargaJastipMarkup, currency)}</b></span>
+                        <span className="text-slate-600">•</span>
+                        <span>Ongkir: <b className="text-slate-200">{formatCurrency(hargaOngkirMarkup, currency)}</b></span>
+                      </div>
+                    </div>
+
+                    <div className="text-[9px] text-slate-400 border-t border-white/5 pt-2 mt-3 flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span>Ditagih ke:</span>
+                        <span className="font-extrabold text-amber-300 truncate max-w-[150px]" title={namaPelanggan}>
+                          {namaPelanggan || "Belum dipilih"}
+                        </span>
+                      </div>
+                      <p className="text-[8px] text-slate-500 italic mt-0.5 select-none">* Dihitung otomatis: Jastip Jual + Ongkir Jual</p>
+                    </div>
+                  </div>
+
+                  {/* CARD B: TOTAL KEUNTUNGAN OWNER */}
+                  {profitNegative ? (
+                    <div className="bg-gradient-to-br from-rose-950 via-[#2d0a11] to-[#1a0307] text-white rounded-3xl p-5 shadow-xl border border-rose-800/40 relative overflow-hidden flex flex-col justify-between min-h-[160px] group animate-pulse select-none">
+                      <div>
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2.5 gap-2">
+                          <span className="text-[10px] font-black text-rose-400 tracking-wider uppercase flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                            Laba Defisit / Rugi
+                          </span>
+                          <span className="text-[8px] font-black text-rose-300 bg-rose-950 border border-rose-900 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                            🔒 AUTO-CALC
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-2xl font-black text-rose-400 leading-tight tracking-tight">
+                            {formatCurrency(totalKeuntungan, currency)}
+                          </h4>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-rose-400 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] text-rose-300/80 mt-2 bg-white/5 px-2.5 py-1 rounded-xl w-fit border border-white/5">
+                          <span>Jastip: <b className="text-rose-200">{formatCurrency(profitJastip, currency)}</b></span>
+                          <span className="text-rose-800">•</span>
+                          <span>Ongkir: <b className="text-rose-200">{formatCurrency(profitOngkir, currency)}</b></span>
+                        </div>
+                      </div>
+
+                      <div className="text-[9px] text-rose-300/70 border-t border-white/5 pt-2 mt-3 flex flex-col gap-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span>Margin Kerugian:</span>
+                          <span className="font-extrabold bg-rose-950/60 text-rose-200 px-2 py-0.5 rounded-md border border-rose-800/40">
+                            {totalPembayaran > 0 ? ((totalKeuntungan / totalPembayaran) * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                        <p className="text-[8px] text-rose-500/80 italic mt-0.5 select-none">* Formula: Harga Jual Total - Harga Modal Total</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-emerald-950 via-[#062c1b] to-[#02180e] text-white rounded-3xl p-5 shadow-xl border border-emerald-800/40 relative overflow-hidden flex flex-col justify-between min-h-[160px] group select-none">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+
+                      <div>
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2.5 gap-2">
+                          <span className="text-[10px] font-black text-emerald-400 tracking-wider uppercase flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                            Laba Bersih Jastip
+                          </span>
+                          <span className="text-[8px] font-black text-emerald-300 bg-emerald-950 border border-emerald-900 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                            🔒 AUTO-CALC
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-2xl font-black text-emerald-400 leading-tight tracking-tight">
+                            {formatCurrency(totalKeuntungan, currency)}
+                          </h4>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] text-emerald-300/80 mt-2 bg-white/5 px-2.5 py-1 rounded-xl w-fit border border-white/5">
+                          <span>Jastip: <b className="text-emerald-200">+{formatCurrency(profitJastip, currency)}</b></span>
+                          <span className="text-emerald-800">•</span>
+                          <span>Ongkir: <b className="text-emerald-200">+{formatCurrency(profitOngkir, currency)}</b></span>
+                        </div>
+                      </div>
+
+                      <div className="text-[9px] text-emerald-300/70 border-t border-white/5 pt-2 mt-3 flex flex-col gap-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span>Margin Bersih:</span>
+                          <span className="font-extrabold bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-700/30">
+                            +{totalPembayaran > 0 ? ((totalKeuntungan / totalPembayaran) * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                        <p className="text-[8px] text-emerald-500/80 italic mt-0.5 select-none">* Formula: Harga Jual Total - Harga Modal Total</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CARD C: PARAMETER & RINGKASAN */}
+                  <div className="bg-gradient-to-br from-white to-slate-50 text-slate-800 rounded-3xl p-5 shadow-lg border border-slate-200/60 relative overflow-hidden flex flex-col justify-between min-h-[160px] select-none">
+                    <div>
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-2.5 gap-2">
+                        <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase flex items-center gap-1.5">
+                          Parameter Detail
+                        </span>
+                        <span className="text-[8px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 select-none">
+                          🔒 SYSTEM-ONLY
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-medium">Pembulatan Berat</span>
+                          <span className="font-bold text-slate-800 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-lg text-[10px]">
+                            {ceilKg} kg
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-medium">Mata Uang Aktif</span>
+                          <span className="font-bold text-slate-800 text-[10px] flex items-center gap-1.5">
+                            {currency === "JPY" ? (
+                              <>
+                                <FlagJP />
+                                <span>Yen (JPY)</span>
+                              </>
+                            ) : (
+                              <>
+                                <FlagID />
+                                <span>Rupiah (IDR)</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-medium">Rasio Markup</span>
+                          <span className={`font-bold text-[10px] ${profitNegative ? "text-red-600" : "text-emerald-600"}`}>
+                            {totalPembayaran > 0 ? ((totalKeuntungan / totalPembayaran) * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-[8px] text-slate-400 border-t border-slate-100 pt-2 mt-3 select-none leading-normal">
+                      <span className="font-semibold text-slate-500 block mb-0.5">ℹ️ Catatan Sistem:</span>
+                      Parameter di atas dihitung otomatis oleh sistem untuk validasi pesanan.
+                    </div>
+                  </div>
+
+                </div>
+
+
+                {/* PROFIT WARNING ALERT */}
+                {profitNegative && (
+                  <div className="flex items-start gap-3 bg-red-50 border border-red-200/60 text-red-800 p-4 rounded-2xl text-xs leading-relaxed shadow-sm">
+                    <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5 animate-bounce" />
+                    <div>
+                      <p className="font-bold text-red-900 mb-0.5">Keuntungan Bernilai Negatif (Rugi)</p>
+                      <p>
+                        Total harga jualan (Nihong) lebih kecil dibandingkan harga modal asli Anda. Pesanan tidak dapat disimpan sebelum margin keuntungan disesuaikan menjadi bernilai positif atau Rp 0.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* SECTION 4: VISUAL UPLOADER & CATATAN */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* UPLOADER */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+                  <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg">
+                    <ImageIcon size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Foto Produk</h4>
+                    <p className="text-[10px] text-slate-400">Unggah foto barang belanjaan ({imageUrls.length}/3)</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3.5 p-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/30 min-h-[96px] justify-center sm:justify-start">
+                  {imageUrls.map((url, idx) => (
+                    <div key={idx} className="group relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shadow-sm transition-transform hover:scale-105 duration-200">
+                      <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setImageUrls((prev) => prev.filter((_, i) => i !== idx))}
+                          className="bg-red-600 text-white p-1 rounded-lg hover:bg-red-700 transition shadow-md"
+                          title="Hapus foto"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   ))}
 
@@ -373,22 +853,22 @@ export function OrderFormModal({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading}
-                      className="w-16 h-16 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-neutral-400 hover:border-orange-400 hover:text-orange-400 transition-colors"
+                      className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 bg-white hover:border-orange-500 hover:text-orange-500 hover:shadow-sm transition-all duration-200 cursor-pointer"
                     >
                       {isUploading ? (
-                        <Loader2 size={16} className="animate-spin" />
+                        <Loader2 size={18} className="animate-spin text-orange-500" />
                       ) : (
                         <>
-                          <ImageIcon size={16} />
-                          <span className="text-[8px] font-bold mt-1">UPLOAD</span>
+                          <Upload size={16} />
+                          <span className="text-[8px] font-extrabold mt-1 uppercase tracking-wider">Upload</span>
                         </>
                       )}
                     </button>
                   )}
 
                   {imageUrls.length === 0 && !isUploading && (
-                    <div className="flex-1">
-                      <p className="text-[10px] text-neutral-400">Opsional: Maksimal 3 foto produk.</p>
+                    <div className="flex-1 text-center sm:text-left">
+                      <p className="text-[10px] text-slate-400 font-medium">Opsional: Maksimal 3 foto produk untuk referensi belanja.</p>
                     </div>
                   )}
 
@@ -402,33 +882,72 @@ export function OrderFormModal({
                   />
                 </div>
               </div>
-              <div>
-                <label className="block mb-1 text-sm text-neutral-600">Catatan</label>
+
+              {/* CATATAN */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+                  <div className="p-1.5 bg-[#0a2342]/10 text-[#0a2342] rounded-lg">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Catatan Khusus</h4>
+                    <p className="text-[10px] text-slate-400">Memo khusus atau catatan khusus untuk pesanan</p>
+                  </div>
+                </div>
+
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={catatan}
                   onChange={(e) => setCatatan(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-orange-500 text-sm"
-                  placeholder="Catatan khusus..."
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none text-sm placeholder:text-slate-400 shadow-sm bg-white transition-all resize-none"
+                  placeholder="Contoh: Titipan kosmetik warna nomor 3, bungkus ekstra bubble wrap..."
                 />
               </div>
+
             </div>
+
           </fieldset>
         </form>
       </div>
 
-      <div className="flex justify-end gap-2 border-t pt-4 mt-4">
-        <Button variant="ghost" type="button" onClick={onClose} disabled={loading}>
-          Batal
-        </Button>
-        <Button
-          type="submit"
-          form="order-form"
-          disabled={loading || profitNegative || customerEmpty}
-          className={`bg-orange-600 hover:bg-orange-700 text-white ${loading || profitNegative || customerEmpty ? "opacity-50" : ""}`}
-        >
-          {loading ? "Menyimpan..." : "Simpan Pesanan"}
-        </Button>
+      {/* FOOTER ACTIONS */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-100 pt-5 mt-6">
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold self-start sm:self-auto">
+          <Info size={11} className="text-slate-400" />
+          <span>Wajib mengisi semua kolom bertanda bintang (*)</span>
+        </div>
+
+        <div className="flex justify-end gap-2.5 w-full sm:w-auto">
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-xl"
+          >
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            form="order-form"
+            disabled={loading || profitNegative || customerEmpty}
+            className={`px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-md shadow-orange-200 flex items-center gap-2 font-bold transition-all active:scale-[0.98] ${
+              loading || profitNegative || customerEmpty ? "opacity-40 cursor-not-allowed shadow-none" : ""
+            }`}
+          >
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={15} />
+                <span>{initial ? "Simpan Perubahan" : "Simpan Pesanan"}</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

@@ -29,7 +29,7 @@ const BANK_ACCOUNTS = [
 
 // --- HELPER FUNCTIONS ---
 function compute(o: ExtendedOrder, unitPrice: number) {
-  const kg = Math.ceil(Number(o.jumlahKg ?? 0));
+  const kg = Math.ceil(Number(o.jumlahKg ?? 0) * 2) / 2;
   const baseJastip =
     typeof o.hargaJastip === "number" ? o.hargaJastip : kg * unitPrice;
   const jastipMarkup = Number(o.hargaJastipMarkup ?? 0);

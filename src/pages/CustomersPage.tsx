@@ -1,39 +1,46 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button"; // Pastikan ini mengarah ke Button baru
-import { CustomerFormModal } from "../components/CustomerFormModal";
-import { db } from "../lib/firebase";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  DocumentData,
-} from "firebase/firestore";
-import { Customer } from "../types";
-import { openWhatsApp } from "../utils/helpers";
+import { useEffect, useMemo, useState } from "react";
+import { DocumentData, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { UserPlus, Pencil, Trash2, Search, Frown, MapPin } from "lucide-react";
 
-// ---- Konstanta ----
+import { db } from "../lib/firebase";
+import { Customer } from "../types";
+import { openWhatsApp } from "../utils/helpers";
+import { FAB_COLOR_CLASS } from "../utils/constants";
+import {
+  addCustomer,
+  updateCustomer,
+  deleteCustomer,
+} from "../services/customersFirebase";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { CustomerFormModal } from "../components/CustomerFormModal";
+
+// ─── Konstanta ───────────────────────────────────────────────
 const COL = "customer";
 
-// WhatsApp brand icon (not in lucide-react)
+// WhatsApp brand icon (tidak tersedia di lucide-react)
 const IconWhatsApp = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M20.52 3.48A11.94 11.94 0 0 0 12.06 0C5.47.03.15 5.36.18 11.95a11.87 11.87 0 0 0 1.7 6.17L0 24l5.99-1.85a11.93 11.93 0 0 0 6.07 1.66h.01c6.59-.04 11.91-5.37 11.93-11.96a11.9 11.9 0 0 0-3.48-8.37Zm-8.46 18.3a9.9 9.9 0 0 1-5.05-1.39l-.36-.21-3.56 1.1 1.12-3.47-.23-.36a9.9 9.9 0 1 1 8.08 4.33ZM17.2 14.3c-.3-.16-1.78-.88-2.05-.98-.27-.1-.47-.16-.66.16-.2.32-.77.98-.95 1.18-.18.2-.35.23-.65.08-.3-.16-1.27-.47-2.43-1.5-.9-.8-1.5-1.8-1.67-2.1-.17-.32-.02-.49.13-.64.13-.12.3-.32.45-.48.15-.16.2-.27.3-.45.1-.18.05-.34-.02-.48-.08-.16-.66-1.6-.9-2.2-.24-.58-.48-.5-.66-.51h-.56c-.18 0-.48.07-.73.34-.25.27-.96.94-.96 2.3 0 1.36.99 2.67 1.12 2.85.14.18 1.96 2.98 4.75 4.18.66.28 1.18.45 1.58.58.66.21 1.27.18 1.75.11.53-.08 1.78-.73 2.04-1.44.25-.7.25-1.3.18-1.44-.08-.13-.27-.2-.57-.36Z" />
   </svg>
 );
 
-// ---- Komponen UI Kecil ----
-const Avatar = ({ name }: { name: string }) => {
-  const initial = name ? name.charAt(0).toUpperCase() : "?";
+// ─── Sub-komponen ─────────────────────────────────────────────
+const Avatar = ({ name, size = "md" }: { name: string; size?: "sm" | "md" }) => {
+  const initial = name ? name.trim().charAt(0).toUpperCase() : "?";
+  const charCode = initial.charCodeAt(0) || 0;
+  const gradients = [
+    "from-indigo-500 to-purple-600 shadow-indigo-100",
+    "from-blue-500 to-indigo-600 shadow-blue-100",
+    "from-emerald-500 to-teal-600 shadow-emerald-100",
+    "from-violet-500 to-fuchsia-600 shadow-violet-100",
+    "from-amber-500 to-orange-600 shadow-amber-100",
+    "from-rose-500 to-pink-600 shadow-rose-100",
+  ];
+  const gradient = gradients[charCode % gradients.length];
+  const sizeClasses = size === "sm" ? "w-9 h-9 rounded-lg text-sm" : "w-10 h-10 rounded-xl text-base";
   return (
-    <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg shrink-0 border border-indigo-200">
+    <div className={`${sizeClasses} bg-gradient-to-br ${gradient} flex items-center justify-center font-black text-white shrink-0 shadow-sm border border-white/20 select-none`}>
       {initial}
     </div>
   );
@@ -42,42 +49,18 @@ const Avatar = ({ name }: { name: string }) => {
 const TableSkeleton = () => (
   <div className="animate-pulse space-y-4">
     {[1, 2, 3].map((i) => (
-      <div
-        key={i}
-        className="flex items-center space-x-4 p-4 border-b border-slate-100"
-      >
-        <div className="rounded-full bg-slate-200 h-10 w-10"></div>
+      <div key={i} className="flex items-center space-x-4 p-4 border-b border-slate-100">
+        <div className="rounded-xl bg-slate-200 h-10 w-10 shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-          <div className="h-3 bg-slate-200 rounded w-1/3"></div>
+          <div className="h-4 bg-slate-200 rounded w-1/4" />
+          <div className="h-3 bg-slate-200 rounded w-1/3" />
         </div>
       </div>
     ))}
   </div>
 );
 
-// ---- CRUD ----
-async function addCustomer(
-  data: Omit<Customer, "id" | "createdAt" | "updatedAt">,
-) {
-  await addDoc(collection(db, COL), {
-    ...data,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-}
-async function updateCustomerById(
-  id: string,
-  data: Partial<Omit<Customer, "id" | "createdAt">>,
-) {
-  const ref = doc(db, COL, id);
-  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
-}
-async function deleteCustomerById(id: string) {
-  const ref = doc(db, COL, id);
-  await deleteDoc(ref);
-}
-
+// ─── Halaman Utama ────────────────────────────────────────────
 export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,82 +99,130 @@ export function CustomersPage() {
     [customers, q],
   );
 
+  // CRM Analytics Metrics
+  const metrics = useMemo(() => {
+    const total = customers.length;
+    const wa = customers.filter((c) => !!c.telpon?.trim()).length;
+    const complete = customers.filter((c) => !!c.telpon?.trim() && !!c.alamat?.trim()).length;
+    return { total, wa, complete };
+  }, [customers]);
+
   async function handleDelete(id?: string) {
     if (!id) return;
     if (!confirm("Hapus pelanggan ini?")) return;
     try {
-      await deleteCustomerById(id);
+      await deleteCustomer(id);
     } catch (err: any) {
       alert("Gagal menghapus: " + (err?.message || err));
     }
+  }
+
+  function openEditForm(c: Customer) {
+    setEditing(c);
+    setShowForm(true);
+  }
+
+  function openAddForm() {
+    setEditing(null);
+    setShowForm(true);
   }
 
   const makeDefaultWaMsg = (nama?: string) =>
     `Halo ${nama || ""}, saya ingin konfirmasi pesanan.`;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans text-slate-900">
-      {/* 1. Header Section (Sticky) */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
+      {/* Header (Sticky) */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-              Pelanggan
-            </h1>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  setShowForm(true);
-                }}
-                className="hidden sm:flex bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10"
-              >
-                <UserPlus className="w-4 h-4 mr-2" /> <span>Tambah Baru</span>
-              </Button>
+            <div>
+              <h1 className="text-lg font-black bg-gradient-to-r from-slate-950 via-slate-800 to-slate-700 bg-clip-text text-transparent tracking-tight">
+                Database Pelanggan
+              </h1>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 hidden sm:block">
+                Manajemen data jastip & kontak whatsapp
+              </p>
             </div>
+            <Button
+              onClick={openAddForm}
+              className="hidden sm:flex bg-slate-950 hover:bg-slate-850 text-white shadow-lg shadow-slate-950/10 hover:shadow-slate-950/15 active:scale-95 transition-all px-4 rounded-xl h-10 font-bold text-xs gap-1.5"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Tambah Pelanggan</span>
+            </Button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Summary */}
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-slate-500 text-sm">
-              Total{" "}
-              <strong className="text-slate-900">{customers.length}</strong>{" "}
-              pelanggan terdaftar
+        
+        {/* CRM Metric Dashboard Section */}
+        <div className="hidden sm:grid grid-cols-3 gap-4">
+          {/* Card 1: Total Pelanggan */}
+          <div className="bg-slate-950 text-white rounded-2xl p-5 shadow-lg shadow-slate-950/10 border border-slate-900 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300">
+              <UserPlus className="w-32 h-32" />
+            </div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pelanggan</p>
+            <h3 className="text-3xl font-black mt-2 tracking-tight">
+              {loading ? <span className="text-lg font-medium text-slate-500">Memuat...</span> : metrics.total}
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-2 font-medium">Terdaftar di database Firestore</p>
+          </div>
+
+          {/* Card 2: WhatsApp Aktif */}
+          <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300 text-emerald-600">
+              <IconWhatsApp className="w-32 h-32" />
+            </div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">WhatsApp Aktif</p>
+            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
+              {loading ? <span className="text-lg font-medium text-slate-400">Memuat...</span> : metrics.wa}
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-2 font-semibold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+              Kontak siap dihubungi cepat
             </p>
+          </div>
+
+          {/* Card 3: Profil Lengkap */}
+          <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300 text-indigo-600">
+              <MapPin className="w-32 h-32" />
+            </div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Profil Lengkap</p>
+            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
+              {loading ? <span className="text-lg font-medium text-slate-400">Memuat...</span> : metrics.complete}
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-2 font-medium">Memiliki Telepon & Alamat terisi</p>
           </div>
         </div>
 
-        {/* Toolbar & Search */}
-        <Card className="bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/60 p-1">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
+        {/* Search Panel with Glassmorphism & Glow */}
+        <div className="bg-white/70 backdrop-blur-md shadow-xs border border-slate-200/80 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500/80 transition-all duration-300 !mt-0 sm:!mt-6">
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 h-5 w-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nama, alamat, atau no. telpon..."
+              placeholder="Cari nama pelanggan, alamat, atau nomor WhatsApp..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="block w-full pl-10 pr-3 py-3 border-none bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400 text-slate-700 sm:text-sm"
+              className="block w-full pl-11 pr-4 py-3 bg-transparent border-0 ring-0 focus:ring-0 focus:outline-none placeholder:text-slate-400 text-slate-800 text-sm font-medium"
             />
           </div>
-        </Card>
+        </div>
 
-        {/* Content Area */}
-        <div className="bg-transparent sm:bg-white sm:shadow-lg sm:shadow-slate-200/50 sm:border sm:border-slate-100 sm:rounded-xl overflow-hidden">
-          {/* Desktop Table */}
-          <div className="hidden sm:block overflow-x-auto">
+        {/* Tabel Desktop */}
+        <div className="bg-white shadow-xl shadow-slate-200/20 border border-slate-200/60 rounded-2xl overflow-hidden hidden sm:block">
+          <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50/50 border-b border-slate-100">
+              <thead className="bg-slate-50 border-b border-slate-100">
                 <tr className="text-slate-500 text-left">
-                  <th className="px-6 py-4 font-semibold w-[60px]"></th>
-                  <th className="px-6 py-4 font-semibold">Nama Pelanggan</th>
-                  <th className="px-6 py-4 font-semibold">Kontak</th>
-                  <th className="px-6 py-4 font-semibold text-right">Aksi</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] w-[60px]" />
+                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Nama & Alamat</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">No. Telepon / WhatsApp</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -205,15 +236,11 @@ export function CustomersPage() {
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center">
+                    <td colSpan={4} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
-                        <Frown className="w-16 h-16 mb-3 opacity-50 text-slate-300" />
-                        <p className="text-lg font-medium text-slate-600">
-                          Tidak ada pelanggan ditemukan
-                        </p>
-                        <p className="text-sm">
-                          Coba kata kunci lain atau tambah pelanggan baru.
-                        </p>
+                        <Frown className="w-12 h-12 mb-3 text-slate-300" />
+                        <p className="text-base font-bold text-slate-700">Tidak ada pelanggan ditemukan</p>
+                        <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau tambah pelanggan baru.</p>
                       </div>
                     </td>
                   </tr>
@@ -221,63 +248,46 @@ export function CustomersPage() {
 
                 {!loading &&
                   filtered.map((c) => (
-                    <tr
-                      key={c.id}
-                      className="group hover:bg-slate-50/80 transition-colors"
-                    >
-                      <td className="px-6 py-3 w-[60px]">
+                    <tr key={c.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                      <td className="px-6 py-4 w-[60px] align-middle">
                         <Avatar name={c.nama} />
                       </td>
-                      <td className="px-6 py-3">
-                        <div className="font-semibold text-slate-900">
-                          {c.nama}
-                        </div>
-                        <div
-                          className="text-slate-500 text-xs mt-0.5 truncate max-w-[200px]"
-                          title={c.alamat}
-                        >
-                          {c.alamat || "Alamat belum diisi"}
+                      <td className="px-6 py-4 align-middle">
+                        <div className="font-bold text-slate-900 text-sm tracking-tight">{c.nama}</div>
+                        <div className="text-slate-500 text-xs mt-1 truncate max-w-[320px] font-medium" title={c.alamat}>
+                          {c.alamat || <span className="italic text-slate-400">Alamat belum diisi</span>}
                         </div>
                       </td>
-                      <td className="px-6 py-3">
+                      <td className="px-6 py-4 align-middle">
                         {c.telpon ? (
-                          <div className="flex items-center gap-2 text-slate-600 font-mono text-xs">
-                            <span className="bg-slate-100 px-2 py-1 rounded">
-                              {c.telpon}
-                            </span>
+                          <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 font-mono text-xs px-2.5 py-1 rounded-lg border border-slate-200/60 font-semibold shadow-2xs">
+                            {c.telpon}
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic text-xs">
-                            -
-                          </span>
+                          <span className="text-slate-400 italic text-xs">Tanpa No. HP</span>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-right">
-                        {/* ACTION BUTTONS DESKTOP: Pakai size="icon" agar kotak rapi */}
-                        <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100">
+                      <td className="px-6 py-4 text-right align-middle">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() =>
-                              openWhatsApp(c.telpon, makeDefaultWaMsg(c.nama))
-                            }
+                            onClick={() => openWhatsApp(c.telpon, makeDefaultWaMsg(c.nama))}
                             disabled={!c.telpon}
-                            className="text-green-600 hover:bg-green-50 hover:text-green-700 border border-transparent hover:border-green-100"
+                            className="w-9 h-9 rounded-xl text-emerald-600 bg-emerald-50/50 hover:bg-emerald-500 hover:text-white border border-emerald-100/50 hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10 transition-all duration-200 active:scale-95 disabled:opacity-30 disabled:bg-transparent disabled:border-transparent disabled:text-slate-300 disabled:shadow-none"
                             title="Chat WhatsApp"
                           >
-                            <IconWhatsApp className="w-4 h-4" />
+                            <IconWhatsApp className="w-4.5 h-4.5" />
                           </Button>
 
-                          <div className="h-4 w-px bg-slate-200 mx-1"></div>
+                          <div className="h-5 w-px bg-slate-100 mx-0.5" />
 
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => {
-                              setEditing(c);
-                              setShowForm(true);
-                            }}
-                            className="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                            onClick={() => openEditForm(c)}
+                            className="w-9 h-9 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all duration-200 active:scale-95"
+                            title="Edit Data"
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -286,7 +296,8 @@ export function CustomersPage() {
                             size="icon"
                             variant="ghost"
                             onClick={() => handleDelete(c.id)}
-                            className="text-slate-500 hover:text-red-600 hover:bg-red-50"
+                            className="w-9 h-9 rounded-xl text-slate-400 hover:text-red-650 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all duration-200 active:scale-95"
+                            title="Hapus"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -297,107 +308,100 @@ export function CustomersPage() {
               </tbody>
             </table>
           </div>
+        </div>
 
-          {/* ---- MOBILE VIEW (RE-DESIGNED) ---- */}
-          <div className="sm:hidden grid grid-cols-1 gap-4">
-            {loading && (
-              <div className="p-4 bg-white rounded-xl">
-                <TableSkeleton />
-              </div>
-            )}
+        {/* List Mobile Sederhana */}
+        <div className="sm:hidden">
+          {loading && (
+            <div className="p-4 bg-white rounded-xl shadow-xs border border-slate-200/50">
+              <TableSkeleton />
+            </div>
+          )}
 
-            {!loading && filtered.length === 0 && (
-              <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center">
-                      <Frown className="w-16 h-16 mb-2 opacity-40 text-slate-300" />
-                <p className="text-slate-600 font-medium">Belum ada data</p>
-                <p className="text-xs text-slate-400">
-                  Silakan tambah pelanggan baru
-                </p>
-              </div>
-            )}
+          {!loading && filtered.length === 0 && (
+            <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center bg-white rounded-2xl border border-slate-200/60 shadow-xs">
+              <Frown className="w-12 h-12 mb-3 text-slate-300" />
+              <p className="text-slate-700 font-bold text-sm">Tidak ada pelanggan ditemukan</p>
+              <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau tambah baru.</p>
+            </div>
+          )}
 
-            {!loading &&
-              filtered.map((c) => (
+          {!loading && filtered.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/60 divide-y divide-slate-100 overflow-hidden shadow-xs">
+              {filtered.map((c) => (
                 <div
                   key={c.id}
-                  className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3"
+                  className="px-4 py-3.5 flex items-center justify-between gap-3 active:bg-slate-50/60 transition-all"
                 >
-                  {/* Mobile Header: Avatar & Nama */}
-                  <div className="flex items-center gap-3">
-                    <Avatar name={c.nama} />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-slate-900 text-base truncate">
+                  {/* Kiri: Avatar & Info Ringkas */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar name={c.nama} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 text-sm tracking-tight truncate leading-tight">
                         {c.nama}
                       </h3>
-                      {c.telpon ? (
-                        <div className="flex items-center mt-1">
-                          <span className="bg-slate-100 text-slate-600 font-mono text-xs px-2 py-0.5 rounded-md border border-slate-200">
-                            {c.telpon}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic block mt-1">
-                          Tanpa No. HP
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Mobile Body: Alamat */}
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100/50">
-                    <div className="flex items-start gap-2 text-slate-500">
-                      <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" />
-                      <p className="text-sm leading-relaxed text-slate-600">
-                        {c.alamat || (
-                          <span className="italic text-slate-400">
-                            Alamat belum diisi
-                          </span>
+                      {/* Baris Meta Tunggal (No. HP • Alamat) */}
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 font-semibold truncate leading-none">
+                        {c.telpon ? (
+                          <span className="font-mono text-[10px] text-slate-500 shrink-0">{c.telpon}</span>
+                        ) : (
+                          <span className="italic text-slate-400 text-[10px] shrink-0">Tanpa No. HP</span>
                         )}
-                      </p>
+                        
+                        {(c.telpon || c.alamat) && (
+                          <span className="text-slate-300 font-black select-none text-[9px] shrink-0">•</span>
+                        )}
+                        
+                        {c.alamat ? (
+                          <span className="truncate text-slate-400 text-[10px] font-medium">{c.alamat}</span>
+                        ) : (
+                          <span className="italic text-slate-400 text-[10px] font-medium">Alamat belum diisi</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Mobile Footer: Actions Grid (3 Kolom Sejajar) */}
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    {/* WhatsApp Button (Logo Saja, Custom Color) */}
+                  {/* Kanan: Quick Actions Symmetrical & Circular */}
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
-                      onClick={() =>
-                        openWhatsApp(c.telpon, makeDefaultWaMsg(c.nama))
-                      }
-                      disabled={!c.telpon}
+                      size="icon"
                       variant="ghost"
-                      className="col-span-1 w-full bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 h-12"
+                      onClick={() => openWhatsApp(c.telpon, makeDefaultWaMsg(c.nama))}
+                      disabled={!c.telpon}
+                      className="w-8 h-8 rounded-full text-emerald-600 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-30 disabled:bg-transparent disabled:text-slate-350 transition-all active:scale-90"
+                      title="WhatsApp"
                     >
-                      <IconWhatsApp className="w-6 h-6" />
+                      <IconWhatsApp className="w-3.5 h-3.5" />
                     </Button>
 
-                    {/* Edit Button (Outline) */}
                     <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditing(c);
-                        setShowForm(true);
-                      }}
-                      className="col-span-1 w-full text-slate-600 hover:text-indigo-600 h-12"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => openEditForm(c)}
+                      className="w-8 h-8 rounded-full text-slate-500 bg-slate-50 hover:bg-slate-100 transition-all active:scale-90"
+                      title="Edit"
                     >
-                      <Pencil className="w-5 h-5" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </Button>
 
-                    {/* Delete Button (Outline, Red hover) */}
                     <Button
-                      variant="outline"
+                      size="icon"
+                      variant="ghost"
                       onClick={() => handleDelete(c.id)}
-                      className="col-span-1 w-full text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-100 h-12"
+                      className="w-8 h-8 rounded-full text-red-500 bg-red-50/50 hover:bg-red-100 transition-all active:scale-90"
+                      title="Hapus"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Modal Form */}
       {showForm && (
         <CustomerFormModal
           initial={editing || undefined}
@@ -405,7 +409,7 @@ export function CustomersPage() {
           onSubmit={async (val: Customer) => {
             try {
               if (editing?.id) {
-                await updateCustomerById(editing.id, {
+                await updateCustomer(editing.id, {
                   nama: val.nama,
                   alamat: val.alamat,
                   telpon: val.telpon,
@@ -425,17 +429,15 @@ export function CustomersPage() {
         />
       )}
 
-      {/* Floating Action Button (Mobile Only) */}
+      {/* FAB Mobile */}
       <button
-        onClick={() => {
-          setEditing(null);
-          setShowForm(true);
-        }}
-        className="sm:hidden fixed bottom-20 right-6 h-14 w-14 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 flex items-center justify-center active:scale-95 transition-transform z-40"
+        onClick={openAddForm}
+        className={`sm:hidden fixed bottom-20 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-all z-40 ${FAB_COLOR_CLASS}`}
         aria-label="Tambah Pelanggan"
       >
-        <UserPlus className="w-7 h-7" />
+        <UserPlus className="w-6 h-6" />
       </button>
     </div>
   );
 }
+

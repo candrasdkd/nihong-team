@@ -1,9 +1,9 @@
-// src/components/KursInfoCard.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Calculator, ArrowRightLeft, RefreshCw, AlertCircle } from "lucide-react";
 import { formatIDR } from "../utils/format";
 import { useExchangeRate } from "../hooks/useExchangeRate";
 import { updateSettings } from "../services/settingsFirebase";
+import { FlagID, FlagJP } from "./ui/Flags";
 
 export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: number }) {
   const { rate, loading, error } = useExchangeRate();
@@ -54,9 +54,15 @@ export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: num
       {/* Exchange Rate Status */}
       <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">🇯🇵 1 JPY</span>
-          <ArrowRightLeft size={12} className="text-slate-400" />
-          <span className="text-sm font-bold text-slate-700">🇮🇩 IDR</span>
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/30 shadow-xs">
+            <FlagJP />
+            <span className="text-xs font-bold text-slate-700">1 JPY</span>
+          </div>
+          <ArrowRightLeft size={12} className="text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/30 shadow-xs">
+            <FlagID />
+            <span className="text-xs font-bold text-slate-700">IDR</span>
+          </div>
         </div>
         <div className="text-right">
           {loading ? (

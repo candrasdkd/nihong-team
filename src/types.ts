@@ -4,24 +4,10 @@ export type TabId =
   | "home"
   | "orders"
   | "customers"
-  | "purchase"
   | "cash"
-  | "generator"
-  | "schedule"
-  | "apps"
   | string;
 
-export type JadwalRute = "Indo → Jepang" | "Jepang → Indo";
-export type JadwalStatus = "open" | "closed" | "full";
 
-export type JadwalKeberangkatan = {
-  id: string;
-  rute: JadwalRute;
-  tanggal: string; // 'YYYY-MM-DD'
-  keterangan?: string | null;
-  status: JadwalStatus;
-  createdAt?: number;
-};
 export interface Order {
   id?: string;
   no: string;
@@ -99,52 +85,9 @@ export type MonthPoint = {
   profit: number;
 };
 
-export type PurchaseItem = {
-  id: string;
-  name: string;
-  quantity: string;
-  pic: string;
-  customer: string;
-  platform?: string;
-  link?: string;
-  note?: string;
-  shippingDate: string;
-  isDone: boolean;
-  imageUrl?: string;
-  usageType?: "checking" | "pricing";
-  originalPrice?: number;
-  jastipPrice?: number;
-};
 
-export type PurchaseCustomer = {
-  id?: string;
-  nama: string;
-  createdAt?: any;
-};
-
-export type ShareConfig = {
-  date: string;
-  pic: string;
-  status: "all" | "pending" | "done";
-};
 
 export type Option = { label: string; value: string };
-
-export type ScheduleItem = {
-  id: number;
-  date: string;
-  status: "SOLD OUT" | "LIMITED" | "AVAILABLE";
-  value?: string;
-};
-
-export type ThemeType = "BOARDING" | "NEON" | "PASTEL" | "CARGO";
-
-export interface ItemContent {
-  id: number;
-  status: "AVAILABLE" | "LIMITED" | "SOLD OUT";
-  date: string;
-  value: number;
-}
 
 export interface AppSettings {
   jastipYenPerKg?: number;

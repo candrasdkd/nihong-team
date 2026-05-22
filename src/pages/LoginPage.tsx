@@ -1,244 +1,396 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useTransform,
-  useSpring,
-} from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { login } from "../services/authFirebase";
 import logo from "../assets/nihong.png";
 
-/* =========================
-🌸 Sakura Petal (Improved Physics)
-========================= */
-function SakuraPetal({ delay }: { delay: number }) {
-  const randomX = Math.random() * 100;
+// ============================================================
+// Floating Orb – dekoratif background blur circle
+// ============================================================
+function FloatingOrb({
+  size,
+  color,
+  x,
+  y,
+  duration,
+}: {
+  size: number;
+  color: string;
+  x: string;
+  y: string;
+  duration: number;
+}) {
   return (
     <motion.div
-      initial={{ y: -20, x: `${randomX}vw`, rotate: 0, opacity: 0 }}
+      className="absolute rounded-full pointer-events-none blur-3xl"
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        left: x,
+        top: y,
+      }}
       animate={{
-        y: "110vh",
-        x: [`${randomX}vw`, `${randomX - 10}vw`, `${randomX + 10}vw`],
-        rotate: 720,
-        opacity: [0, 0.6, 0.6, 0],
+        scale: [1, 1.15, 1],
+        opacity: [0.35, 0.55, 0.35],
+        x: [0, 20, -10, 0],
+        y: [0, -15, 10, 0],
       }}
       transition={{
-        duration: 12 + Math.random() * 10,
+        duration,
         repeat: Infinity,
-        delay,
-        ease: "linear",
+        ease: "easeInOut",
       }}
-      className="absolute pointer-events-none"
-    >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="#fbcfe8"
-        className="drop-shadow-sm"
-      >
-        <path d="M12 2c2 3 4 3 6 4-1 2-1 4-3 6 2 1 3 3 3 5-2 1-4 1-6-1-1 2-3 2-6 1 0-2 1-4 3-5-2-2-2-4-3-6 2-1 4-1 6-4z" />
-      </svg>
-    </motion.div>
+    />
   );
 }
 
-/* =========================
-⛩️ Nihon Input (Custom Component)
-========================= */
-const NihonInput = ({ label, type, value, onChange }: any) => (
-  <div className="relative group mb-6">
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      required
-      className="w-full bg-transparent border-b-2 border-neutral-200 py-3 pt-6 outline-none focus:border-red-500 transition-all duration-500 peer"
-      placeholder=" "
-    />
-    <label className="absolute left-0 top-6 text-neutral-400 text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300 pointer-events-none peer-focus:top-0 peer-focus:text-red-500 peer-focus:text-[10px] peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-[10px]">
-      {label}
-    </label>
-    <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-red-500 transition-all duration-500 group-focus-within:w-full" />
-  </div>
-);
+// ============================================================
+// Input Field – bersih & modern
+// ============================================================
+interface InputFieldProps {
+  id: string;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  icon: React.ReactNode;
+  rightElement?: React.ReactNode;
+}
 
+function InputField({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  icon,
+  rightElement,
+}: InputFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const hasValue = value.length > 0;
+  const isFloating = focused || hasValue;
+
+  return (
+    <div className="relative">
+      {/* Icon kiri */}
+      <div
+        className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
+          focused ? "text-[#f5a623]" : "text-slate-400"
+        }`}
+      >
+        {icon}
+      </div>
+
+      {/* Label floating */}
+      <label
+        htmlFor={id}
+        className={`absolute left-12 transition-all duration-200 pointer-events-none font-medium ${
+          isFloating
+            ? "top-2 text-[10px] tracking-widest uppercase text-[#f5a623]"
+            : "top-1/2 -translate-y-1/2 text-sm text-slate-400"
+        }`}
+      >
+        {label}
+      </label>
+
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required
+        autoComplete={type === "email" ? "email" : "current-password"}
+        className={`w-full bg-white/5 rounded-xl border px-4 pt-6 pb-3 pl-12 text-white outline-none transition-all duration-200 text-sm font-medium placeholder-transparent ${
+          focused
+            ? "border-[#f5a623]/70 bg-white/8 shadow-[0_0_0_3px_rgba(245,166,35,0.1)]"
+            : "border-white/10 hover:border-white/20"
+        } ${rightElement ? "pr-12" : "pr-4"}`}
+        placeholder={label}
+      />
+
+      {/* Element kanan (toggle password) */}
+      {rightElement && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+          {rightElement}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Main LoginPage
+// ============================================================
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [transitioning, setTransitioning] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [successAnim, setSuccessAnim] = useState(false);
 
-  // Parallax Effect
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({
-        x: (e.clientX / window.innerWidth - 0.5) * 20,
-        y: (e.clientY / window.innerHeight - 0.5) * 20,
-      });
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      setTransitioning(true);
-      setTimeout(async () => {
-        try {
-          await login(email, password);
-        } catch (err) {
-          setError("Invalid Credentials");
-          setTransitioning(false);
-          setLoading(false);
-        }
-      }, 1000);
-    } catch (err) {
-      setLoading(false);
-    }
-  }
+  // Keyboard shortcut Enter
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (loading) return;
+      setLoading(true);
+      setError("");
+      try {
+        setSuccessAnim(true);
+        await login(email, password);
+      } catch {
+        setError("Email atau password salah. Coba lagi.");
+        setSuccessAnim(false);
+        setLoading(false);
+      }
+    },
+    [email, password, loading]
+  );
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#faf9f6] selection:bg-red-100">
-      {/* Dynamic Background & Sakura (Sama seperti sebelumnya) */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+    <div className="min-h-screen bg-[#0d1b2e] flex items-center justify-center overflow-hidden relative select-none">
+      {/* ── Background gradient & orbs ── */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0d1b2e] via-[#112240] to-[#0a1628]" />
+
+      <FloatingOrb
+        size={500}
+        color="radial-gradient(circle, rgba(245,166,35,0.15) 0%, transparent 70%)"
+        x="-10%"
+        y="-20%"
+        duration={8}
+      />
+      <FloatingOrb
+        size={400}
+        color="radial-gradient(circle, rgba(30,60,120,0.4) 0%, transparent 70%)"
+        x="60%"
+        y="50%"
+        duration={10}
+      />
+      <FloatingOrb
+        size={300}
+        color="radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%)"
+        x="80%"
+        y="-10%"
+        duration={12}
+      />
+
+      {/* ── Grid overlay ── */}
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
+
+      {/* ── Split layout ── */}
+      <div className="relative z-10 w-full max-w-[960px] mx-4 grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.6)] border border-white/[0.06]">
+
+        {/* LEFT PANEL – Branding */}
         <motion.div
-          animate={{ x: mousePos.x, y: mousePos.y }}
-          className="absolute inset-0 flex items-center justify-center opacity-[0.03]"
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-[#1a3a6e]/80 to-[#0d2550]/90 backdrop-blur-sm relative overflow-hidden"
         >
-          <span className="text-[50vw] font-serif font-bold">和</span>
-        </motion.div>
-      </div>
+          {/* Decorative circles */}
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-[#f5a623]/10 blur-2xl pointer-events-none" />
+          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[#f5a623]/5 blur-2xl pointer-events-none" />
 
-      <div className="absolute inset-0 z-10 pointer-events-none">
-        {Array.from({ length: 15 }).map((_, i) => (
-          <SakuraPetal key={i} delay={i * 0.8} />
-        ))}
-      </div>
+          {/* Top: Logo & Brand */}
+          <div>
+            <div className="flex items-center gap-3 mb-10">
+              <img src={logo} alt="Nihong Jastip" className="h-10 w-10 object-contain rounded-lg" />
+              <div>
+                <h2 className="text-white font-bold text-lg leading-none">Nihong</h2>
+                <p className="text-[#f5a623] text-xs font-semibold tracking-widest uppercase">Jastip</p>
+              </div>
+            </div>
 
-      {/* Main Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-20 w-full max-w-[420px] px-6"
-      >
-        <div className="bg-white/70 backdrop-blur-2xl p-10 md:p-14 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-white/50 relative">
-          <div className="absolute top-10 right-10 w-8 h-8 border-2 border-red-600/20 rounded flex items-center justify-center text-[10px] text-red-600/30 font-bold rotate-12">
-            日本
+            <h1 className="text-white text-4xl font-bold leading-tight mb-4">
+              Admin Panel
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed max-w-[260px]">
+              Kelola pesanan, pelanggan, dan keuangan bisnis jastip Anda dari satu tempat.
+            </p>
           </div>
 
-          <header className="flex flex-col items-center mb-12">
-            <motion.div whileHover={{ scale: 1.05 }} className="relative mb-6">
-              <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full" />
-              <img
-                src={logo}
-                alt="Logo"
-                className="relative h-16 w-16 object-contain"
-              />
-            </motion.div>
+          {/* Bottom: Feature list */}
+          <div className="space-y-3">
+            {[
+              { icon: "📦", text: "Manajemen pesanan real-time" },
+              { icon: "👥", text: "Database pelanggan terpusat" },
+              { icon: "💰", text: "Laporan keuangan otomatis" },
+              { icon: "🗓️", text: "Jadwal & notifikasi cerdas" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3 text-slate-300 text-sm">
+                <span className="text-base">{item.icon}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
 
-            <h1 className="text-3xl font-serif text-neutral-800 tracking-tight mb-2">
-              Nihong <span className="text-red-600 font-light">Jastip</span>
-            </h1>
-            <div className="flex items-center gap-3">
-              <div className="h-[1px] w-8 bg-neutral-200" />
-              <span className="text-[9px] text-neutral-400 font-black uppercase tracking-[0.4em]">
-                Authorized Admin
-              </span>
-              <div className="h-[1px] w-8 bg-neutral-200" />
+          {/* Bottom label */}
+          <div className="mt-8 flex items-center gap-2">
+            <div className="h-[1px] flex-1 bg-white/10" />
+            <span className="text-white/20 text-xs font-mono tracking-wider">AUTHORIZED ACCESS ONLY</span>
+            <div className="h-[1px] flex-1 bg-white/10" />
+          </div>
+        </motion.div>
+
+        {/* RIGHT PANEL – Form */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col justify-center p-10 md:p-12 bg-[#0f2040]/70 backdrop-blur-2xl"
+        >
+          {/* Mobile logo (hidden on md+) */}
+          <div className="flex md:hidden items-center gap-3 mb-8">
+            <img src={logo} alt="Nihong Jastip" className="h-9 w-9 object-contain rounded-lg" />
+            <div>
+              <h2 className="text-white font-bold text-base leading-none">Nihong Jastip</h2>
+              <p className="text-[#f5a623] text-[10px] font-semibold tracking-widest uppercase">Admin Panel</p>
             </div>
-          </header>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-2">
-            <NihonInput
-              label="Admin Email"
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-1">Selamat Datang 👋</h2>
+            <p className="text-slate-400 text-sm">Masuk dengan akun admin Anda.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <InputField
+              id="login-email"
+              label="Email Admin"
               type="email"
               value={email}
-              onChange={(e: any) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setError(""); }}
+              icon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              }
             />
-            <NihonInput
+
+            <InputField
+              id="login-password"
               label="Password"
-              type="password"
+              type={showPass ? "text" : "password"}
               value={password}
-              onChange={(e: any) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              icon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              }
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPass((v) => !v)}
+                  className="text-slate-400 hover:text-slate-200 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPass ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              }
             />
 
-            {error && (
-              <p className="text-[11px] text-red-500 font-medium text-center pb-4">
-                {error}
-              </p>
-            )}
+            {/* Error Message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: -8, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    {error}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
+            {/* Submit Button */}
             <motion.button
-              whileHover={{ scale: 1.02, backgroundColor: "#000" }}
-              whileTap={{ scale: 0.98 }}
-              disabled={loading}
-              className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold text-xs tracking-[0.2em] transition-all shadow-xl shadow-black/10 disabled:opacity-50 mt-4"
+              type="submit"
+              disabled={loading || !email || !password}
+              whileHover={{ scale: loading ? 1 : 1.01 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              className="relative w-full py-3.5 rounded-xl font-bold text-sm tracking-wider overflow-hidden transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              style={{
+                background: "linear-gradient(135deg, #f5a623 0%, #e8891a 100%)",
+                boxShadow: loading ? "none" : "0 8px 32px rgba(245,166,35,0.3)",
+                color: "#0d1b2e",
+              }}
             >
-              {loading ? "VERIFYING..." : "ENTER THE GATE"}
+              <AnimatePresence mode="wait">
+                {successAnim ? (
+                  <motion.span
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <motion.svg
+                      width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </motion.svg>
+                    Masuk...
+                  </motion.span>
+                ) : loading ? (
+                  <motion.span
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Memverifikasi...
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="default"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    Masuk ke Dashboard
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </motion.button>
           </form>
-        </div>
-      </motion.div>
 
-      <ShojiTransition active={transitioning} />
-    </div>
-  );
-}
-
-/* =========================
-🚪 Shoji Door (Enhanced with Wood Texture)
-========================= */
-function ShojiTransition({ active }: { active: boolean }) {
-  return (
-    <AnimatePresence>
-      {active && (
-        <motion.div className="fixed inset-0 z-[100] flex">
-          {[0, 1].map((i) => (
-            <motion.div
-              key={i}
-              initial={{ x: i === 0 ? "-100%" : "100%" }}
-              animate={{ x: "0%" }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
-              className={`w-1/2 h-full bg-[#faf9f6] border-${i === 0 ? "r-8" : "l-8"} border-[#2c2c2c] relative`}
-            >
-              {/* Shoji Paper Texture */}
-              <div
-                className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                style={{
-                  backgroundImage: `url('https://www.transparenttextures.com/patterns/natural-paper.png')`,
-                }}
-              />
-
-              {/* Grid Lines */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `
-                     linear-gradient(to right, #2c2c2c 1px, transparent 1px),
-                     linear-gradient(to bottom, #2c2c2c 1px, transparent 1px)`,
-                  backgroundSize: "60px 80px",
-                  opacity: 0.08,
-                }}
-              />
-
-              {/* Handle Area */}
-              <div
-                className={`absolute top-1/2 ${i === 0 ? "right-4" : "left-4"} -translate-y-1/2 w-12 h-40 bg-[#2c2c2c] rounded-sm shadow-2xl flex items-center justify-center`}
-              >
-                <div className="w-[1px] h-20 bg-white/20" />
-              </div>
-            </motion.div>
-          ))}
+          {/* Footer */}
+          <p className="mt-8 text-center text-[11px] text-slate-600 tracking-wide">
+            © {new Date().getFullYear()} Nihong Jastip · Admin Only
+          </p>
         </motion.div>
-      )}
-    </AnimatePresence>
+      </div>
+    </div>
   );
 }

@@ -20,7 +20,7 @@ export const MONTH_LABEL_ID = [
   "Des",
 ];
 export const computeTotal = (kg: number, unitPrice: number) =>
-  Math.ceil(Math.max(0, kg)) * unitPrice;
+  (Math.ceil(Math.max(0, kg) * 2) / 2) * unitPrice;
 export const todayStr = () => new Date().toISOString().slice(0, 10);
 export const monthKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -83,7 +83,7 @@ export function endOfMonth(d: Date) {
 
 // ---- helpers --------------------------------------------------------------
 export function ceilKg(jumlahKg?: number) {
-  return Math.ceil(Number(jumlahKg ?? 0));
+  return Math.ceil(Number(jumlahKg ?? 0) * 2) / 2;
 }
 
 export function computeDerived(input: Partial<OrderDoc>, unitPrice: number) {
@@ -110,7 +110,7 @@ export function computeDerived(input: Partial<OrderDoc>, unitPrice: number) {
 }
 
 export const compute = (o: ExtendedOrder, unitPrice: number) => {
-  const kg = Math.ceil(Number(o.jumlahKg ?? 0));
+  const kg = Math.ceil(Number(o.jumlahKg ?? 0) * 2) / 2;
   // Ambil currency dari order, default ke IDR jika tidak ada
   const currency = o.tipeNominal || "IDR";
 

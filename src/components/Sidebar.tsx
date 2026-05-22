@@ -1,16 +1,14 @@
-import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User } from "firebase/auth";
 import {
   Home,
   PackageSearch,
   Users,
-  ShoppingCart,
   Wallet,
   ChevronLeft,
   ChevronRight,
   LogOut,
-  CalendarDays
+  LayoutDashboard,
 } from "lucide-react";
 import { TabId } from "../types";
 import logoLight from "../assets/logo-admin.png";
@@ -25,12 +23,10 @@ interface SidebarProps {
 }
 
 const MENU_ITEMS = [
-  { id: "home", label: "Dashboard", icon: Home },
-  { id: "orders", label: "Orders", icon: PackageSearch },
-  { id: "customers", label: "Customers", icon: Users },
-  { id: "purchase", label: "Purchase", icon: ShoppingCart },
-  { id: "cash", label: "Kas", icon: Wallet },
-  { id: "schedule", label: "Jadwal", icon: CalendarDays },
+  { id: "home",      label: "Dashboard", icon: LayoutDashboard },
+  { id: "orders",    label: "Pesanan",   icon: PackageSearch },
+  { id: "customers", label: "Pelanggan", icon: Users },
+  { id: "cash",      label: "Kas",       icon: Wallet },
 ];
 
 export function Sidebar({
@@ -39,69 +35,83 @@ export function Sidebar({
   isCollapsed,
   onToggleCollapse,
   user,
-  onLogout
+  onLogout,
 }: SidebarProps) {
   return (
     <motion.aside
-      className="hidden md:flex flex-col bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 z-40 transition-all duration-300 relative"
-      animate={{ width: isCollapsed ? 80 : 256 }}
+      animate={{ width: isCollapsed ? 72 : 248 }}
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      className="hidden md:flex flex-col h-screen shrink-0 z-40 relative overflow-visible"
+      style={{
+        background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+      }}
     >
-      {/* Brand & Toggle */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-neutral-200/80 dark:border-neutral-800/80 shrink-0">
+      {/* Subtle glow top-left */}
+      <div
+        className="absolute top-0 left-0 w-48 h-48 pointer-events-none"
+        style={{
+          background: "radial-gradient(circle at 0% 0%, rgba(99,102,241,0.15) 0%, transparent 70%)",
+        }}
+      />
+
+      {/* ── Brand ── */}
+      <div className="h-16 flex items-center justify-between px-4 shrink-0 relative"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
         <button
-          className={`flex items-center gap-3 group focus:outline-none overflow-hidden transition-all duration-300 ${isCollapsed ? 'justify-center w-full' : ''}`}
+          className={`flex items-center gap-3 focus:outline-none overflow-hidden ${isCollapsed ? "justify-center w-full" : ""}`}
           onClick={() => onTabChange("home")}
         >
           <motion.div
-            whileTap={{ scale: 0.95 }}
-            className="h-10 w-10 shrink-0 rounded-full overflow-hidden border-2 border-white dark:border-neutral-800 shadow-sm bg-indigo-50 dark:bg-neutral-900 grid place-items-center relative z-10"
+            whileTap={{ scale: 0.92 }}
+            className="h-9 w-9 shrink-0 rounded-xl overflow-hidden shadow-lg ring-2 ring-white/10"
           >
-            <img
-              src={logoLight}
-              alt="Logo"
-              className="h-full w-full object-cover"
-            />
+            <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />
           </motion.div>
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-left whitespace-nowrap"
-            >
-              <h1 className="text-lg font-bold leading-none tracking-tight text-neutral-900 dark:text-white">
-                Nihong Jastip
-              </h1>
-              <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mt-0.5">
-                Admin Dashboard
-              </p>
-            </motion.div>
-          )}
+
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.2 }}
+                className="text-left whitespace-nowrap overflow-hidden"
+              >
+                <h1 className="text-sm font-bold leading-none text-white tracking-tight">
+                  Nihong Jastip
+                </h1>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
+                  Admin Panel
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </button>
 
-        {/* Toggle Button - Float right when expanded, hide when collapsed (only show absolute toggle) */}
         {!isCollapsed && (
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors shrink-0"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </button>
         )}
       </div>
 
-      {/* Absolute Toggle Button for Collapsed State */}
+      {/* Collapse toggle ketika collapsed */}
       {isCollapsed && (
         <button
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-full p-1 text-neutral-500 hover:text-indigo-600 shadow-sm z-50"
+          className="absolute -right-3 top-[72px] bg-[#1e293b] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white shadow-lg z-50 transition-colors"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={13} />
         </button>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 custom-scrollbar">
+      {/* ── Navigation ── */}
+      <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1">
         {MENU_ITEMS.map((item) => {
           const isActive = currentTab === item.id;
           const Icon = item.icon;
@@ -110,62 +120,106 @@ export function Sidebar({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none
-                ${isActive
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold"
-                  : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-100"
-                }
-                ${isCollapsed ? "justify-center" : ""}
-              `}
               title={isCollapsed ? item.label : undefined}
+              className={`
+                w-full flex items-center gap-3 rounded-xl transition-all duration-200 outline-none relative
+                ${isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2.5"}
+                ${isActive
+                  ? "text-white font-semibold"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+                }
+              `}
             >
-              <Icon size={20} className={`shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
-
-              {!isCollapsed && (
-                <span className="truncate">{item.label}</span>
+              {/* Active background */}
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active"
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.35) 0%, rgba(79,70,229,0.2) 100%)" }}
+                  transition={{ type: "spring", duration: 0.4 }}
+                />
               )}
+
+              {/* Active left bar */}
+              {isActive && !isCollapsed && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-400 rounded-r-full" />
+              )}
+
+              <Icon
+                size={18}
+                className={`shrink-0 relative z-10 ${isActive ? "text-indigo-300" : ""}`}
+              />
+
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="truncate relative z-10 text-sm"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
           );
         })}
       </nav>
 
-      {/* User Profile */}
-      <div className="shrink-0 p-4 border-t border-neutral-200/80 dark:border-neutral-800/80">
-        <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 grid place-items-center text-white text-sm font-bold shadow-inner">
+      {/* ── User Profile ── */}
+      <div
+        className="shrink-0 p-3"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
+          {/* Avatar */}
+          <div className="h-9 w-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 grid place-items-center text-white text-sm font-bold shadow-lg ring-2 ring-white/10">
             {user.email?.[0].toUpperCase() || "A"}
           </div>
 
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate">
-                {user.displayName || "Admin"}
-              </p>
-              <p className="text-xs text-neutral-400 truncate">
-                {user.email}
-              </p>
-            </div>
-          )}
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="text-sm font-semibold text-white truncate leading-none">
+                  {user.displayName || "Admin"}
+                </p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {!isCollapsed && (
-            <button
-              onClick={onLogout}
-              title="Keluar"
-              className="p-2 shrink-0 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-            >
-              <LogOut size={18} />
-            </button>
-          )}
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onLogout}
+                title="Keluar"
+                className="p-2 shrink-0 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut size={16} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Logout via icon full width if collapsed */}
+        {/* Logout collapsed */}
         {isCollapsed && (
           <button
             onClick={onLogout}
             title="Keluar"
-            className="mt-4 w-full flex justify-center p-2 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            className="mt-3 w-full flex justify-center p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
           >
-            <LogOut size={20} />
+            <LogOut size={17} />
           </button>
         )}
       </div>

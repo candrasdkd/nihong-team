@@ -16,7 +16,7 @@ import {
 } from "../services/ledgerFirebase";
 import { LedgerFormModal } from "../components/LedgerFormModal";
 import { formatAndAddYear } from "../utils/helpers";
-import { BG } from "../utils/constants";
+import { BG, FAB_COLOR_CLASS } from "../utils/constants";
 import {
   TrendingUp, TrendingDown, Wallet, Search, Filter,
   Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft,
@@ -444,7 +444,7 @@ export function LedgerPage() {
                         {formatIDR(Number(r.jumlah || 0))}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-2 transition-opacity">
                           <button
                             onClick={() =>
                               setShowForm({ open: true, editing: r })
@@ -605,7 +605,7 @@ export function LedgerPage() {
       {/* Mobile Floating Action Button */}
       <button
         onClick={() => setShowForm({ open: true, editing: null })}
-        className="sm:hidden fixed bottom-20 right-6 h-14 w-14 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 flex items-center justify-center active:scale-95 transition-transform z-40"
+        className={`sm:hidden fixed bottom-20 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-all z-40 ${FAB_COLOR_CLASS}`}
       >
         <Plus className="w-6 h-6" />
       </button>
