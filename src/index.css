@@ -37,3 +37,13 @@ aside::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 99px;
 }
+
+/* Prevent mobile browser zoom on input/select focus */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
