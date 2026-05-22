@@ -10,6 +10,7 @@ import {
   addCustomer,
   updateCustomer,
   deleteCustomer,
+  migrateCustomersAndOrdersToUppercase,
 } from "../services/customersFirebase";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -67,6 +68,22 @@ export function CustomersPage() {
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [migrating, setMigrating] = useState(false);
+
+  async function handleMigrate() {
+    if (!confirm("Apakah Anda yakin ingin mengubah semua data nama pelanggan lama dan pesanan lama menjadi HURUF KAPITAL (UPPERCASE)?\n\nTindakan ini akan memakan waktu beberapa saat dan tidak dapat dibatalkan.")) {
+      return;
+    }
+    setMigrating(true);
+    try {
+      await migrateCustomersAndOrdersToUppercase();
+      alert("Migrasi berhasil! Seluruh data nama pelanggan dan pesanan telah diubah menjadi huruf kapital.");
+    } catch (err: any) {
+      alert("Gagal melakukan migrasi: " + (err?.message || err));
+    } finally {
+      setMigrating(false);
+    }
+  }
 
   useEffect(() => {
     const qy = query(collection(db, COL), orderBy("nama"));
@@ -133,7 +150,7 @@ export function CustomersPage() {
   return (
     <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
       {/* Header (Sticky) */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 static sm:sticky sm:top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between">
             <div>
@@ -144,13 +161,22 @@ export function CustomersPage() {
                 Manajemen data jastip & kontak whatsapp
               </p>
             </div>
-            <Button
-              onClick={openAddForm}
-              className="hidden sm:flex bg-slate-950 hover:bg-slate-850 text-white shadow-lg shadow-slate-950/10 hover:shadow-slate-950/15 active:scale-95 transition-all px-4 rounded-xl h-10 font-bold text-xs gap-1.5"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Tambah Pelanggan</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleMigrate}
+                disabled={migrating}
+                className="bg-amber-600 hover:bg-amber-700 text-white shadow-md active:scale-95 transition-all px-3 sm:px-4 rounded-xl h-10 font-bold text-xs gap-1.5 flex items-center justify-center"
+              >
+                {migrating ? "Memproses..." : "Migrasi Kapital"}
+              </Button>
+              <Button
+                onClick={openAddForm}
+                className="hidden sm:flex bg-slate-950 hover:bg-slate-850 text-white shadow-lg shadow-slate-950/10 hover:shadow-slate-950/15 active:scale-95 transition-all px-4 rounded-xl h-10 font-bold text-xs gap-1.5"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Tambah Pelanggan</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

@@ -224,7 +224,7 @@ export default function App() {
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0 relative custom-scrollbar">
           {/* MOBILE TOP BAR */}
-          <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur border-b border-slate-100/80 sticky top-0 z-30 shadow-sm">
+          <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur border-b border-slate-100/80 sticky top-0 z-40 shadow-sm">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg overflow-hidden ring-2 ring-[#0a2342]/10 shrink-0">
                 <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />

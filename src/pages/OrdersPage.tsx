@@ -21,6 +21,7 @@ import {
   formatAndAddYear,
   startOfMonth,
   toInputDate,
+  openWhatsApp,
 } from "../utils/helpers";
 import { ORDER_STATUSES, FAB_COLOR_CLASS } from "../utils/constants";
 import { AnimatePresence, motion } from "framer-motion";
@@ -333,6 +334,7 @@ export function OrdersPage({
   const [previewSrc, setPreviewSrc] = useState<string | string[] | null>(null);
   const [previewPhone, setPreviewPhone] = useState<string | undefined>(undefined);
   const [previewCustomerName, setPreviewCustomerName] = useState<string | undefined>(undefined);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<ExtendedOrder | null>(null);
 
   const openPreview = (src: string | string[], phone?: string, customerName?: string) => {
     if (!src || (Array.isArray(src) && src.length === 0)) return;
@@ -713,6 +715,7 @@ export function OrdersPage({
                         const cust = customers.find(c => c.nama === o.namaPelanggan);
                         openPreview(src, cust?.telpon, o.namaPelanggan);
                       }}
+                      onShowDetail={() => setSelectedOrderDetail(o)}
                     />
                   ))
                 )}
@@ -745,6 +748,7 @@ export function OrdersPage({
                 const cust = customers.find(c => c.nama === o.namaPelanggan);
                 openPreview(src, cust?.telpon, o.namaPelanggan);
               }}
+              onShowDetail={() => setSelectedOrderDetail(o)}
             />
           ))}
           {orders.length === 0 && (
@@ -794,6 +798,37 @@ export function OrdersPage({
           )}
           onClose={() => setShowInvoice({ show: false })}
           unitPrice={unitPrice}
+        />
+      )}
+
+      {selectedOrderDetail && (
+        <OrderDetailModal
+          order={selectedOrderDetail}
+          unitPrice={unitPrice}
+          customers={customers}
+          onClose={() => setSelectedOrderDetail(null)}
+          onEdit={() => {
+            setEditing(selectedOrderDetail);
+            setShowForm(true);
+            setSelectedOrderDetail(null);
+          }}
+          onDelete={() => {
+            const id = selectedOrderDetail.id;
+            setSelectedOrderDetail(null);
+            handleDelete(id);
+          }}
+          onInvoice={() => {
+            setShowInvoice({
+              show: true,
+              order: selectedOrderDetail,
+              itemIds: [selectedOrderDetail.id],
+            });
+            setSelectedOrderDetail(null);
+          }}
+          onPreview={(src: string | string[]) => {
+            const cust = customers.find(c => c.nama === selectedOrderDetail.namaPelanggan);
+            openPreview(src, cust?.telpon, selectedOrderDetail.namaPelanggan);
+          }}
         />
       )}
 
@@ -860,19 +895,21 @@ function ExpandableRow({
   onEdit,
   onDelete,
   onPreview,
+  onShowDetail,
 }: any) {
   const d = compute(order, unitPrice);
 
   return (
     <>
       <tr
-        className={`group transition-all duration-200 border-l-4 ${
+        onClick={onShowDetail}
+        className={`group transition-all duration-200 border-l-4 cursor-pointer ${
           isSelected 
             ? "bg-blue-50/30 border-l-blue-500" 
             : "hover:bg-slate-50 border-l-transparent"
         }`}
       >
-        <td className="px-6 py-4 align-middle">
+        <td className="px-6 py-4 align-middle" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -933,7 +970,7 @@ function ExpandableRow({
         </td>
         
         {/* Foto Thumbnail */}
-        <td className="px-6 py-4 align-middle text-center">
+        <td className="px-6 py-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
           {order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0) ? (
             <button
               onClick={() => onPreview(order.imageUrl!)}
@@ -959,7 +996,7 @@ function ExpandableRow({
         </td>
         
         {/* Aksi */}
-        <td className="px-6 py-4 align-middle text-center">
+        <td className="px-6 py-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center items-center gap-1 transition-all duration-200">
             <button
               onClick={onEdit}
@@ -990,7 +1027,7 @@ function ExpandableRow({
 
       {/* Expanded Details – SaaS Order Manifest Block */}
       {isExpanded && (
-        <tr className="bg-slate-50/50 shadow-inner">
+        <tr className="bg-slate-50/50 shadow-inner" onClick={(e) => e.stopPropagation()}>
           <td colSpan={8} className="px-6 py-4">
             <motion.div 
               initial={{ opacity: 0, y: -4 }}
@@ -1081,13 +1118,15 @@ function MobileCard({
   onEdit,
   onDelete,
   onPreview,
+  onShowDetail,
 }: any) {
   const d = compute(order, unitPrice);
   const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
   
   return (
     <div
-      className={`bg-white rounded-xl p-3 border shadow-xs transition-all duration-200 flex items-center justify-between gap-3 ${
+      onClick={onShowDetail}
+      className={`bg-white rounded-xl p-3 border shadow-xs transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer ${
         isSelected ? "border-blue-500 ring-2 ring-blue-500/5 bg-blue-50/10" : "border-slate-100"
       }`}
     >
@@ -1097,13 +1136,14 @@ function MobileCard({
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
+          onClick={(e) => e.stopPropagation()}
           className="rounded w-4 h-4 border-slate-300 text-blue-600 cursor-pointer shrink-0 focus:ring-blue-500"
         />
 
         {/* Thumbnail Image */}
         {hasImg ? (
           <button
-            onClick={() => onPreview(order.imageUrl!)}
+            onClick={(e) => { e.stopPropagation(); onPreview(order.imageUrl!); }}
             className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200/60 shrink-0 relative bg-slate-50"
           >
             <img
@@ -1136,17 +1176,23 @@ function MobileCard({
         </div>
       </div>
 
-      {/* Right Column: Status, Price, and Actions */}
+      {/* Right Column: Status, Price, Profit, and Actions */}
       <div className="flex flex-col items-end justify-between self-stretch shrink-0">
         <StatusPill status={order.status} />
 
-        <div className="text-xs font-black text-slate-800 my-1 flex items-center gap-1.5 justify-end">
-          {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
-          <span>{formatCurrency(d.totalPembayaran, d.currency)}</span>
+        <div className="my-1 text-right">
+          <div className="text-xs font-black text-slate-800 flex items-center gap-1.5 justify-end">
+            {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
+            <span>{formatCurrency(d.totalPembayaran, d.currency)}</span>
+          </div>
+          <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 justify-end">
+            <span>Profit:</span>
+            <span>{formatCurrency(d.totalKeuntungan, d.currency)}</span>
+          </div>
         </div>
 
         {/* Action icons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onEdit}
             className="p-0.5 text-slate-400 hover:text-blue-600 transition-colors"
@@ -1164,5 +1210,312 @@ function MobileCard({
         </div>
       </div>
     </div>
+  );
+}
+
+// ===== ORDER DETAIL MODAL =====
+
+interface OrderDetailModalProps {
+  order: ExtendedOrder;
+  unitPrice: number;
+  customers: Customer[];
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onInvoice: () => void;
+  onPreview: (src: string | string[]) => void;
+}
+
+function OrderDetailModal({
+  order,
+  unitPrice,
+  customers,
+  onClose,
+  onEdit,
+  onDelete,
+  onInvoice,
+  onPreview,
+}: OrderDetailModalProps) {
+  const d = compute(order, unitPrice);
+  const cust = customers.find((c) => c.nama === order.namaPelanggan);
+  const phone = cust?.telpon;
+
+  // Listen to ESC key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleWhatsAppChat = () => {
+    const firstName = order.namaPelanggan.split(" ")[0] || "Kak";
+    const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
+    const statusStr = order.status === "Belum Membayar" ? "belum lunas" : "lunas";
+    const message = `Halo ${firstName} 👋\n\nKami ingin mengonfirmasi pesanan kamu dari *Nihong Jastip*:\n\n` +
+      `📦 *Nomor Order:* #${order.no}\n` +
+      `🛍️ *Barang:* ${order.namaBarang}\n` +
+      `⚖️ *Berat:* ${d.kg} Kg\n` +
+      `📍 *Rute:* ${order.pengiriman || "-"}\n` +
+      `💳 *Total Tagihan:* ${formattedPrice} (${statusStr.toUpperCase()})\n\n` +
+      `Terima kasih banyak ya! Jika ada pertanyaan, hubungi kami saja 😊🙏`;
+    openWhatsApp(phone, message);
+  };
+
+  const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
+  const images = hasImg ? (Array.isArray(order.imageUrl) ? order.imageUrl : [order.imageUrl]) : [];
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[80] overflow-y-auto flex items-center justify-center p-4 sm:p-6 md:p-10">
+        {/* Backdrop overlay */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
+        />
+
+        {/* Modal Panel */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: "spring", duration: 0.4 }}
+          className="relative bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden z-10 flex flex-col max-h-[90vh] sm:max-h-[85vh]"
+        >
+          {/* Top accent border */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500" />
+
+          {/* Modal Header */}
+          <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-start justify-between">
+            <div className="flex items-center gap-3.5">
+              <Avatar name={order.namaPelanggan} />
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-black text-slate-800 leading-none">
+                    {order.namaPelanggan}
+                  </h3>
+                  <StatusPill status={order.status} />
+                </div>
+                <div className="text-[10px] text-slate-400 font-extrabold font-mono mt-1.5 uppercase tracking-wider">
+                  Order ID: #{order.no}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-850">
+            {/* 1. General Info Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
+                  Kategori Produk
+                </span>
+                <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs sm:text-sm">
+                  <Box size={14} className="text-slate-500 shrink-0" />
+                  <span>{order.kategori || "-"}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
+                  Rute Pengiriman
+                </span>
+                <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs sm:text-sm">
+                  <TrendingUp size={14} className="text-slate-500 shrink-0" />
+                  <span>{order.pengiriman || "-"}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
+                  Berat Kargo
+                </span>
+                <div className="flex items-center gap-1.5 font-extrabold text-blue-600 text-xs sm:text-sm">
+                  <Scale size={14} className="text-blue-500 shrink-0" />
+                  <span>{d.kg} Kg (Ceil)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Nama Barang & Tanggal */}
+            <div className="bg-slate-50/50 border border-slate-100/70 p-4 rounded-2xl space-y-1.5">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
+                Nama / Detail Barang
+              </span>
+              <div className="font-extrabold text-slate-800 text-sm sm:text-base leading-snug">
+                {order.namaBarang}
+              </div>
+              <div className="text-[11px] text-slate-400 font-semibold">
+                Tanggal Pemesanan: {formatAndAddYear(order.tanggal)}
+              </div>
+            </div>
+
+            {/* 3. Financial Summary Grid */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Struktur Keuangan & Profit
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Billing Card */}
+                <div className="bg-gradient-to-br from-slate-50 to-indigo-50/20 border border-slate-100 p-4 rounded-2xl shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-widest mb-0.5">
+                      Total Tagihan Pelanggan
+                    </span>
+                    <span className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                      {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
+                      {formatCurrency(d.totalPembayaran, d.currency)}
+                    </span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0">
+                    <Wallet size={18} />
+                  </div>
+                </div>
+
+                {/* Profit Card */}
+                <div className="bg-gradient-to-br from-emerald-50/50 to-emerald-100/10 border border-emerald-100 p-4 rounded-2xl shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] text-emerald-600 font-bold block uppercase tracking-widest mb-0.5">
+                      Keuntungan Bersih (Profit)
+                    </span>
+                    <span className="text-lg font-black text-emerald-600 tracking-tight flex items-center gap-1.5">
+                      {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
+                      {formatCurrency(d.totalKeuntungan, d.currency)}
+                    </span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
+                    <TrendingUp size={18} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Breakdown Detail */}
+              <div className="bg-slate-50/30 border border-slate-100 p-4 rounded-2xl space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Base Jastip</span>
+                    <span className="font-bold text-slate-700">
+                      {formatCurrency(d.baseJastip, d.currency)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Markup Jastip</span>
+                    <span className="font-bold text-emerald-600 flex items-center">
+                      +{formatCurrency(d.jastipMarkup, d.currency)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-slate-100" />
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Base Ongkir ({d.kg} Kg x {formatCurrency(unitPrice)})</span>
+                    <span className="font-bold text-slate-700">
+                      {formatCurrency(d.baseOngkir, d.currency)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Markup Ongkir</span>
+                    <span className="font-bold text-emerald-600 flex items-center">
+                      +{formatCurrency(d.ongkirMarkup, d.currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Notes Section */}
+            {order.catatan && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Catatan Khusus
+                </h4>
+                <div className="bg-amber-50/50 border border-amber-100/50 p-4 rounded-2xl text-xs font-semibold text-amber-800 leading-relaxed italic">
+                  "{order.catatan}"
+                </div>
+              </div>
+            )}
+
+            {/* 5. Attachments Gallery */}
+            {images.length > 0 && (
+              <div className="space-y-2.5">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Foto Lampiran Produk ({images.length})
+                </h4>
+                <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+                  {images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onPreview(img)}
+                      className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-50 hover:border-indigo-500/50 transition-colors shadow-sm group"
+                    >
+                      <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="" />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <Maximize2 size={12} className="text-white" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer Actions */}
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2 items-center justify-between">
+            {/* Delete button (danger action) */}
+            <button
+              onClick={onDelete}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all duration-200 active:scale-95"
+              title="Hapus Pesanan"
+            >
+              <Trash2 size={14} />
+              <span className="hidden sm:inline">Hapus</span>
+            </button>
+
+            {/* Main Action cluster */}
+            <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
+              {phone && (
+                <button
+                  onClick={handleWhatsAppChat}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/10 active:scale-95"
+                >
+                  <MessageCircle size={14} />
+                  <span>Kirim WA</span>
+                </button>
+              )}
+              
+              <button
+                onClick={onInvoice}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+              >
+                <FileText size={14} />
+                <span>Invoice</span>
+              </button>
+
+              <button
+                onClick={onEdit}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/10 active:scale-95"
+              >
+                <Pencil size={14} />
+                <span>Edit</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 }

@@ -41,7 +41,7 @@ function prepareForWrite(
     no: String(raw.no ?? ""),
     tanggal: normalizeTanggalString(raw.tanggal ?? ""),
     idPelanggan: String(raw.idPelanggan ?? ""),
-    namaPelanggan: String(raw.namaPelanggan ?? ""),
+    namaPelanggan: String(raw.namaPelanggan ?? "").toUpperCase().trim(),
     namaBarang: String(raw.namaBarang ?? ""),
     kategori: String(raw.kategori ?? ""),
     pengiriman: raw.pengiriman ?? "",

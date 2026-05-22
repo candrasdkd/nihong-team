@@ -108,7 +108,7 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
     try {
       await onSubmit({
         id: initial?.id,
-        nama: nama.trim(),
+        nama: nama.trim().toUpperCase(),
         alamat: alamat.trim(),
         telpon: telpon.trim(),
       });
@@ -139,8 +139,8 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
             onChange={(e) => setNama(e.target.value)}
             required
             disabled={submitting}
-            placeholder="Contoh: Budi Santoso"
-            className={getInputClass(nama, true, "transition-all duration-300 rounded-xl")}
+            placeholder="Contoh: BUDI SANTOSO"
+            className={getInputClass(nama, true, "transition-all duration-300 rounded-xl uppercase")}
           />
         </div>
 
