@@ -5,6 +5,10 @@ export type TabId =
   | "orders"
   | "customers"
   | "cash"
+  | "jastipers"
+  | "schedules"
+  | "preorders"
+  | "menu"
   | string;
 
 
@@ -93,4 +97,59 @@ export interface AppSettings {
   jastipYenPerKg?: number;
   unitPriceIdr?: number; // legacy fallbacks / future global master unit price
   updatedAt?: string;
+}
+
+// ===== Jastiper Types =====
+export interface Jastiper {
+  id: string;
+  nama: string;
+  noTelpon: string;
+  alamat: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+// ===== Departure Schedule Types =====
+export type ScheduleStatus = "Open" | "Closed" | "Berangkat" | "Selesai";
+
+export interface DepartureSchedule {
+  id: string;
+  idJastiper: string;
+  namaJastiper: string;
+  rute: string;
+  tanggalBerangkat: string;   // YYYY-MM-DD
+  tanggalLastDrop: string;    // YYYY-MM-DD (batas akhir konsumen titip barang)
+  slotBeratKg: number;        // Kapasitas berat total tersedia
+  beratTerpakai: number;      // Akumulasi dari Pre Order aktif
+  status: ScheduleStatus;
+  catatan?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+// ===== Pre Order Types =====
+export interface PreOrderItem {
+  namaBarang: string;
+  kategori: string;
+  jumlahKg: number;
+  catatan?: string;
+}
+
+export type PreOrderStatus = "Pending" | "Diproses" | "Selesai" | "Dibatalkan";
+
+export interface PreOrder {
+  id: string;
+  idJadwal: string;
+  namaJastiper: string;
+  rute: string;
+  tanggalBerangkat: string;
+  idPelanggan: string;
+  namaPelanggan: string;
+  noTelponPelanggan?: string;
+  items: PreOrderItem[];
+  totalKg: number;
+  status: PreOrderStatus;
+  catatan?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }

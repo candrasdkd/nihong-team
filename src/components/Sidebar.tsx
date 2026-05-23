@@ -1,3 +1,4 @@
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User } from "firebase/auth";
 import {
@@ -9,6 +10,9 @@ import {
   ChevronRight,
   LogOut,
   LayoutDashboard,
+  UserRound,
+  Calendar,
+  ShoppingBag,
 } from "lucide-react";
 import { TabId } from "../types";
 import logoLight from "../assets/logo-admin.png";
@@ -25,9 +29,65 @@ interface SidebarProps {
 const MENU_ITEMS = [
   { id: "home",      label: "Dashboard", icon: LayoutDashboard },
   { id: "orders",    label: "Pesanan",   icon: PackageSearch },
-  { id: "customers", label: "Pelanggan", icon: Users },
   { id: "cash",      label: "Kas",       icon: Wallet },
 ];
+
+const SUB_MENU_ITEMS = [
+  { id: "customers",  label: "Pelanggan",  icon: Users },
+  { id: "jastipers",  label: "Jastiper",   icon: UserRound },
+  { id: "schedules",  label: "Jadwal",     icon: Calendar },
+  { id: "preorders",  label: "Pre Order",  icon: ShoppingBag },
+];
+
+// Reusable nav button used for both main and sub menu items
+function NavItem({
+  item, isActive, isCollapsed, onTabChange, layoutId,
+}: {
+  item: { id: string; label: string; icon: React.ElementType };
+  isActive: boolean;
+  isCollapsed: boolean;
+  onTabChange: (tab: TabId) => void;
+  layoutId: string;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      onClick={() => onTabChange(item.id as TabId)}
+      title={isCollapsed ? item.label : undefined}
+      className={`
+        w-full flex items-center gap-3 rounded-xl transition-all duration-200 outline-none relative
+        ${isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2.5"}
+        ${isActive ? "text-white font-semibold" : "text-slate-400 hover:text-white hover:bg-white/5"}
+      `}
+    >
+      {isActive && (
+        <motion.div
+          layoutId={layoutId}
+          className="absolute inset-0 rounded-xl"
+          style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.35) 0%, rgba(79,70,229,0.2) 100%)" }}
+          transition={{ type: "spring", duration: 0.4 }}
+        />
+      )}
+      {isActive && !isCollapsed && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-400 rounded-r-full" />
+      )}
+      <Icon size={18} className={`shrink-0 relative z-10 ${isActive ? "text-indigo-300" : ""}`} />
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.span
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="truncate relative z-10 text-sm"
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+}
 
 export function Sidebar({
   currentTab,
@@ -112,58 +172,43 @@ export function Sidebar({
 
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1">
+        {/* Main menu items */}
         {MENU_ITEMS.map((item) => {
           const isActive = currentTab === item.id;
           const Icon = item.icon;
 
           return (
-            <button
+            <NavItem
               key={item.id}
-              onClick={() => onTabChange(item.id)}
-              title={isCollapsed ? item.label : undefined}
-              className={`
-                w-full flex items-center gap-3 rounded-xl transition-all duration-200 outline-none relative
-                ${isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2.5"}
-                ${isActive
-                  ? "text-white font-semibold"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
-                }
-              `}
-            >
-              {/* Active background */}
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-xl"
-                  style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.35) 0%, rgba(79,70,229,0.2) 100%)" }}
-                  transition={{ type: "spring", duration: 0.4 }}
-                />
-              )}
+              item={item}
+              isActive={isActive}
+              isCollapsed={isCollapsed}
+              onTabChange={onTabChange}
+              layoutId="sidebar-active"
+            />
+          );
+        })}
 
-              {/* Active left bar */}
-              {isActive && !isCollapsed && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-400 rounded-r-full" />
-              )}
+        {/* Divider */}
+        {!isCollapsed && (
+          <div className="pt-3 pb-1">
+            <p className="text-[9px] font-extrabold text-slate-600 uppercase tracking-widest px-3">Fitur Lainnya</p>
+          </div>
+        )}
+        {isCollapsed && <div className="my-2 mx-3 border-t border-white/10" />}
 
-              <Icon
-                size={18}
-                className={`shrink-0 relative z-10 ${isActive ? "text-indigo-300" : ""}`}
-              />
-
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="truncate relative z-10 text-sm"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
+        {/* Sub menu items */}
+        {SUB_MENU_ITEMS.map((item) => {
+          const isActive = currentTab === item.id;
+          return (
+            <NavItem
+              key={item.id}
+              item={item}
+              isActive={isActive}
+              isCollapsed={isCollapsed}
+              onTabChange={onTabChange}
+              layoutId="sidebar-active-sub"
+            />
           );
         })}
       </nav>

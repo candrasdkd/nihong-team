@@ -1,16 +1,19 @@
 import { ElementType } from "react";
-
-import { Home, ClipboardList, Users, Wallet } from "lucide-react";
-
+import { Home, ClipboardList, Wallet, LayoutGrid } from "lucide-react";
 import { TabId } from "../types";
 
-// Konfigurasi tab di luar komponen agar tidak re-create setiap render
+// Konfigurasi 4 tab utama di mobile.
+// Tab "menu" berfungsi sebagai hub untuk fitur-fitur lainnya
+// (Pelanggan, Jastiper, Jadwal, Pre Order).
 const TAB_CONFIG: { id: TabId; label: string; Icon: ElementType }[] = [
-  { id: "home",      label: "Home",     Icon: Home },
-  { id: "orders",    label: "Pesanan",  Icon: ClipboardList },
-  { id: "customers", label: "Konsumen", Icon: Users },
-  { id: "cash",      label: "Kas",      Icon: Wallet },
+  { id: "home",    label: "Dashboard", Icon: Home },
+  { id: "orders",  label: "Pesanan",   Icon: ClipboardList },
+  { id: "menu",    label: "Menu",      Icon: LayoutGrid },
+  { id: "cash",    label: "Kas",       Icon: Wallet },
 ];
+
+// Daftar tab yang termasuk di dalam "menu" (untuk highlight tab menu saat salah satunya aktif)
+const MENU_CHILD_TABS = new Set(["customers", "jastipers", "schedules", "preorders"]);
 
 interface BottomTabBarProps {
   current: TabId;
@@ -18,6 +21,9 @@ interface BottomTabBarProps {
 }
 
 export function BottomTabBar({ current, setTab }: BottomTabBarProps) {
+  // Tab "Menu" dianggap aktif jika current adalah "menu" atau salah satu halaman anak-nya
+  const isMenuActive = current === "menu" || MENU_CHILD_TABS.has(current);
+
   return (
     <footer
       className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-950/80 backdrop-blur"
@@ -26,7 +32,7 @@ export function BottomTabBar({ current, setTab }: BottomTabBarProps) {
       <nav className="max-w-7xl mx-auto px-3 py-2">
         <div className="grid grid-cols-4 gap-1">
           {TAB_CONFIG.map(({ id, label, Icon }) => {
-            const active = current === id;
+            const active = id === "menu" ? isMenuActive : current === id;
             return (
               <button
                 key={id}

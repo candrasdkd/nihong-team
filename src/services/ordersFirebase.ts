@@ -502,10 +502,6 @@ export async function recalculateAllStats() {
   console.log("✔ Statistik Dashboard dan data belanja Pelanggan berhasil disinkronisasi.");
 }
 
-/**
- * Mendengarkan data ringkasan bulanan (Monthly Summaries) secara real-time.
- * Digunakan untuk menggambar grafik dashboard tanpa membaca dokumen order individual.
- */
 export function subscribeMonthlySummaries(onData: (rows: any[]) => void) {
   const colRef = collection(db, "orders_monthly_summaries");
   const qy = query(colRef, orderBy("__name__", "asc"));
@@ -515,8 +511,20 @@ export function subscribeMonthlySummaries(onData: (rows: any[]) => void) {
       ...d.data(),
     }));
     onData(rows);
+
+    // Jika data ringkasan kosong tetapi data order di database ada, lakukan inisialisasi sync otomatis
+    if (snap.empty) {
+      const ordersCol = collection(db, "orders");
+      getDocs(query(ordersCol, qLimit(1))).then((ordersSnap) => {
+        if (!ordersSnap.empty) {
+          console.log("[Dashboard] Menginisialisasi statistik bulanan secara otomatis...");
+          recalculateAllStats();
+        }
+      });
+    }
   });
 }
+
 
 /**
  * Mendengarkan pesanan aktif saja (status "Belum Membayar") secara real-time.

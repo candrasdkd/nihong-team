@@ -8,7 +8,10 @@ import { OrdersPage } from "./pages/OrdersPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { LedgerPage } from "./pages/LedgerPage";
 import { LoginPage } from "./pages/LoginPage";
-
+import { MenuPage } from "./pages/MenuPage";
+import { JastipersPage } from "./pages/JastipersPage";
+import { SchedulesPage } from "./pages/SchedulesPage";
+import { PreOrdersPage } from "./pages/PreOrdersPage";
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -354,6 +357,10 @@ export default function App() {
                     )}
                     {tab === "customers" && <CustomersPage />}
                     {tab === "cash" && <LedgerPage />}
+                    {tab === "menu" && <MenuPage onTabChange={setTab} />}
+                    {tab === "jastipers" && <JastipersPage />}
+                    {tab === "schedules" && <SchedulesPage />}
+                    {tab === "preorders" && <PreOrdersPage />}
 
                   </motion.div>
                 </AnimatePresence>
