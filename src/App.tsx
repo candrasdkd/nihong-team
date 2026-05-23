@@ -366,6 +366,9 @@ export default function App() {
                 </AnimatePresence>
               </main>
             </div>
+
+            {/* NAVBAR MOBILE */}
+            <BottomTabBar current={tab} setTab={setTab} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -401,9 +404,6 @@ export default function App() {
           />
         )}
       </AnimatePresence>
-
-      {/* NAVBAR MOBILE */}
-      <BottomTabBar current={tab} setTab={setTab} />
       <InstallPrompt />
       <NotificationPermissionModal
         isOpen={showNotificationModal}
