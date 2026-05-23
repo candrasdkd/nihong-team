@@ -24,7 +24,12 @@ import { LogOut } from "lucide-react";
 import { Customer, Order, TabId } from "./types";
 import { listenAuth, logout } from "./services/authFirebase";
 import { listenCustomers } from "./services/customersFirebase";
-import { subscribeOrders, toExtended } from "./services/ordersFirebase";
+import {
+  subscribeActiveOrders,
+  subscribeMonthlySummaries,
+  recalculateAllStats,
+  toExtended
+} from "./services/ordersFirebase";
 import { subscribeSettings } from "./services/settingsFirebase";
 import { notificationService } from "./services/notificationService";
 import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
@@ -107,31 +112,25 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  // 🔊 Realtime orders
+  // 🔊 Realtime Active Orders (for notifications & active count)
   useEffect(() => {
-    if (!user || (tab !== "home" && tab !== "orders")) return;
-
-    const now = new Date();
-    const from = startOfMonth(
-      new Date(now.getFullYear(), now.getMonth() - 11, 1),
-    );
-    const to = endOfMonth(now);
-
-    const unsub = subscribeOrders(
-      {
-        fromInput: toInputDate(from),
-        toInput: toInputDate(to),
-        sort: "desc",
-        limit: 1000,
-      },
-      (rows) => {
-        setOrders(rows.map(toExtended) as Order[]);
-        setOrdersLoading(false);
-      },
-    );
-
+    if (!user) return;
+    const unsub = subscribeActiveOrders((rows) => {
+      setOrders(rows.map(toExtended) as Order[]);
+      setOrdersLoading(false);
+    });
     return () => unsub();
-  }, [tab, user]);
+  }, [user]);
+
+  // 🔊 Realtime Monthly Order Summaries (for Dashboard)
+  const [monthlySummaries, setMonthlySummaries] = useState<any[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeMonthlySummaries((data) => {
+      setMonthlySummaries(data);
+    });
+    return () => unsub();
+  }, [user]);
 
   // 🔔 Notification Logic
   useEffect(() => {
@@ -337,19 +336,19 @@ export default function App() {
                     {tab === "home" && (
                       <Dashboard
                         user={user!}
-                        orders={orders}
+                        activeOrders={orders}
+                        monthlySummaries={monthlySummaries}
                         customers={customers}
                         unitPrice={unitPrice}
                         globalJastipYen={globalJastipYen}
                         onSeeAllOrders={() => setTab("orders")}
                         setActiveFeature={(feature) => setTab(feature as any)}
+                        onRecalculateStats={recalculateAllStats}
                       />
                     )}
                     {tab === "orders" && (
                       <OrdersPage
                         customers={customers}
-                        orders={orders}
-                        setOrders={setOrders}
                         unitPrice={unitPrice}
                       />
                     )}

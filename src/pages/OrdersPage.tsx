@@ -302,13 +302,9 @@ function MiniStatCard({ label, value, sub, icon: Icon, colorClass, index }: Mini
 
 // ===== MAIN PAGE COMPONENT =====
 export function OrdersPage({
-  orders,
-  setOrders,
   customers,
   unitPrice,
 }: {
-  orders: ExtendedOrder[];
-  setOrders: (updater: (prev: ExtendedOrder[]) => ExtendedOrder[]) => void;
   customers: Customer[];
   unitPrice: number;
 }) {
@@ -317,18 +313,14 @@ export function OrdersPage({
   const [sortBy, setSortBy] = useState<string>("tanggal");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Date Logic
-  const now = useMemo(() => new Date(), []);
-  const defaultFrom = useMemo(
-    () =>
-      toInputDate(
-        new Date(now.getFullYear(), now.getMonth() - 1, 20),
-      ),
-    [now],
-  );
-  const defaultTo = useMemo(() => toInputDate(endOfMonth(now)), [now]);
-  const [dateFrom, setDateFrom] = useState<string>(defaultFrom);
-  const [dateTo, setDateTo] = useState<string>(defaultTo);
+  // Local state for paginated/direct orders fetching
+  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
+  const [limitValue, setLimitValue] = useState(50);
+  const [loading, setLoading] = useState(false);
+
+  // Date Logic (All-time by default)
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   // UI State
   const [editing, setEditing] = useState<ExtendedOrder | null>(null);
@@ -452,28 +444,52 @@ export function OrdersPage({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Reset limit when filters change to save reads
+  useEffect(() => {
+    setLimitValue(50);
+  }, [q, statusFilter, dateFrom, dateTo]);
+
   // Data Fetching
   useEffect(() => {
+    setLoading(true);
     const unsub = subscribeOrders(
       {
-        q,
         status: statusFilter,
         fromInput: dateFrom,
         toInput: dateTo,
-        limit: 250,
+        limit: limitValue,
         sort: "desc",
       },
       (rows) => {
         const ex = rows.map(toExtended);
         const filtered = q ? ex.filter((o) => matchSearch(o, q)) : ex;
-        setOrders(() => filtered);
+        setOrders(filtered);
         setSelectedIds((prev) =>
           prev.filter((id) => filtered.some((x) => x.id === id)),
         );
+        setLoading(false);
       },
     );
     return () => unsub();
-  }, [q, statusFilter, dateFrom, dateTo, setOrders]);
+  }, [q, statusFilter, dateFrom, dateTo, limitValue]);
+
+  // Auto load more when scrolling near bottom
+  useEffect(() => {
+    function handleScroll() {
+      if (loading) return;
+      const threshold = 150; // px from bottom
+      const isNearBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold;
+        
+      if (isNearBottom && orders.length >= limitValue) {
+        setLimitValue((prev) => prev + 50);
+      }
+    }
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [orders.length, limitValue, loading]);
 
   function matchSearch(o: ExtendedOrder, query: string) {
     if (!query) return true;
@@ -892,6 +908,26 @@ export function OrdersPage({
             </div>
           )}
         </div>
+
+        {/* Fallback "Muat Lebih Banyak" Button */}
+        {orders.length >= limitValue && (
+          <div className="flex justify-center mt-6">
+            <Button
+              onClick={() => setLimitValue((prev) => prev + 50)}
+              disabled={loading}
+              className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
+                  <span>Memuat...</span>
+                </>
+              ) : (
+                <span>Muat Lebih Banyak</span>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Modals ── */}

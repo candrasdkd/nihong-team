@@ -29,9 +29,12 @@ import {
   Clock,
   Crown,
   ChevronRight,
+  RotateCw,
 } from "lucide-react";
 import { notificationService } from "../services/notificationService";
 import { KursInfoCard } from "../components/KursInfoCard";
+import { collection, query, orderBy, limit as qLimit, getDocs, doc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -131,14 +134,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   "Selesai":        { label: "Selesai",     color: "text-emerald-700", bg: "bg-emerald-50", ring: "ring-emerald-200", icon: PackageCheck },
 };
 
-function StatusPills({ orders }: { orders: Order[] }) {
-  const counts = useMemo(() => {
-    const map: Record<string, number> = {};
-    orders.forEach((o: any) => { map[o.status] = (map[o.status] || 0) + 1; });
-    return map;
-  }, [orders]);
+function StatusPills({ activeCount, totalCount }: { activeCount: number; totalCount: number }) {
+  const completedCount = Math.max(0, totalCount - activeCount);
+  const counts: Record<string, number> = {
+    "Belum Membayar": activeCount,
+    "Selesai": completedCount,
+  };
 
-  const total = orders.length;
+  const total = totalCount;
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -170,72 +173,131 @@ function StatusPills({ orders }: { orders: Order[] }) {
 // ─── Dashboard View ───────────────────────────────────────────────────────────
 
 function DashboardView({
-  orders, customers, unitPrice, globalJastipYen, onSeeAllOrders,
+  activeOrders, monthlySummaries, customers, unitPrice, globalJastipYen, onSeeAllOrders, onRecalculate,
 }: {
-  orders: Order[];
+  activeOrders: Order[];
+  monthlySummaries: any[];
   customers: Customer[];
   unitPrice: number;
   globalJastipYen: number;
   onSeeAllOrders: () => void;
+  onRecalculate: () => Promise<void> | void;
 }) {
   const [period, setPeriod] = useState<PeriodType>("12m");
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
+  const [loadingExtras, setLoadingExtras] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [hasOrdersButNoStats, setHasOrdersButNoStats] = useState(false);
 
-  const { monthlyData, kpi, recentOrders, topCustomers } = useMemo(() => {
+  // Load recent orders and top customers dynamically + check empty database vs stats sync state
+  useEffect(() => {
+    async function loadExtras() {
+      setLoadingExtras(true);
+      try {
+        // Query 8 most recent orders
+        const ordersCol = collection(db, "orders");
+        const recentQ = query(ordersCol, orderBy("tanggal", "desc"), qLimit(8));
+        const recentSnap = await getDocs(recentQ);
+        setRecentOrders(recentSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        // Query 5 top customers based on total spend
+        const customersCol = collection(db, "customers");
+        const topQ = query(customersCol, orderBy("totalSpendIdr", "desc"), qLimit(5));
+        const topSnap = await getDocs(topQ);
+        setTopCustomers(topSnap.docs.map((d) => {
+          const raw = d.data();
+          return {
+            name: raw.nama || "?",
+            count: raw.orderCount || 0,
+            revIdr: raw.totalSpendIdr || 0,
+            revJpy: raw.totalSpendJpy || 0,
+            sortScore: (raw.totalSpendIdr || 0) + (raw.totalSpendJpy || 0) * 105
+          };
+        }));
+
+        // Check if there are orders but monthlySummaries is empty
+        if (!monthlySummaries || monthlySummaries.length === 0) {
+          if (!recentSnap.empty) {
+            setHasOrdersButNoStats(true);
+          } else {
+            setHasOrdersButNoStats(false);
+          }
+        } else {
+          setHasOrdersButNoStats(false);
+        }
+      } catch (err) {
+        console.error("Gagal memuat data pendukung dashboard:", err);
+      } finally {
+        setLoadingExtras(false);
+      }
+    }
+    loadExtras();
+  }, [monthlySummaries]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await onRecalculate();
+      alert("Statistik dashboard berhasil disinkronisasi ulang!");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal melakukan sinkronisasi data.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const { monthlyData, kpi } = useMemo(() => {
     const now = new Date();
     const from = new Date();
     if (period === "30d") from.setDate(now.getDate() - 30);
     if (period === "3m") from.setMonth(now.getMonth() - 3);
     if (period === "12m") from.setMonth(now.getMonth() - 12);
 
-    const filtered = (orders as any[])
-      .filter((o) => { const d = new Date(o.tanggal); return d >= from && d <= now; })
-      .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+    const fromKey = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
+    const toKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-    type _MonthData = { key: string; label: string; count: number; revIdr: number; revJpy: number; profIdr: number; profJpy: number };
-    const map = new Map<string, _MonthData>();
-    for (const o of filtered) {
-      const key = getMonthKey(o.tanggal);
-      if (!key) continue;
-      const computed = compute(o as any, unitPrice);
-      const isJpy = computed.currency === "JPY";
-      if (!map.has(key)) {
-        const [y, m] = key.split("-");
-        map.set(key, { key, label: `${MONTH_LABEL_ID[Number(m) - 1]} ${y.slice(2)}`, count: 0, revIdr: 0, revJpy: 0, profIdr: 0, profJpy: 0 });
-      }
-      const pt = map.get(key)!;
-      if (isJpy) { pt.revJpy += computed.totalPembayaran; pt.profJpy += computed.totalKeuntungan; }
-      else { pt.revIdr += computed.totalPembayaran; pt.profIdr += computed.totalKeuntungan; }
-      pt.count += 1;
-    }
+    const filtered = (monthlySummaries || []).filter((m) => {
+      return m.id >= fromKey && m.id <= toKey;
+    });
 
-    const monthly = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
-    const activeCount = filtered.filter((o) => !DONE_SET.has(String(o.status || ""))).length;
+    const monthly = filtered.map((m) => {
+      const [y, monthStr] = m.id.split("-");
+      const mIdx = Number(monthStr) - 1;
+      const label = `${MONTH_LABEL_ID[mIdx]} ${y.slice(2)}`;
+      return {
+        key: m.id,
+        label,
+        count: m.orderCount || 0,
+        revIdr: m.revenueIdr || 0,
+        revJpy: m.revenueJpy || 0,
+        profIdr: m.profitIdr || 0,
+        profJpy: m.profitJpy || 0,
+      };
+    }).sort((a, b) => a.key.localeCompare(b.key));
 
     let revIdr = 0, revJpy = 0, profIdr = 0, profJpy = 0, count = 0;
     monthly.forEach(m => {
-      revIdr += m.revIdr; revJpy += m.revJpy;
-      profIdr += m.profIdr; profJpy += m.profJpy;
+      revIdr += m.revIdr;
+      revJpy += m.revJpy;
+      profIdr += m.profIdr;
+      profJpy += m.profJpy;
       count += m.count;
     });
 
-    const custMap: Record<string, { name: string; count: number; revIdr: number; revJpy: number; sortScore: number }> = {};
-    filtered.forEach((o) => {
-      const n = o.namaPelanggan || "?";
-      if (!custMap[n]) custMap[n] = { name: n, count: 0, revIdr: 0, revJpy: 0, sortScore: 0 };
-      const comp = compute(o as any, unitPrice);
-      custMap[n].count += 1;
-      if (comp.currency === "JPY") { custMap[n].revJpy += comp.totalPembayaran; custMap[n].sortScore += comp.totalPembayaran * 105; }
-      else { custMap[n].revIdr += comp.totalPembayaran; custMap[n].sortScore += comp.totalPembayaran; }
-    });
-    const topCustomers = Object.values(custMap).sort((a, b) => b.sortScore - a.sortScore).slice(0, 5);
-
     return {
       monthlyData: monthly,
-      recentOrders: filtered.slice(0, 8),
-      kpi: { activeOrders: activeCount, revIdr, revJpy, profIdr, profJpy, totalOrders: count },
-      topCustomers,
+      kpi: {
+        activeOrders: activeOrders.length,
+        revIdr,
+        revJpy,
+        profIdr,
+        profJpy,
+        totalOrders: count,
+      },
     };
-  }, [orders, period, unitPrice]);
+  }, [monthlySummaries, activeOrders, period]);
 
   const PERIOD_OPTIONS = [
     { label: "30H", value: "30d" },
@@ -315,24 +377,73 @@ function DashboardView({
             </p>
           </div>
 
-          {/* Period selector */}
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 self-start sm:self-auto">
-            {PERIOD_OPTIONS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setPeriod(p.value as PeriodType)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  period === p.value
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-900/50"
-                    : "text-slate-400 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          {/* Period selector & Recalculate */}
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+            {/* Period tabs */}
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1">
+              {PERIOD_OPTIONS.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => setPeriod(p.value as PeriodType)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    period === p.value
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/50"
+                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Sync stats button */}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-slate-350 border border-white/10 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Sinkronisasi Ringkasan Laporan"
+            >
+              <RotateCw size={14} className={syncing ? "animate-spin text-blue-400" : ""} />
+              <span className="hidden xs:inline">Sync</span>
+            </button>
           </div>
         </div>
       </motion.div>
+
+      {/* Sync Alert Banner (If there are orders but summaries are not generated) */}
+      {hasOrdersButNoStats && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-650 text-white shadow-lg border border-blue-500/20 flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0 border border-white/10">
+              <RotateCw size={20} className="animate-spin text-white" style={{ animationDuration: "3s" }} />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm sm:text-base tracking-tight">Statistik Belum Disinkronkan 📊</h4>
+              <p className="text-xs text-white/80 mt-0.5 max-w-2xl leading-relaxed">
+                Kami mendeteksi adanya data pesanan di database Anda, namun performa bulanan dan data customer belum dihitung. Klik tombol di samping untuk menginisialisasi statistik dashboard.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="px-5 py-2.5 bg-white hover:bg-slate-50 text-blue-700 disabled:opacity-50 text-xs sm:text-sm font-black rounded-xl transition-all shadow-md active:scale-98 flex items-center gap-2 shrink-0 border border-transparent"
+          >
+            {syncing ? (
+              <>
+                <RotateCw size={14} className="animate-spin text-blue-700" />
+                <span>Menyinkronkan...</span>
+              </>
+            ) : (
+              <span>Sinkronisasikan Sekarang</span>
+            )}
+          </button>
+        </motion.div>
+      )}
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -342,7 +453,7 @@ function DashboardView({
       </div>
 
       {/* ── Status Pills ── */}
-      <StatusPills orders={orders} />
+      <StatusPills activeCount={kpi.activeOrders} totalCount={kpi.totalOrders} />
 
       {/* ── Main Content Grid ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
@@ -357,12 +468,12 @@ function DashboardView({
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-slate-800">Analisis Keuangan</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Pendapatan & Profit per bulan</p>
+              <p className="text-xs text-slate-400 mt-0.5">Transaksi & Profit per bulan</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-400">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-1 rounded-full bg-blue-500" />
-                Pendapatan
+                Transaksi
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-1 rounded-full bg-emerald-500" />
@@ -373,9 +484,14 @@ function DashboardView({
 
           <div className="h-[320px] xl:h-[420px]">
             {monthlyData.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-300">
-                <Activity size={40} className="mb-3 opacity-30" />
-                <p className="text-sm text-slate-400">Belum ada data untuk periode ini</p>
+              <div className="h-full flex flex-col items-center justify-center text-slate-300 py-12">
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-200/50 mb-4 text-slate-400 shadow-inner">
+                  <Activity size={26} className="opacity-50 text-indigo-500" />
+                </div>
+                <h4 className="font-extrabold text-slate-700 text-sm tracking-tight">Belum Ada Analisis Keuangan</h4>
+                <p className="text-xs text-slate-400 max-w-[320px] mt-1.5 leading-relaxed text-center font-medium">
+                  Semua grafik omset, keuntungan bersih, dan margin bulanan Anda akan ditampilkan di sini secara otomatis setelah pesanan tercatat.
+                </p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -413,7 +529,7 @@ function DashboardView({
                   <Area
                     type="monotone"
                     dataKey="revIdr"
-                    name="Pendapatan (IDR)"
+                    name="Transaksi (IDR)"
                     stroke="#3b82f6"
                     strokeWidth={2.5}
                     fill="url(#gradRevenue)"
@@ -618,11 +734,12 @@ function NotificationCard({ user, registerFCM }: { user: any; registerFCM: () =>
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function Dashboard({
-  user, orders, customers, unitPrice, globalJastipYen, onSeeAllOrders, setActiveFeature,
+  user, activeOrders, monthlySummaries, customers, unitPrice, globalJastipYen, onSeeAllOrders, setActiveFeature, onRecalculateStats,
 }: {
-  user: any; orders: Order[]; customers: Customer[]; unitPrice: number; globalJastipYen: number;
+  user: any; activeOrders: Order[]; monthlySummaries: any[]; customers: Customer[]; unitPrice: number; globalJastipYen: number;
   onSeeAllOrders: () => void;
   setActiveFeature: (v: string) => void;
+  onRecalculateStats: () => Promise<void> | void;
 }) {
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "granted" && user?.uid) registerFCM();
@@ -642,11 +759,13 @@ export function Dashboard({
     <div className="min-h-screen bg-transparent pb-24 font-sans text-slate-900">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <DashboardView
-          orders={orders}
+          activeOrders={activeOrders}
+          monthlySummaries={monthlySummaries}
           customers={customers}
           unitPrice={unitPrice}
           globalJastipYen={globalJastipYen}
           onSeeAllOrders={onSeeAllOrders}
+          onRecalculate={onRecalculateStats}
         />
       </div>
     </div>

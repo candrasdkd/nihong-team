@@ -12,8 +12,11 @@ import {
   createLedgerEntry,
   updateLedgerEntry,
   deleteLedgerEntry,
+  subscribeLedgerSummary,
+  recalculateLedgerSummary,
   type LedgerEntry,
   type LedgerUpsert,
+  type LedgerSummary,
 } from "../services/ledgerFirebase";
 import { LedgerFormModal } from "../components/LedgerFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -23,7 +26,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Search, Filter,
   Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft,
   X, FileText, Download, Check, Coins, CreditCard, Landmark, CircleDollarSign,
-  Activity, BarChart3, Eye, EyeOff
+  Activity, BarChart3, Eye, EyeOff, RotateCw
 } from "lucide-react";
 import { exportLedgerToExcel } from "../utils/exportExcel";
 import {
@@ -121,10 +124,12 @@ function StatCard({
   label,
   value,
   type,
+  sub,
 }: {
   label: string;
   value: number;
   type: "income" | "expense" | "balance";
+  sub?: string;
 }) {
   if (type === "balance") {
     return (
@@ -155,7 +160,11 @@ function StatCard({
           <span className="text-2xl font-black font-mono tracking-tight text-white select-all">
             {formatIDR(value)}
           </span>
-          <p className="text-[10px] text-slate-400 mt-1 font-semibold">Kas Aktif · Nihong Jastip</p>
+          {sub ? (
+            <p className="text-[10px] text-slate-300 mt-1 font-semibold truncate">{sub}</p>
+          ) : (
+            <p className="text-[10px] text-slate-400 mt-1 font-semibold">Kas Aktif · Nihong Jastip</p>
+          )}
         </div>
       </div>
     );
@@ -305,24 +314,59 @@ export function LedgerPage() {
   const [typeFilter, setTypeFilter] = useState<"" | "Masuk" | "Keluar">("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
-  const now = useMemo(() => new Date(), []);
-  const defaultFrom = useMemo(
-    () =>
-      toInputDate(
-        startOfMonth(new Date(now.getFullYear() - 5, now.getMonth() - 2, 1)),
-      ),
-    [now],
-  );
-  const defaultTo = useMemo(() => toInputDate(endOfMonth(now)), [now]);
+  const defaultFrom = "";
+  const defaultTo = "";
 
   const [dateFrom, setDateFrom] = useState<string>(defaultFrom);
   const [dateTo, setDateTo] = useState<string>(defaultTo);
 
   // ===== Data =====
   const [rows, setRows] = useState<LedgerEntry[]>([]);
+  const [globalSummary, setGlobalSummary] = useState<LedgerSummary | null>(null);
+  const [syncingSummary, setSyncingSummary] = useState(false);
+  const [limitValue, setLimitValue] = useState(50);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showCharts, setShowCharts] = useState(true);
+
+  // Subscribe to global cash balance summary
+  useEffect(() => {
+    const unsub = subscribeLedgerSummary((summary) => {
+      setGlobalSummary(summary);
+    });
+    return () => unsub();
+  }, []);
+
+  // Auto load more when scrolling near bottom
+  useEffect(() => {
+    function handleScroll() {
+      if (loading) return;
+      const threshold = 150; // px from bottom
+      const isNearBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold;
+        
+      if (isNearBottom && rows.length >= limitValue) {
+        setLimitValue((prev) => prev + 50);
+      }
+    }
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [rows.length, limitValue, loading]);
+
+  async function handleRecalculate() {
+    setSyncingSummary(true);
+    try {
+      await recalculateLedgerSummary();
+      alert("Saldo kas berhasil disinkronisasi ulang!");
+    } catch (err) {
+      console.error("Gagal melakukan sinkronisasi:", err);
+      alert("Gagal melakukan sinkronisasi saldo.");
+    } finally {
+      setSyncingSummary(false);
+    }
+  }
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -476,7 +520,7 @@ export function LedgerPage() {
           to: dateTo,
           type: typeFilter || undefined,
           category: categoryFilter || undefined,
-          limit: 500,
+          limit: limitValue,
           order: { field: "tanggal", direction: "desc" },
         });
         if (!cancelled) setRows(data);
@@ -489,7 +533,7 @@ export function LedgerPage() {
           to: dateTo,
           type: typeFilter || undefined,
           category: categoryFilter || undefined,
-          limit: 500,
+          limit: limitValue,
           order: { field: "tanggal", direction: "desc" },
         },
         (live) => {
@@ -503,7 +547,7 @@ export function LedgerPage() {
       cancelled = true;
       if (unsub) unsub();
     };
-  }, [dateFrom, dateTo, typeFilter, categoryFilter]);
+  }, [dateFrom, dateTo, typeFilter, categoryFilter, limitValue]);
 
   // ===== CRUD modal state =====
   const [showForm, setShowForm] = useState<{
@@ -585,9 +629,19 @@ export function LedgerPage() {
                 <Activity className="w-5 h-5 text-[#0a2342]" />
               </div>
               <div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent leading-none">
-                  Buku Kas
-                </h1>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent leading-none">
+                    Buku Kas
+                  </h1>
+                  <button
+                    disabled={syncingSummary}
+                    onClick={handleRecalculate}
+                    className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                    title="Sinkronisasi Saldo"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${syncingSummary ? "animate-spin text-indigo-500" : ""}`} />
+                  </button>
+                </div>
                 <p className="text-[10px] text-slate-400 mt-1 font-semibold">Kelola arus kas masuk dan keluar</p>
               </div>
             </div>
@@ -682,7 +736,12 @@ export function LedgerPage() {
         <div className={`${showStats ? "grid" : "hidden sm:grid"} grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-300`}>
           <StatCard label="Pemasukan" value={totalMasuk} type="income" />
           <StatCard label="Pengeluaran" value={totalKeluar} type="expense" />
-          <StatCard label="Sisa Saldo Kas" value={saldo} type="balance" />
+          <StatCard 
+            label="Sisa Saldo Kas" 
+            value={globalSummary ? globalSummary.totalSaldo : saldo} 
+            type="balance"
+            sub={globalSummary ? `Net flow periode ini: ${totalMasuk - totalKeluar >= 0 ? "+" : ""}${formatIDR(totalMasuk - totalKeluar)}` : undefined}
+          />
         </div>
 
         {/* Charts & Visualization Section */}
@@ -982,6 +1041,20 @@ export function LedgerPage() {
               </div>
             )}
           </div>
+          
+          {/* Load More Fallback Button */}
+          {rows.length >= limitValue && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-center">
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={() => setLimitValue((prev) => prev + 30)}
+                className="w-full sm:w-auto h-10 px-6 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? "Memuat..." : "Muat Lebih Banyak"}
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
 
