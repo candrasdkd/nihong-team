@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Plus, Pencil, Trash2, Search, Clock, Weight,
   Plane, CheckCircle2, AlertCircle, X, ChevronDown, Info,
-  Filter,
+  Filter, User,
 } from "lucide-react";
 import { DepartureSchedule, Jastiper, ScheduleStatus } from "../types";
 import { listenSchedules, addSchedule, updateSchedule, deleteSchedule } from "../services/schedulesFirebase";
@@ -11,6 +11,7 @@ import { listenJastipers } from "../services/jastipersFirebase";
 import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
+import { FlagID, FlagJP } from "../components/ui/Flags";
 
 const STATUS_CONFIG: Record<ScheduleStatus, { label: string; color: string; bg: string; ring: string; icon: React.ElementType }> = {
   Open:       { label: "Open",      color: "text-emerald-700", bg: "bg-emerald-50",   ring: "ring-emerald-200",  icon: CheckCircle2 },
@@ -77,13 +78,33 @@ function ScheduleFormModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [jastiperSearch, setJastiperSearch] = useState("");
+  const [showJastiperDropdown, setShowJastiperDropdown] = useState(false);
+  const jastiperDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (jastiperDropdownRef.current && !jastiperDropdownRef.current.contains(event.target as Node)) {
+        setShowJastiperDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const selectedJastiper = jastipers.find((j) => j.id === idJastiper);
+
+  const filteredJastipers = useMemo(() => {
+    return jastipers.filter((j) =>
+      j.nama.toLowerCase().includes(jastiperSearch.toLowerCase())
+    );
+  }, [jastipers, jastiperSearch]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,18 +165,73 @@ function ScheduleFormModal({
             )}
 
             {/* Jastiper Select */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 relative" ref={jastiperDropdownRef}>
               <label className={labelClass}>Jastiper *</label>
-              <select
-                value={idJastiper}
-                onChange={(e) => setIdJastiper(e.target.value)}
-                className={fieldClass}
+              <button
+                type="button"
+                onClick={() => setShowJastiperDropdown((prev) => !prev)}
+                className={`${fieldClass} text-left flex items-center justify-between bg-slate-50 hover:bg-slate-100/50 transition-colors`}
               >
-                <option value="">— Pilih Jastiper —</option>
-                {jastipers.map((j) => (
-                  <option key={j.id} value={j.id}>{j.nama}</option>
-                ))}
-              </select>
+                <span className={selectedJastiper ? "text-slate-800" : "text-slate-400"}>
+                  {selectedJastiper ? selectedJastiper.nama : "— Pilih Jastiper —"}
+                </span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${showJastiperDropdown ? "rotate-180" : ""}`} />
+              </button>
+
+              {showJastiperDropdown && (
+                <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 flex flex-col">
+                  <div className="p-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50 shrink-0">
+                    <Search size={14} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      value={jastiperSearch}
+                      onChange={(e) => setJastiperSearch(e.target.value)}
+                      placeholder="Cari jastiper..."
+                      className="w-full bg-transparent border-none outline-none text-xs font-semibold text-slate-800 placeholder-slate-400 py-1"
+                      autoFocus
+                    />
+                    {jastiperSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setJastiperSearch("")}
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto max-h-44 py-1 divide-y divide-slate-50">
+                    {filteredJastipers.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-slate-400 italic text-center">
+                        Tidak ada jastiper ditemukan
+                      </div>
+                    ) : (
+                      filteredJastipers.map((j) => {
+                        const isSelected = j.id === idJastiper;
+                        return (
+                          <button
+                            key={j.id}
+                            type="button"
+                            onClick={() => {
+                              setIdJastiper(j.id);
+                              setShowJastiperDropdown(false);
+                              setJastiperSearch("");
+                            }}
+                            className={`w-full text-left px-4 py-2 text-xs font-semibold flex items-center justify-between transition-colors ${
+                              isSelected
+                                ? "bg-blue-50 text-blue-700"
+                                : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span>{j.nama}</span>
+                            {isSelected && <CheckCircle2 size={12} className="text-blue-600" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
               {jastipers.length === 0 && (
                 <p className="text-[11px] text-amber-600 font-semibold">⚠ Belum ada jastiper terdaftar. Tambah dulu di menu Jastiper.</p>
               )}
@@ -166,8 +242,8 @@ function ScheduleFormModal({
               <label className={labelClass}>Rute Pengiriman *</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { value: "Indonesia → Jepang", flag: "🇮🇩→🇯🇵", label: "Indonesia → Jepang" },
-                  { value: "Jepang → Indonesia", flag: "🇯🇵→🇮🇩", label: "Jepang → Indonesia" },
+                  { value: "Indonesia → Jepang", label: "Indonesia → Jepang", isIDtoJP: true },
+                  { value: "Jepang → Indonesia", label: "Jepang → Indonesia", isIDtoJP: false },
                 ].map((opt) => {
                   const isSelected = rute === opt.value;
                   return (
@@ -175,13 +251,27 @@ function ScheduleFormModal({
                       key={opt.value}
                       type="button"
                       onClick={() => setRute(opt.value)}
-                      className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border-2 font-bold text-sm transition-all duration-200 ${
+                      className={`flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 font-bold text-sm transition-all duration-200 ${
                         isSelected
                           ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/20 scale-[1.02]"
                           : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-slate-100"
                       }`}
                     >
-                      <span className="text-xl leading-none">{opt.flag}</span>
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-100 px-2.5 py-1 rounded-full shadow-sm">
+                        {opt.isIDtoJP ? (
+                          <>
+                            <FlagID size="md" />
+                            <span className="text-slate-400 text-xs font-black">→</span>
+                            <FlagJP size="md" />
+                          </>
+                        ) : (
+                          <>
+                            <FlagJP size="md" />
+                            <span className="text-slate-400 text-xs font-black">→</span>
+                            <FlagID size="md" />
+                          </>
+                        )}
+                      </div>
                       <span className="text-[11px] font-extrabold tracking-tight">{opt.label}</span>
                     </button>
                   );
@@ -192,15 +282,6 @@ function ScheduleFormModal({
             {/* Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className={labelClass}>Tanggal Keberangkatan *</label>
-                <input
-                  type="date"
-                  value={tanggalBerangkat}
-                  onChange={(e) => setTanggalBerangkat(e.target.value)}
-                  className={fieldClass}
-                />
-              </div>
-              <div className="space-y-1.5">
                 <label className={labelClass}>Tanggal Last Drop *</label>
                 <input
                   type="date"
@@ -209,6 +290,15 @@ function ScheduleFormModal({
                   className={fieldClass}
                 />
                 <p className="text-[10px] text-slate-400 font-medium">Batas akhir konsumen titip barang</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Tanggal Keberangkatan *</label>
+                <input
+                  type="date"
+                  value={tanggalBerangkat}
+                  onChange={(e) => setTanggalBerangkat(e.target.value)}
+                  className={fieldClass}
+                />
               </div>
             </div>
 
@@ -283,69 +373,160 @@ function ScheduleCard({
     } catch { return d; }
   };
 
+  const percentage = Math.min(100, Math.round(((schedule.beratTerpakai || 0) / (schedule.slotBeratKg || 1)) * 100));
+  
+  // Choose progress bar color based on weight usage percentage
+  const progressBarColor = percentage >= 90 
+    ? "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)]" 
+    : percentage >= 75 
+      ? "bg-gradient-to-r from-amber-500 to-orange-600 shadow-[0_0_8px_rgba(245,158,11,0.2)]" 
+      : "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_0_8px_rgba(59,130,246,0.2)]";
+
+  const isIDtoJP = schedule.rute === "Indonesia → Jepang";
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all duration-300 group overflow-hidden"
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200/80 transition-all duration-300 overflow-hidden flex flex-col justify-between"
     >
-      {/* Top stripe */}
-      <div className="h-1 w-full bg-blue-500" />
+      {/* Top Accent Line */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-indigo-600" />
 
-      <div className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{schedule.rute}</h3>
+      <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+        {/* Header: Route Visual & Status Badge */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            {/* Route visual map */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 p-1.5 rounded-2xl shadow-sm shrink-0">
+                {isIDtoJP ? (
+                  <>
+                    <FlagID size="sm" />
+                    <div className="flex flex-col items-center px-0.5">
+                      <Plane size={9} className="text-blue-500 animate-pulse" />
+                      <span className="text-slate-300 text-[8px] font-black -mt-0.5">➔</span>
+                    </div>
+                    <FlagJP size="sm" />
+                  </>
+                ) : (
+                  <>
+                    <FlagJP size="sm" />
+                    <div className="flex flex-col items-center px-0.5">
+                      <Plane size={9} className="text-blue-500 animate-pulse rotate-180" />
+                      <span className="text-slate-300 text-[8px] font-black -mt-0.5">➔</span>
+                    </div>
+                    <FlagID size="sm" />
+                  </>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none">Rute</span>
+                <span className="font-extrabold text-slate-800 text-xs tracking-tight">{schedule.rute}</span>
+              </div>
+            </div>
+            
+            <div className="shrink-0 flex items-center">
               <StatusBadge status={schedule.status} />
             </div>
-            <p className="text-xs text-slate-500 font-semibold">Jastiper: <span className="text-slate-700">{schedule.namaJastiper}</span></p>
           </div>
-          <div className="flex items-center gap-1 ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
-              <Pencil size={13} />
-            </button>
-            <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Hapus">
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </div>
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Berangkat</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs">
-              <Plane size={12} className="text-blue-500 shrink-0" />
-              {formatDate(schedule.tanggalBerangkat)}
+          {/* Jastiper avatar row */}
+          <div className="flex items-center justify-between bg-slate-50/70 rounded-2xl p-2.5 border border-slate-100/50">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-blue-100/80 flex items-center justify-center text-blue-600 font-extrabold text-xs shadow-inner shrink-0">
+                {schedule.namaJastiper ? schedule.namaJastiper.charAt(0).toUpperCase() : <User size={12} />}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none">Jastiper</span>
+                <span className="text-xs font-extrabold text-slate-700 truncate">{schedule.namaJastiper}</span>
+              </div>
+            </div>
+            
+            {/* Quick Actions (clean buttons with hover micro-animations) */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button 
+                onClick={onEdit} 
+                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-100 transition-all duration-200" 
+                title="Edit"
+              >
+                <Pencil size={12} />
+              </button>
+              <button 
+                onClick={onDelete} 
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-rose-100 transition-all duration-200" 
+                title="Hapus"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Last Drop</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs">
-              <Clock size={12} className="text-amber-500 shrink-0" />
-              {formatDate(schedule.tanggalLastDrop)}
+        </div>
+
+        {/* Boarding-pass Style Timeline for Dates */}
+        <div className="relative flex items-center justify-between gap-2 py-2 px-1 bg-slate-50/30 rounded-2xl border border-slate-50/50">
+          {/* Left: Last Drop */}
+          <div className="flex-1 flex flex-col items-start pl-2">
+            <span className="text-[8px] font-extrabold text-amber-600 uppercase tracking-widest flex items-center gap-1">
+              <Clock size={9} />
+              Last Drop
+            </span>
+            <span className="text-sm font-black text-slate-800 mt-1 leading-none">{formatDate(schedule.tanggalLastDrop).split(" ")[0]}</span>
+            <span className="text-[10px] font-bold text-slate-400 mt-0.5">{formatDate(schedule.tanggalLastDrop).split(" ").slice(1).join(" ")}</span>
+          </div>
+
+          {/* Connected plane timeline line */}
+          <div className="flex-1 flex items-center justify-center relative px-1 select-none">
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-slate-200" />
+            <div className="relative z-10 w-6 h-6 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center">
+              <Plane size={10} className="text-slate-400 transform rotate-45" />
             </div>
+          </div>
+
+          {/* Right: Departure */}
+          <div className="flex-1 flex flex-col items-end text-right pr-2">
+            <span className="text-[8px] font-extrabold text-blue-600 uppercase tracking-widest flex items-center gap-1 justify-end">
+              <Plane size={9} className="rotate-45" />
+              Berangkat
+            </span>
+            <span className="text-sm font-black text-slate-800 mt-1 leading-none">{formatDate(schedule.tanggalBerangkat).split(" ")[0]}</span>
+            <span className="text-[10px] font-bold text-slate-400 mt-0.5">{formatDate(schedule.tanggalBerangkat).split(" ").slice(1).join(" ")}</span>
           </div>
         </div>
 
-        {/* Weight Box */}
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 p-3 rounded-xl mt-2 select-none">
-          <span className="text-slate-500 flex items-center gap-1.5 font-semibold">
-            <Weight size={13} className="text-slate-400" />
-            Total Berat Terisi:
-          </span>
-          <span className="font-extrabold text-slate-800 text-sm">
-            {schedule.beratTerpakai} / {schedule.slotBeratKg} Kg
-          </span>
+        {/* Capacity / Weight Visual Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] font-bold">
+            <span className="text-slate-400 flex items-center gap-1 font-semibold">
+              <Weight size={12} className="text-slate-400 shrink-0" />
+              Kapasitas Terisi
+            </span>
+            <span className="font-extrabold text-slate-800">
+              {schedule.beratTerpakai} / {schedule.slotBeratKg} Kg <span className="text-slate-400 font-semibold">({percentage}%)</span>
+            </span>
+          </div>
+
+          {/* Animated Progress track */}
+          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-100/50">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${percentage}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className={`h-full rounded-full transition-all duration-300 ${progressBarColor}`}
+            />
+          </div>
         </div>
 
+        {/* Note Bubble at the bottom */}
         {schedule.catatan && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <p className="text-[11px] text-slate-500 italic line-clamp-2">📝 {schedule.catatan}</p>
+          <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-2xl">
+            <p className="text-[10px] text-slate-500 font-semibold leading-relaxed flex gap-1 items-start">
+              <span className="shrink-0 text-slate-400">📝</span>
+              <span className="italic line-clamp-2">{schedule.catatan}</span>
+            </p>
           </div>
         )}
       </div>
@@ -367,6 +548,7 @@ export function SchedulesPage() {
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean; title: string; message: string; onConfirm: () => void;
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+  const [visibleCount, setVisibleCount] = useState(10);
 
   useEffect(() => {
     const unsubS = listenSchedules((rows) => {
@@ -398,6 +580,15 @@ export function SchedulesPage() {
     }
     return list;
   }, [schedules, statusFilter, q]);
+
+  // Reset pagination whenever search query or status filter changes
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [q, statusFilter]);
+
+  const visibleSchedules = useMemo(() => {
+    return filtered.slice(0, visibleCount);
+  }, [filtered, visibleCount]);
 
   function addToast(message: string, type: "success" | "error") {
     const id = Date.now();
@@ -550,18 +741,42 @@ export function SchedulesPage() {
             </p>
           </div>
         ) : (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {filtered.map((sch) => (
-                <ScheduleCard
-                  key={sch.id}
-                  schedule={sch}
-                  onEdit={() => { setEditing(sch); setShowForm(true); }}
-                  onDelete={() => handleDelete(sch)}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <div className="space-y-6">
+            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {visibleSchedules.map((sch) => (
+                  <ScheduleCard
+                    key={sch.id}
+                    schedule={sch}
+                    onEdit={() => { setEditing(sch); setShowForm(true); }}
+                    onDelete={() => handleDelete(sch)}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+
+            {filtered.length > visibleCount && (
+              <div className="flex flex-col items-center justify-center pt-8 pb-4 space-y-3">
+                <p className="text-xs text-slate-500 font-bold">
+                  Menampilkan <span className="text-slate-800">{Math.min(visibleCount, filtered.length)}</span> dari{" "}
+                  <span className="text-slate-800">{filtered.length}</span> jadwal keberangkatan
+                </p>
+                <div className="w-48 h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                    style={{ width: `${(Math.min(visibleCount, filtered.length) / filtered.length) * 100}%` }}
+                  />
+                </div>
+                <Button
+                  onClick={() => setVisibleCount((prev) => prev + 10)}
+                  variant="outline"
+                  className="px-6 py-2 rounded-xl text-xs font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-800 shadow-sm hover:shadow active:scale-95 transition-all"
+                >
+                  Muat Lebih Banyak ▾
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

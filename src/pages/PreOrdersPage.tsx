@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag, Plus, Pencil, Trash2, Search, X, CheckCircle2,
   AlertCircle, Weight, Package, ChevronDown, ChevronUp,
-  ArrowRight, Calendar, Plane, User2,
+  ArrowRight, Calendar, Plane, User2, MessageCircle,
 } from "lucide-react";
 import { PreOrder, PreOrderItem, PreOrderStatus, DepartureSchedule, Customer } from "../types";
 import { listenPreOrders, addPreOrder, updatePreOrder, deletePreOrder, convertPreOrderToOrder } from "../services/preOrdersFirebase";
@@ -13,6 +13,9 @@ import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import SearchableSelect from "../components/ui/SearchableSelect";
+import { FlagID, FlagJP } from "../components/ui/Flags";
+import { openWhatsApp, toWaNumber } from "../utils/helpers";
+
 
 // ─── Status Config ─────────────────────────────────────────────────────────────
 
@@ -29,6 +32,45 @@ function StatusBadge({ status }: { status: PreOrderStatus }) {
       {cfg.label}
     </span>
   );
+}
+
+function RouteDisplay({ rute, className = "" }: { rute: string; className?: string }) {
+  const isIDtoJP = rute === "Indonesia → Jepang";
+  const isJPtoID = rute === "Jepang → Indonesia";
+
+  if (isIDtoJP) {
+    return (
+      <div className={`inline-flex items-center gap-1.5 ${className}`}>
+        <div className="flex items-center gap-1 shrink-0 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-full">
+          <FlagID size="sm" />
+          <span className="text-slate-400 text-[9px] font-bold">→</span>
+          <FlagJP size="sm" />
+        </div>
+        <span className="font-bold text-slate-600 text-[10px]">{rute}</span>
+      </div>
+    );
+  }
+  if (isJPtoID) {
+    return (
+      <div className={`inline-flex items-center gap-1.5 ${className}`}>
+        <div className="flex items-center gap-1 shrink-0 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-full">
+          <FlagJP size="sm" />
+          <span className="text-slate-400 text-[9px] font-bold">→</span>
+          <FlagID size="sm" />
+        </div>
+        <span className="font-bold text-slate-600 text-[10px]">{rute}</span>
+      </div>
+    );
+  }
+
+  return <span className="font-bold text-slate-600 text-[10px]">{rute}</span>;
+}
+
+// ─── WhatsApp Share Helper ───────────────────────────────────────────────────
+
+function safeOpenWhatsApp(message?: string) {
+  const url = `https://api.whatsapp.com/send${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -397,11 +439,13 @@ function PreOrderFormModal({
               <div className="space-y-1.5">
                 <label className={labelClass}>Berat Total (Kg)</label>
                 <input
-                  type="number"
-                  step="0.1"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={totalKgInput}
-                  onChange={(e) => setTotalKgInput(e.target.value)}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+                    setTotalKgInput(cleaned);
+                  }}
                   placeholder="Contoh: 5.0"
                   className={fieldClass}
                 />
@@ -547,19 +591,30 @@ function ConvertModal({
 
 function PreOrderCard({
   po,
+  schedules,
+  selected,
+  onSelectToggle,
   onEdit,
   onDelete,
   onConvert,
   onToggleItemCheck,
 }: {
   po: PreOrder;
+  schedules: DepartureSchedule[];
+  selected: boolean;
+  onSelectToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onConvert: () => void;
   onToggleItemCheck: (itemIdx: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(true); // default expand to show items & checkbox easily
+  const [expanded, setExpanded] = useState(false);
   const canConvert = po.status === "Pending";
+  const isSelesai = po.status === "Selesai";
+  
+  const initials = po.namaPelanggan
+    ? po.namaPelanggan.split(" ").slice(0, 2).map((n) => n.charAt(0).toUpperCase()).join("")
+    : "";
 
   const formatDate = (d: string) => {
     if (!d) return "-";
@@ -567,110 +622,216 @@ function PreOrderCard({
     catch { return d; }
   };
 
+  const handleShareWhatsApp = () => {
+    const sch = schedules.find((s) => s.id === po.idJadwal);
+    const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
+    const departureDate = po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-";
+
+    const itemsText = po.items
+      .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
+      .join("\n");
+
+    const message = `*Jastiper:* ${po.namaJastiper || "-"}
+*Rute:* ${po.rute || "-"}
+*Last Drop:* ${lastDropDate}
+*Keberangkatan:* ${departureDate}
+*Konsumen:* ${po.namaPelanggan}
+*Total Berat:* ${po.totalKg.toFixed(1)} Kg
+
+*Daftar Barang:*
+${itemsText}`;
+
+    safeOpenWhatsApp(message);
+  };
+
+  const showToggle = po.items.length > 3;
+  const displayedItems = showToggle && !expanded ? po.items.slice(0, 3) : po.items;
+
   return (
     <motion.div
-      layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-      className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${
-        po.status === "Selesai" ? "border-emerald-100/80" : "border-slate-100/80"
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className={`bg-white rounded-3xl border shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between ${
+        selected
+          ? "border-rose-500 ring-2 ring-rose-500/20"
+          : isSelesai
+          ? "border-emerald-100 hover:border-emerald-200/80"
+          : "border-slate-100 hover:border-rose-200/80"
       }`}
     >
-      {/* Status stripe */}
-      <div className={`h-1 w-full ${po.status === "Selesai" ? "bg-emerald-500" : "bg-amber-400"}`} />
+      {/* Top Banner Stripe */}
+      <div className={`h-1 w-full bg-gradient-to-r ${isSelesai ? "from-emerald-500 to-teal-500" : "from-rose-500 to-pink-500"}`} />
 
-      <div className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-extrabold text-slate-800 text-sm truncate max-w-[130px]">{po.namaPelanggan}</h3>
-              <StatusBadge status={po.status} />
+      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+        {/* Header: Customer info & Actions */}
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={onSelectToggle}
+                className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-4 h-4 shrink-0 cursor-pointer"
+                title="Pilih pre-order"
+              />
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-xs shadow-inner shrink-0 ${
+                isSelesai ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+              }`}>
+                {initials || <User2 size={14} />}
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="font-extrabold text-slate-800 text-sm truncate max-w-[140px]" title={po.namaPelanggan}>
+                    {po.namaPelanggan}
+                  </h4>
+                  <StatusBadge status={po.status} />
+                </div>
+                <div className="text-[10px] text-slate-400 font-semibold truncate leading-none mt-1">
+                  Telp: {po.noTelponPelanggan || "-"}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-              <span className="flex items-center gap-1 font-semibold"><Plane size={9} className="text-blue-400 shrink-0" />{po.rute}</span>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={handleShareWhatsApp}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all duration-200"
+                title="Bagikan ke WhatsApp"
+              >
+                <MessageCircle size={12} />
+              </button>
+              {!isSelesai && (
+                <>
+                  <button
+                    onClick={onEdit}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all duration-200"
+                    title="Edit"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 border border-transparent hover:border-rose-100 transition-all duration-200"
+                    title="Hapus"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-1 ml-2 shrink-0">
-            {po.status !== "Selesai" && (
-              <>
-                <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit"><Pencil size={13} /></button>
-                <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Hapus"><Trash2 size={13} /></button>
-              </>
-            )}
+
+          {/* Route & Jastiper & Date Badge */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100/60">
+            <RouteDisplay rute={po.rute} />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {po.tanggalBerangkat && (
+                <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 shadow-2xs select-none">
+                  <Calendar size={10} className="text-blue-600" />
+                  {formatDate(po.tanggalBerangkat)}
+                </span>
+              )}
+              <span className="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100/30 shrink-0">
+                Jastiper: <span className="text-slate-700 font-extrabold">{po.namaJastiper || "-"}</span>
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Items summary */}
-        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Package size={11} />
+        {/* Item List Container */}
+        <div className="bg-slate-50/70 border border-slate-100/80 rounded-2xl p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Package size={11} className="text-slate-400 shrink-0" />
               {po.items.length} Jenis Barang
             </span>
-            <button onClick={() => setExpanded(!expanded)} className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1">
-              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              {expanded ? "Sembunyikan" : "Lihat Detail"}
-            </button>
           </div>
 
-          <AnimatePresence>
-            {expanded && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="space-y-2 mb-2 border-t border-slate-200 pt-2 max-h-40 overflow-y-auto">
-                  {po.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs gap-2 py-0.5">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <input
-                          type="checkbox"
-                          checked={!!item.checked}
-                          onChange={() => onToggleItemCheck(i)}
-                          disabled={po.status === "Selesai"}
-                          className={`rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 shrink-0 ${po.status === "Selesai" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                        />
-                        <span className={`font-semibold truncate ${item.checked ? "text-slate-400 line-through font-normal" : "text-slate-700"}`}>
-                          {item.namaBarang}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+          <div className="space-y-2 border-t border-slate-200/50 pt-2.5">
+            <div className={`space-y-2 ${expanded ? "max-h-40 overflow-y-auto custom-scrollbar pr-1" : ""}`}>
+              {displayedItems.map((item, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-0.5 select-none">
+                  <label className="flex items-start gap-2 min-w-0 flex-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!item.checked}
+                      onChange={() => onToggleItemCheck(i)}
+                      disabled={isSelesai}
+                      className={`rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 mt-0.5 shrink-0 transition-colors ${
+                        isSelesai ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                      }`}
+                    />
+                    <span className={`font-semibold truncate pr-2 transition-all ${
+                      item.checked ? "text-slate-400 line-through font-normal" : "text-slate-700"
+                    }`}>
+                      {item.namaBarang}
+                    </span>
+                  </label>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ))}
+            </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-            <span className="text-xs text-slate-500 font-semibold">Total Berat</span>
-            <span className="text-sm font-extrabold text-rose-600 flex items-center gap-1">
-              <Weight size={13} />
+            {showToggle && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="text-[10px] font-extrabold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition-colors mt-1 select-none"
+              >
+                {expanded ? (
+                  <>Sembunyikan detail ▲</>
+                ) : (
+                  <>+ {po.items.length - 3} barang lainnya... (Lihat Semua ▾)</>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Weight Visual Tag */}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 text-[11px] font-bold text-slate-500">
+            <span>Total Berat</span>
+            <span className="text-xs font-extrabold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
+              <Weight size={11} className="text-rose-500" />
               {po.totalKg.toFixed(1)} Kg
             </span>
           </div>
         </div>
 
+        {/* Notes speech bubble */}
         {po.catatan && (
-          <p className="text-[11px] text-slate-500 italic mb-3">📝 {po.catatan}</p>
-        )}
-
-        {/* Convert button */}
-        {canConvert && (
-          <button
-            onClick={onConvert}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-extrabold hover:from-emerald-600 hover:to-teal-600 transition-all active:scale-98 shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
-          >
-            <ArrowRight size={14} strokeWidth="3" />
-            Pindahkan ke Pesanan
-          </button>
-        )}
-
-        {po.status === "Selesai" && (
-          <div className="flex items-center justify-center gap-2 py-2 text-xs font-bold text-emerald-600">
-            <CheckCircle2 size={14} />
-            Sudah dikonversi ke Pesanan
+          <div className="bg-slate-50 border border-slate-100 px-3 py-2 rounded-2xl relative">
+            <p className="text-[10px] text-slate-500 font-semibold leading-relaxed flex gap-1 items-start">
+              <span className="shrink-0 text-slate-400">📝</span>
+              <span className="italic line-clamp-2">{po.catatan}</span>
+            </p>
           </div>
         )}
+
+        {/* Convert Button or Completed badge */}
+        <div>
+          {canConvert ? (
+            <button
+              onClick={onConvert}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-extrabold transition-all active:scale-95 shadow-md shadow-emerald-500/25 flex items-center justify-center gap-1.5 hover:shadow-lg"
+            >
+              <ArrowRight size={13} strokeWidth="3" />
+              Pindahkan ke Pesanan
+            </button>
+          ) : (
+            <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-50/50 border border-emerald-100/60 rounded-xl text-xs font-bold text-emerald-600 select-none">
+              <CheckCircle2 size={13} className="text-emerald-500" />
+              Sudah dipindahkan ke Pesanan
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
 }
+
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -685,6 +846,7 @@ export function PreOrdersPage() {
   const [editing, setEditing] = useState<PreOrder | null>(null);
   const [convertTarget, setConvertTarget] = useState<PreOrder | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean; title: string; message: string; onConfirm: () => void;
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
@@ -787,6 +949,67 @@ export function PreOrdersPage() {
       addToast(err.message || "Gagal mengubah status barang", "error");
     }
   }
+
+  const handleSelectToggle = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleShareMultipleWhatsApp = () => {
+    const selectedPOs = preOrders.filter((po) => selectedIds.includes(po.id));
+    if (selectedPOs.length === 0) return;
+
+    // Group pre-orders by schedule ID
+    const groups: Record<string, {
+      jastiper: string;
+      rute: string;
+      lastDrop: string;
+      departure: string;
+      pos: PreOrder[];
+    }> = {};
+
+    selectedPOs.forEach((po) => {
+      const schId = po.idJadwal || "no-schedule";
+      if (!groups[schId]) {
+        const sch = schedules.find((s) => s.id === po.idJadwal);
+        groups[schId] = {
+          jastiper: po.namaJastiper || sch?.namaJastiper || "-",
+          rute: po.rute || sch?.rute || "-",
+          lastDrop: sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-",
+          departure: po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-",
+          pos: []
+        };
+      }
+      groups[schId].pos.push(po);
+    });
+
+    // Format message
+    const formattedGroups = Object.values(groups).map((g) => {
+      const header = `*Jastiper:* ${g.jastiper}
+*Rute:* ${g.rute}
+*Last Drop:* ${g.lastDrop}
+*Keberangkatan:* ${g.departure}`;
+
+      const poDetails = g.pos.map((po) => {
+        const itemsText = po.items
+          .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
+          .join("\n");
+
+        return `*Konsumen:* ${po.namaPelanggan}
+*Total Berat:* ${po.totalKg.toFixed(1)} Kg
+
+*Daftar Barang:*
+${itemsText}`;
+      }).join("\n\n");
+
+      return `${header}\n\n${poDetails}`;
+    });
+
+    const message = formattedGroups.join("\n\n-----------------------------\n\n");
+
+    safeOpenWhatsApp(message);
+  };
 
   const counts = {
     pending: preOrders.filter((p) => p.status === "Pending").length,
@@ -922,9 +1145,16 @@ export function PreOrdersPage() {
                       <span>{group.label}</span>
                     </h3>
                     {group.date && (
-                      <p className="text-xs text-slate-500 font-semibold mt-0.5 font-sans">
-                        Tanggal Berangkat: {formatDate(group.date)} &bull; Jastiper: <span className="text-blue-600 font-bold">{group.jastiper}</span>
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2 font-sans">
+                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-2.5 py-1 rounded-xl text-xs font-black shadow-3xs select-none">
+                          <Calendar size={12} className="text-blue-600 shrink-0" />
+                          <span>Berangkat: {formatDate(group.date)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-xl text-xs font-bold shadow-3xs select-none">
+                          <User2 size={12} className="text-slate-400 shrink-0" />
+                          <span>Jastiper: <span className="text-slate-800 font-black">{group.jastiper}</span></span>
+                        </div>
+                      </div>
                     )}
                   </div>
                   {group.schedule && (
@@ -945,6 +1175,9 @@ export function PreOrdersPage() {
                       <PreOrderCard
                         key={po.id}
                         po={po}
+                        schedules={schedules}
+                        selected={selectedIds.includes(po.id)}
+                        onSelectToggle={() => handleSelectToggle(po.id)}
                         onEdit={() => { setEditing(po); setShowForm(true); }}
                         onDelete={() => handleDelete(po)}
                         onConvert={() => setConvertTarget(po)}
@@ -988,6 +1221,37 @@ export function PreOrdersPage() {
           }}
         />
       )}
+
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 100, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 100, x: "-50%" }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-slate-900/95 backdrop-blur-md text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-800 flex items-center justify-between gap-4 z-[90]"
+          >
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Pilihan Pre Order</span>
+              <span className="text-sm font-extrabold text-white">{selectedIds.length} Terpilih</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds([])}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+              >
+                Batal
+              </button>
+              <Button
+                onClick={handleShareMultipleWhatsApp}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl border-0 shadow-lg shadow-emerald-950/50 flex items-center gap-1.5"
+              >
+                <MessageCircle size={14} />
+                Bagikan WA
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {confirmModal.isOpen && (
