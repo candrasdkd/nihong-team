@@ -62,7 +62,7 @@ export function listenPreOrdersBySchedule(scheduleId: string, cb: (rows: PreOrde
 export async function addPreOrder(
   data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">,
 ) {
-  const totalKg = data.items.reduce((sum, item) => sum + Number(item.jumlahKg || 0), 0);
+  const totalKg = Number(data.totalKg) || 0;
 
   const payload = {
     ...data,
@@ -74,8 +74,10 @@ export async function addPreOrder(
 
   const ref = await addDoc(collection(db, COL), payload);
 
-  // Update berat terpakai di Jadwal Keberangkatan
-  await adjustScheduleWeight(data.idJadwal, totalKg);
+  // Update berat terpakai di Jadwal Keberangkatan (hanya jika aktif/Pending)
+  if (payload.status === "Pending") {
+    await adjustScheduleWeight(data.idJadwal, totalKg);
+  }
 
   return ref.id;
 }
@@ -94,12 +96,12 @@ export async function updatePreOrder(
   const oldData = snap.data() as PreOrder;
   const oldTotalKg = Number(oldData.totalKg || 0);
   const oldScheduleId = oldData.idJadwal;
+  const oldStatus = oldData.status;
 
   // Hitung totalKg baru jika ada perubahan items
-  let newTotalKg = oldTotalKg;
-  if (data.items) {
-    newTotalKg = data.items.reduce((sum, item) => sum + Number(item.jumlahKg || 0), 0);
-  }
+  const newTotalKg = typeof data.totalKg === "number" ? data.totalKg : oldTotalKg;
+  const newStatus = data.status || oldStatus;
+  const newScheduleId = data.idJadwal || oldScheduleId;
 
   await updateDoc(docRef, {
     ...data,
@@ -107,16 +109,17 @@ export async function updatePreOrder(
     updatedAt: Date.now(),
   });
 
+  // Hitung kontribusi berat ke jadwal
+  const oldContribution = oldStatus === "Pending" ? oldTotalKg : 0;
+  const newContribution = newStatus === "Pending" ? newTotalKg : 0;
+
   // Sesuaikan berat terpakai di Jadwal
-  const newScheduleId = data.idJadwal || oldScheduleId;
   if (newScheduleId === oldScheduleId) {
-    // Jadwal sama, hanya sesuaikan selisih berat
-    const delta = newTotalKg - oldTotalKg;
+    const delta = newContribution - oldContribution;
     if (delta !== 0) await adjustScheduleWeight(oldScheduleId, delta);
   } else {
-    // Pindah jadwal: kurangi berat dari jadwal lama, tambah ke jadwal baru
-    await adjustScheduleWeight(oldScheduleId, -oldTotalKg);
-    await adjustScheduleWeight(newScheduleId, newTotalKg);
+    if (oldContribution > 0) await adjustScheduleWeight(oldScheduleId, -oldContribution);
+    if (newContribution > 0) await adjustScheduleWeight(newScheduleId, newContribution);
   }
 }
 
@@ -131,8 +134,10 @@ export async function deletePreOrder(id: string) {
   const data = snap.data() as PreOrder;
   await deleteDoc(docRef);
 
-  // Rollback berat ke Jadwal
-  await adjustScheduleWeight(data.idJadwal, -Number(data.totalKg || 0));
+  // Rollback berat ke Jadwal (hanya jika aktif/Pending)
+  if (data.status === "Pending") {
+    await adjustScheduleWeight(data.idJadwal, -Number(data.totalKg || 0));
+  }
 }
 
 /**
@@ -159,6 +164,14 @@ export async function convertPreOrderToOrder(
   const summaryRef = doc(db, "orders_monthly_summaries", monthKey);
 
   await runTransaction(db, async (transaction) => {
+    const preOrderSnap = await transaction.get(preOrderRef);
+    if (!preOrderSnap.exists()) throw new Error("Pre Order tidak ditemukan");
+    const preOrderData = preOrderSnap.data() as PreOrder;
+
+    if (preOrderData.status === "Selesai") {
+      throw new Error("Pre Order sudah dipindahkan ke Pesanan");
+    }
+
     // 1. Tulis dokumen Order baru
     transaction.set(newOrderRef, {
       ...orderPayload,
@@ -172,6 +185,15 @@ export async function convertPreOrderToOrder(
       convertedOrderId: newOrderRef.id,
       updatedAt: Date.now(),
     });
+
+    // Sesuaikan berat terpakai di Jadwal Keberangkatan jika pre-order tadinya Pending
+    if (preOrderData.status === "Pending") {
+      const scheduleRef = doc(db, "departure_schedules", preOrderData.idJadwal);
+      transaction.update(scheduleRef, {
+        beratTerpakai: increment(-Number(preOrderData.totalKg || 0)),
+        updatedAt: serverTimestamp(),
+      });
+    }
 
     // 3. Update jumlah order bulanan di ringkasan (orderCount +1)
     transaction.set(summaryRef, {
@@ -194,4 +216,77 @@ export async function convertPreOrderToOrder(
   });
 
   return newOrderRef.id;
+}
+
+/**
+ * Memeriksa dan memproses jadwal keberangkatan yang telah kadaluarsa.
+ * Jadwal yang tanggal keberangkatannya < hari ini (lokal) akan ditutup,
+ * dan pre-orders milik jadwal tersebut yang masih Pending akan dipindahkan ke Pesanan.
+ */
+export async function checkAndProcessExpiredSchedules() {
+  const d = new Date();
+  const todayYmd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // 1. Ambil jadwal yang statusnya Open dan tanggalBerangkat < hari ini
+  const schedulesRef = collection(db, "departure_schedules");
+  const qSchedules = query(
+    schedulesRef,
+    where("status", "==", "Open"),
+    where("tanggalBerangkat", "<", todayYmd)
+  );
+
+  const schedulesSnap = await getDocs(qSchedules);
+  if (schedulesSnap.empty) return { closed: 0, converted: 0 };
+
+  let closedCount = 0;
+  let convertedCount = 0;
+
+  for (const schDoc of schedulesSnap.docs) {
+    const schId = schDoc.id;
+
+    // Tutup jadwal
+    await updateDoc(doc(db, "departure_schedules", schId), {
+      status: "Closed",
+      updatedAt: serverTimestamp(),
+    });
+    closedCount++;
+
+    // 2. Cari pre-orders untuk jadwal ini yang masih Pending
+    const preOrdersRef = collection(db, "pre_orders");
+    const qPreOrders = query(
+      preOrdersRef,
+      where("idJadwal", "==", schId),
+      where("status", "==", "Pending")
+    );
+    const preOrdersSnap = await getDocs(qPreOrders);
+
+    for (const poDoc of preOrdersSnap.docs) {
+      const poId = poDoc.id;
+      const poData = poDoc.data() as PreOrder;
+      const namaBarang = poData.items.map((i) => i.namaBarang).join(", ");
+
+      await convertPreOrderToOrder(poId, {
+        no: `PO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        tanggal: todayYmd,
+        idPelanggan: poData.idPelanggan,
+        namaPelanggan: poData.namaPelanggan,
+        namaBarang,
+        kategori: "",
+        pengiriman: poData.rute,
+        jumlahKg: poData.totalKg,
+        kgCeil: Math.ceil(poData.totalKg),
+        hargaJastip: 0,
+        hargaJastipMarkup: 0,
+        hargaOngkir: 0,
+        hargaOngkirMarkup: 0,
+        totalPembayaran: 0,
+        totalKeuntungan: 0,
+        status: "Belum Membayar",
+        catatan: `Otomatis dikonversi dari Pre Order karena jadwal telah berangkat. Items: ${namaBarang}`,
+      });
+      convertedCount++;
+    }
+  }
+
+  return { closed: closedCount, converted: convertedCount };
 }

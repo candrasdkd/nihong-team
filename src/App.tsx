@@ -34,6 +34,7 @@ import {
   toExtended
 } from "./services/ordersFirebase";
 import { subscribeSettings } from "./services/settingsFirebase";
+import { checkAndProcessExpiredSchedules } from "./services/preOrdersFirebase";
 import { notificationService } from "./services/notificationService";
 import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
 
@@ -74,6 +75,20 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+
+  // 🔄 Auto-close and convert expired schedules & pre-orders on startup
+  useEffect(() => {
+    if (!user) return;
+    checkAndProcessExpiredSchedules()
+      .then((res) => {
+        if (res && res.closed > 0) {
+          console.log(`[Auto-Close] Berhasil menutup ${res.closed} jadwal kadaluarsa dan memindahkan ${res.converted} pre-order ke pesanan.`);
+        }
+      })
+      .catch((err) => {
+        console.error("[Auto-Close] Gagal menjalankan check kadaluarsa:", err);
+      });
+  }, [user]);
 
   // 🔔 Check Notification Permission
   useEffect(() => {

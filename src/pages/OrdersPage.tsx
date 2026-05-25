@@ -1225,10 +1225,6 @@ function ExpandableRow({
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold block">Kategori</span>
-                    <span className="text-xs font-bold text-slate-700">{order.kategori || "-"}</span>
-                  </div>
-                  <div>
                     <span className="text-[10px] text-slate-400 font-bold block">Rute Pengiriman</span>
                     <span className="text-xs font-bold text-slate-700">{order.pengiriman || "-"}</span>
                   </div>
@@ -1499,17 +1495,7 @@ function OrderDetailModal({
           {/* Scrollable Content */}
           <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-850">
             {/* 1. General Info Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
-                  Kategori Produk
-                </span>
-                <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs sm:text-sm">
-                  <Box size={14} className="text-slate-500 shrink-0" />
-                  <span>{order.kategori || "-"}</span>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
                   Rute Pengiriman
@@ -1520,7 +1506,7 @@ function OrderDetailModal({
                 </div>
               </div>
 
-              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl col-span-2 sm:col-span-1">
+              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">
                   Berat Kargo
                 </span>

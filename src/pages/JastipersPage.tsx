@@ -83,6 +83,8 @@ function JastiperFormModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nama.trim()) { setError("Nama Jastiper wajib diisi."); return; }
+    if (!noTelpon.trim()) { setError("No. Telpon / WhatsApp wajib diisi."); return; }
+    if (!alamat.trim()) { setError("Alamat wajib diisi."); return; }
     setLoading(true);
     try {
       await onSubmit({ nama: nama.trim(), noTelpon: noTelpon.trim(), alamat: alamat.trim() });
@@ -144,7 +146,7 @@ function JastiperFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">No. Telpon / WhatsApp</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">No. Telpon / WhatsApp *</label>
               <input
                 value={noTelpon}
                 onChange={(e) => setNoTelpon(e.target.value)}
@@ -155,7 +157,7 @@ function JastiperFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Alamat</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Alamat *</label>
               <textarea
                 value={alamat}
                 onChange={(e) => setAlamat(e.target.value)}
@@ -254,12 +256,22 @@ export function JastipersPage() {
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+        {/* Mobile Header */}
+        <div className="block sm:hidden">
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            Daftar Jastiper 🧳
+          </h2>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Kelola data jastiper, kontak, dan alamat.
+          </p>
+        </div>
+
         {/* Hero Header */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2d1b69] via-[#3b2784] to-[#1e1152] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2d1b69] via-[#3b2784] to-[#1e1152] px-6 py-8 shadow-xl border border-white/5"
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-violet-400/15 blur-3xl" />
@@ -300,7 +312,7 @@ export function JastipersPage() {
         </div>
 
         {/* Stats Bar */}
-        <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4">
           <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
             <Users size={16} className="text-violet-500" />
             <span className="text-sm font-bold text-slate-700">{jastipers.length} Jastiper Terdaftar</span>

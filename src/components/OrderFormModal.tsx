@@ -9,7 +9,7 @@ import SearchableSelect from "./ui/SearchableSelect";
 import { Select } from "./ui/Select";
 import { RupiahInput } from "./ui/RupiahInput";
 import { FlagID, FlagJP } from "./ui/Flags";
-import { CATEGORY_OPTIONS, ORDER_STATUSES } from "../utils/constants";
+import { ORDER_STATUSES } from "../utils/constants";
 import {
   ImageIcon,
   Loader2,
@@ -19,14 +19,13 @@ import {
   TrendingUp,
   Package,
   User,
-  Calendar,
-  Truck,
   Scale,
   AlertCircle,
   Sparkles,
   Trash2,
   FileText,
   Info,
+  Plus,
 } from "lucide-react";
 import { compressImage } from "../utils/image";
 
@@ -34,21 +33,6 @@ const toStr = (v: number) => (Number.isFinite(v) ? String(v) : "");
 const num = (v: any) => {
   const n = parseFloat(String(v));
   return Number.isFinite(n) ? n : 0;
-};
-
-// Emoji mapping for category select preview
-const CATEGORY_EMOJIS: Record<string, string> = {
-  "Makanan & Minuman": "🍔",
-  "Kesehatan & Suplemen": "💊",
-  "Skin Care & Kosmetik": "💄",
-  "Fashion & Pakaian": "👕",
-  "Tas & Aksesoris": "👜",
-  "Sepatu": "👟",
-  "Elektronik": "💻",
-  "Buku & Mainan": "🧸",
-  "Perlengkapan Rumah Tangga": "🏠",
-  "Hobi & Koleksi": "🎮",
-  "Lainnya": "📦",
 };
 
 export function OrderFormModal({
@@ -68,8 +52,8 @@ export function OrderFormModal({
 }) {
   const [loading, setLoading] = useState(false);
 
-  // Status and Style Helpers for Inputs (Required vs Optional, Empty vs Filled)
-  const renderLabel = (text: string, value: any, isRequired: boolean = false) => {
+  // Status and Style Helpers for Inputs
+  const renderLabel = (text: string, value?: any, isRequired: boolean = false) => {
     return (
       <div className="flex justify-between items-center mb-1.5 select-none">
         <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
@@ -90,13 +74,11 @@ export function OrderFormModal({
 
   // State Mata Uang
   const [currency, setCurrency] = useState<"IDR" | "JPY">(
-    (initial as any)?.currency || "IDR"
+    (initial as any)?.currency || (initial as any)?.tipeNominal || "IDR"
   );
 
   // State Form Utama
   const [no] = useState(initial?.no || `ORD-${new Date().getTime()}`);
-  const [namaBarang, setNamaBarang] = useState(initial?.namaBarang || "");
-  const [kategori, setKategori] = useState(initial?.kategori || "Makanan & Minuman");
   const [tanggal, setTanggal] = useState(initial?.tanggal || todayStr());
   const [namaPelanggan, setNamaPelanggan] = useState(initial?.namaPelanggan || "");
   const [jumlahKg, setJumlahKg] = useState<number>(initial?.jumlahKg || 1);
@@ -139,7 +121,7 @@ export function OrderFormModal({
 
   // State Harga
   const [hargaJastipManual, setHargaJastipManual] = useState<number>(
-    Number((initial as any)?.hargaJastipManual ?? 0)
+    Number((initial as any)?.hargaJastipManual ?? (initial as any)?.hargaJastip ?? 0)
   );
   const [hargaJastipMarkup, setHargaJastipMarkup] = useState<number>(
     Number((initial as any)?.hargaJastipMarkup ?? 0)
@@ -150,6 +132,38 @@ export function OrderFormModal({
   const [hargaOngkirMarkup, setHargaOngkirMarkup] = useState<number>(
     Number((initial as any)?.hargaOngkirMarkup ?? 0)
   );
+
+  // Multiple Item Names State
+  const [namaBarangList, setNamaBarangList] = useState<string[]>(() => {
+    if (initial?.namaBarang) {
+      return initial.namaBarang.split(", ").map((s) => s.trim());
+    }
+    return [""];
+  });
+  const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
+
+  // Item name helper methods
+  const handleNameChange = (idx: number, val: string) => {
+    setNamaBarangList((prev) => prev.map((item, i) => (i === idx ? val : item)));
+  };
+
+  const addNameField = () => {
+    setNamaBarangList((prev) => [...prev, ""]);
+  };
+
+  const removeNameField = (idx: number) => {
+    setNamaBarangList((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (namaBarangList[idx].trim()) {
+        addNameField();
+        setAutoFocusIndex(namaBarangList.length);
+      }
+    }
+  };
 
   // Memoized Calculations
   const baseOngkir = useMemo(() => Number(hargaOngkir) || 0, [hargaOngkir]);
@@ -167,16 +181,6 @@ export function OrderFormModal({
       (Number(hargaJastipManual) || 0) -
       (Number(baseOngkir) || 0),
     [hargaJastipMarkup, hargaOngkirMarkup, hargaJastipManual, baseOngkir]
-  );
-
-  const profitJastip = useMemo(
-    () => (Number(hargaJastipMarkup) || 0) - (Number(hargaJastipManual) || 0),
-    [hargaJastipMarkup, hargaJastipManual]
-  );
-
-  const profitOngkir = useMemo(
-    () => (Number(hargaOngkirMarkup) || 0) - (Number(baseOngkir) || 0),
-    [hargaOngkirMarkup, baseOngkir]
   );
 
   const profitNegative = useMemo(
@@ -238,13 +242,21 @@ export function OrderFormModal({
       return;
     }
 
+    const filteredNames = namaBarangList.map((n) => n.trim()).filter((n) => n !== "");
+    if (filteredNames.length === 0) {
+      alert("Nama Barang wajib diisi minimal satu.");
+      return;
+    }
+
     setLoading(true);
     try {
+      const combinedNamaBarang = filteredNames.join(", ");
+
       const payload: any = {
         id: initial?.id || crypto.randomUUID(),
         no,
-        namaBarang,
-        kategori,
+        namaBarang: combinedNamaBarang,
+        kategori: "",
         tanggal,
         namaPelanggan,
         jumlahKg: num(jumlahKg),
@@ -275,10 +287,6 @@ export function OrderFormModal({
     () => customers.map((c) => ({ label: c.nama, value: c.nama })),
     [customers]
   );
-
-  const activeCategoryEmoji = useMemo(() => {
-    return CATEGORY_EMOJIS[kategori] || "📦";
-  }, [kategori]);
 
   return (
     <Modal
@@ -346,76 +354,79 @@ export function OrderFormModal({
             {/* GRID SECTIONS A & B */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              {/* SECTION 1: INFORMASI PRODUK */}
+              {/* SECTION 1: INFORMASI PRODUK / NAMA BARANG */}
               <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
-                  <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg">
-                    <Package size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">Informasi Produk</h4>
-                    <p className="text-[10px] text-slate-400">Nama barang & kategori pesanan</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    {renderLabel("Nama Barang", namaBarang, true)}
-                    <Input
-                      value={namaBarang}
-                      onChange={(e) => setNamaBarang(e.target.value)}
-                      required
-                      placeholder="Masukkan nama barang..."
-                      className={getInputClass(namaBarang, true)}
-                    />
-                  </div>
-
-                  <div className="relative">
-                    {renderLabel("Kategori", kategori, true)}
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <Select
-                          value={kategori}
-                          onChange={(e) => setKategori(e.target.value)}
-                          className={getInputClass(kategori, true)}
-                        >
-                          {CATEGORY_OPTIONS.map((k) => (
-                            <option key={k} value={k}>
-                              {k}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-xl shadow-inner shrink-0 select-none" title={kategori}>
-                        {activeCategoryEmoji}
-                      </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg">
+                      <Package size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">Nama Barang Belanjaan</h4>
+                      <p className="text-[10px] text-slate-400">Input satu atau beberapa nama barang</p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={addNameField}
+                    className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 px-2 py-1 rounded-lg transition-all"
+                  >
+                    <Plus size={11} strokeWidth="3" />
+                    <span>Baris Baru</span>
+                  </button>
+                </div>
 
-                  <div>
-                    {renderLabel("Status Pesanan", status, true)}
-                    <div className="flex gap-2.5">
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {namaBarangList.map((name, index) => (
+                    <div key={index} className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value)}
-                          className={getInputClass(status, true)}
+                        <Input
+                          value={name}
+                          onChange={(e) => handleNameChange(index, e.target.value)}
+                          onKeyDown={(e) => handleNameKeyDown(e, index)}
+                          autoFocus={index === autoFocusIndex}
+                          required
+                          placeholder={`Nama barang #${index + 1}...`}
+                          className={getInputClass(name, true)}
+                        />
+                      </div>
+                      {namaBarangList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeNameField(index)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors shrink-0"
+                          title="Hapus baris"
                         >
-                          {ORDER_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className={`px-4 py-2 text-xs font-bold rounded-xl border flex items-center justify-center shadow-sm transition-all shrink-0 select-none ${
-                        status === "Selesai"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
-                          : "bg-amber-50 text-amber-700 border-amber-200/60"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "Selesai" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
-                        {status}
-                      </div>
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  {renderLabel("Status Pesanan", status, true)}
+                  <div className="flex gap-2.5">
+                    <div className="flex-1">
+                      <Select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className={getInputClass(status, true)}
+                      >
+                        {ORDER_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s === "Belum Membayar" ? "Belum Bayar" : s}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className={`px-4 py-2 text-xs font-bold rounded-xl border flex items-center justify-center shadow-sm transition-all shrink-0 select-none ${
+                      status === "Selesai"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                        : "bg-amber-50 text-amber-700 border-amber-200/60"
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "Selesai" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
+                      {status === "Belum Membayar" ? "Belum Bayar" : status}
                     </div>
                   </div>
                 </div>
@@ -507,32 +518,31 @@ export function OrderFormModal({
                         onClick={() => handleRouteChange("Lainnya")}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                           routeOption === "Lainnya"
-                            ? "bg-white text-indigo-600 shadow-sm border border-indigo-150/60"
-                            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
-                        }`}
-                      >
-                        Lainnya
-                      </button>
-                    </div>
-                    {routeOption === "Lainnya" && (
-                      <div className="transition-all duration-300">
-                        <Input
-                          value={pengiriman}
-                          onChange={(e) => setPengiriman(e.target.value)}
-                          placeholder="Masukkan rute pengiriman khusus (misal: SINGAPURA - INDO)..."
-                          className={getInputClass(pengiriman, false)}
-                        />
-                      </div>
-                    )}
-                  </div>
+                        ? "bg-white text-indigo-600 shadow-sm border border-indigo-150/60"
+                        : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                    }`}
+                  >
+                    Lainnya
+                  </button>
                 </div>
+                {routeOption === "Lainnya" && (
+                  <div className="transition-all duration-300">
+                    <Input
+                      value={pengiriman}
+                      onChange={(e) => setPengiriman(e.target.value)}
+                      placeholder="Masukkan rute pengiriman khusus (misal: SINGAPURA - INDO)..."
+                      className={getInputClass(pengiriman, false)}
+                    />
+                  </div>
+                )}
               </div>
-
             </div>
+          </div>
 
-            {/* SECTION 3: PREMIUM FINTECH PRICING DASHBOARD */}
+        </div>
+
+            {/* SECTION 3: Rincian Keuangan & Markup Harga */}
             <div className="border rounded-2xl bg-white shadow-sm overflow-hidden transition-all border-slate-200/80">
-              {/* Card Ribbon Accent */}
               <div className="h-1.5 w-full bg-slate-800"></div>
 
               <div className="p-5 sm:p-6 space-y-6">
@@ -548,9 +558,7 @@ export function OrderFormModal({
                   </div>
                 </div>
 
-                {/* Sub-inputs Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  
                   {/* JASTIP BOX */}
                   <div className="p-4 rounded-2xl border bg-slate-50/50 border-slate-150 space-y-4">
                     <h5 className="text-xs font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
@@ -582,9 +590,6 @@ export function OrderFormModal({
                         />
                       </div>
                     </div>
-                    <p className="text-[10px] text-slate-400 leading-normal">
-                      * Selisih Jastip Nihong dan Jastip Asli dihitung sebagai laba bersih jasa titip Anda.
-                    </p>
                   </div>
 
                   {/* SHIPPING / ONGKIR BOX */}
@@ -618,17 +623,32 @@ export function OrderFormModal({
                         />
                       </div>
                     </div>
-                    <p className="text-[10px] text-slate-400 leading-normal">
-                      * Ongkir dihitung berdasarkan markup pengiriman yang dibebankan kepada pelanggan.
-                    </p>
                   </div>
-
                 </div>
 
+                {/* Financial Summary */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-center justify-between text-xs font-bold text-slate-700 select-none">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Total Tagihan:</span>
+                    <span className="font-extrabold text-slate-800 flex items-center gap-1">
+                      {currency === "JPY" ? <FlagJP /> : <FlagID />}
+                      {formatCurrency(totalPembayaran, currency)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Total Profit:</span>
+                    <span
+                      className={`font-extrabold flex items-center gap-1 ${
+                        profitNegative ? "text-red-600" : "text-emerald-600"
+                      }`}
+                    >
+                      {currency === "JPY" ? <FlagJP /> : <FlagID />}
+                      {profitNegative ? "-" : ""}
+                      {formatCurrency(Math.abs(totalKeuntungan), currency)}
+                    </span>
+                  </div>
+                </div>
 
-
-
-                {/* PROFIT WARNING ALERT */}
                 {profitNegative && (
                   <div className="flex items-start gap-3 bg-red-50 border border-red-200/60 text-red-800 p-4 rounded-2xl text-xs leading-relaxed shadow-sm">
                     <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5 animate-bounce" />
@@ -640,13 +660,11 @@ export function OrderFormModal({
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
 
             {/* SECTION 4: VISUAL UPLOADER & CATATAN */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
               {/* UPLOADER */}
               <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
@@ -699,15 +717,6 @@ export function OrderFormModal({
                       <p className="text-[10px] text-slate-400 font-medium">Opsional: Maksimal 3 foto produk untuk referensi belanja.</p>
                     </div>
                   )}
-
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
-                  />
                 </div>
               </div>
 
@@ -731,9 +740,7 @@ export function OrderFormModal({
                   placeholder="Contoh: Titipan kosmetik warna nomor 3, bungkus ekstra bubble wrap..."
                 />
               </div>
-
             </div>
-
           </fieldset>
         </form>
       </div>
@@ -777,6 +784,17 @@ export function OrderFormModal({
           </Button>
         </div>
       </div>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleFileUpload}
+        onClick={(e) => {
+          (e.target as HTMLInputElement).value = "";
+        }}
+      />
     </Modal>
   );
 }

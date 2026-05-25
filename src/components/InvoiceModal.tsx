@@ -158,11 +158,8 @@ const InvoicePaper = React.forwardRef(
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-y-2 border-slate-900">
-                <th className="py-3 text-left font-bold text-slate-900 uppercase tracking-wider text-xs w-[40%]">
+                <th className="py-3 text-left font-bold text-slate-900 uppercase tracking-wider text-xs w-[60%]">
                   Deskripsi
-                </th>
-                <th className="py-3 text-left font-bold text-slate-900 uppercase tracking-wider text-xs">
-                  Kategori
                 </th>
                 <th className="py-3 text-right font-bold text-slate-900 uppercase tracking-wider text-xs">
                   Berat (Kg)
@@ -186,9 +183,6 @@ const InvoicePaper = React.forwardRef(
                           {item.catatan}
                         </div>
                       )}
-                    </td>
-                    <td className="py-3 text-slate-600 align-top">
-                      {item.kategori || "-"}
                     </td>
                     <td className="py-3 text-right text-slate-600 font-mono align-top">
                       {d.kg}

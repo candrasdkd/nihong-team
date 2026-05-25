@@ -7,8 +7,8 @@ import { TabId } from "../types";
 // (Pelanggan, Jastiper, Jadwal, Pre Order).
 const TAB_CONFIG: { id: TabId; label: string; Icon: ElementType }[] = [
   { id: "home",    label: "Dashboard", Icon: Home },
-  { id: "orders",  label: "Pesanan",   Icon: ClipboardList },
   { id: "menu",    label: "Menu",      Icon: LayoutGrid },
+  { id: "orders",  label: "Pesanan",   Icon: ClipboardList },
   { id: "cash",    label: "Kas",       Icon: Wallet },
 ];
 

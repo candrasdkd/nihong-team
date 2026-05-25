@@ -1,25 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag, Plus, Pencil, Trash2, Search, X, CheckCircle2,
   AlertCircle, Weight, Package, ChevronDown, ChevronUp,
-  ArrowRight, RotateCcw, Clock, User2, Calendar, Plane,
+  ArrowRight, Calendar, Plane, User2,
 } from "lucide-react";
 import { PreOrder, PreOrderItem, PreOrderStatus, DepartureSchedule, Customer } from "../types";
 import { listenPreOrders, addPreOrder, updatePreOrder, deletePreOrder, convertPreOrderToOrder } from "../services/preOrdersFirebase";
-import { listenSchedules } from "../services/schedulesFirebase";
+import { listenSchedules, updateSchedule } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
 import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { FAB_COLOR_CLASS, CATEGORY_OPTIONS } from "../utils/constants";
+import { FAB_COLOR_CLASS } from "../utils/constants";
+import SearchableSelect from "../components/ui/SearchableSelect";
 
 // ─── Status Config ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<PreOrderStatus, { label: string; color: string; bg: string; dot: string }> = {
   Pending:     { label: "Pending",    color: "text-amber-700",   bg: "bg-amber-50 ring-1 ring-amber-200",   dot: "bg-amber-500" },
-  Diproses:    { label: "Diproses",   color: "text-blue-700",    bg: "bg-blue-50 ring-1 ring-blue-200",     dot: "bg-blue-500" },
   Selesai:     { label: "Selesai",    color: "text-emerald-700", bg: "bg-emerald-50 ring-1 ring-emerald-200",dot: "bg-emerald-500" },
-  Dibatalkan:  { label: "Dibatalkan", color: "text-rose-700",    bg: "bg-rose-50 ring-1 ring-rose-200",     dot: "bg-rose-500" },
 };
 
 function StatusBadge({ status }: { status: PreOrderStatus }) {
@@ -55,46 +54,28 @@ function ToastContainer({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: n
 // ─── Item Row ─────────────────────────────────────────────────────────────────
 
 function ItemRow({
-  item, index, onChange, onRemove, canRemove,
+  item, index, onChange, onRemove, canRemove, onKeyDown, autoFocus,
 }: {
   item: PreOrderItem; index: number;
   onChange: (idx: number, field: keyof PreOrderItem, val: string | number) => void;
   onRemove: (idx: number) => void; canRemove: boolean;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => void;
+  autoFocus: boolean;
 }) {
   return (
     <div className="grid grid-cols-12 gap-2 items-start bg-slate-50 border border-slate-200 rounded-xl p-3">
-      <div className="col-span-12 sm:col-span-4 space-y-1">
+      <div className="col-span-11 space-y-1">
         <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Barang *</label>
         <input
           value={item.namaBarang}
           onChange={(e) => onChange(index, "namaBarang", e.target.value)}
+          onKeyDown={(e) => onKeyDown(e, index)}
+          autoFocus={autoFocus}
           placeholder="Nama barang..."
           className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
         />
       </div>
-      <div className="col-span-6 sm:col-span-4 space-y-1">
-        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Kategori</label>
-        <select
-          value={item.kategori}
-          onChange={(e) => onChange(index, "kategori", e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
-        >
-          <option value="">— Pilih —</option>
-          {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-      <div className="col-span-5 sm:col-span-3 space-y-1">
-        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Berat (Kg)</label>
-        <input
-          type="number"
-          value={item.jumlahKg || ""}
-          onChange={(e) => onChange(index, "jumlahKg", e.target.value)}
-          placeholder="0"
-          min="0" step="0.1"
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
-        />
-      </div>
-      <div className="col-span-1 flex items-end justify-center pb-1">
+      <div className="col-span-1 flex items-end justify-center pb-1 pt-5">
         {canRemove && (
           <button onClick={() => onRemove(index)} className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors">
             <X size={14} />
@@ -105,20 +86,127 @@ function ItemRow({
   );
 }
 
+// ─── Click Outside hook ──────────────────────────────────────────────────────
+function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void) {
+  useEffect(() => {
+    const listener = (e: MouseEvent) => {
+      if (!ref.current || ref.current.contains(e.target as Node)) return;
+      handler();
+    };
+    document.addEventListener("mousedown", listener);
+    return () => document.removeEventListener("mousedown", listener);
+  }, [ref, handler]);
+}
+
+// ─── Schedule Selector Dropdown ──────────────────────────────────────────────
+function ScheduleSelect({
+  value,
+  onChange,
+  schedules,
+  placeholder = "— Pilih Jadwal Keberangkatan —",
+  fieldClass = "",
+  disabled = false,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  schedules: DepartureSchedule[];
+  placeholder?: string;
+  fieldClass?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useOnClickOutside(wrapRef, () => setOpen(false));
+
+  const selected = schedules.find((s) => s.id === value);
+
+  const formatDate = (d: string) => {
+    if (!d) return "";
+    try {
+      return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+    } catch { return d; }
+  };
+
+  return (
+    <div ref={wrapRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className={`${fieldClass} cursor-pointer flex items-center justify-between gap-3 text-left`}
+      >
+        {selected ? (
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{selected.rute}</span>
+              <span className="text-[9px] bg-blue-50 border border-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-md leading-none font-sans">
+                {formatDate(selected.tanggalBerangkat)}
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-medium mt-1">
+              Jastiper: <span className="text-blue-600 font-bold">{selected.namaJastiper}</span> &bull; Terisi: <span className="text-rose-600 font-bold">{selected.beratTerpakai} / {selected.slotBeratKg} Kg</span>
+            </div>
+          </div>
+        ) : (
+          <span className="text-slate-400 font-medium">{placeholder}</span>
+        )}
+        <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-1.5 z-[100] bg-white rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
+          {schedules.length === 0 ? (
+            <div className="px-4 py-6 text-xs font-semibold text-slate-400 text-center select-none">Tidak ada jadwal tersedia</div>
+          ) : (
+            <div className="p-1.5 space-y-1">
+              {schedules.map((s) => {
+                const isPicked = s.id === value;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { onChange(s.id); setOpen(false); }}
+                    className={`w-full text-left p-3 rounded-xl transition-all duration-200 ${
+                      isPicked 
+                        ? "bg-rose-50/70 border border-rose-100/60" 
+                        : "hover:bg-slate-50/80 border border-transparent"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-tight">{s.rute}</span>
+                      <span className="text-[9px] bg-slate-100 font-bold text-slate-500 px-1.5 py-0.5 rounded-md leading-none font-sans">{formatDate(s.tanggalBerangkat)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-medium">
+                      <span>Jastiper: <span className="text-blue-600 font-bold">{s.namaJastiper}</span></span>
+                      <span>Terisi: <span className="text-rose-600 font-bold">{s.beratTerpakai} / {s.slotBeratKg} Kg</span></span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── PreOrder Form Modal ──────────────────────────────────────────────────────
 
-const EMPTY_ITEM: PreOrderItem = { namaBarang: "", kategori: "", jumlahKg: 0, catatan: "" };
+const EMPTY_ITEM: PreOrderItem = { namaBarang: "", catatan: "", checked: false };
 
 function PreOrderFormModal({
   initial,
   schedules,
   customers,
+  preOrders,
   onClose,
   onSubmit,
 }: {
   initial?: PreOrder | null;
   schedules: DepartureSchedule[];
   customers: Customer[];
+  preOrders: PreOrder[];
   onClose: () => void;
   onSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>;
 }) {
@@ -127,8 +215,11 @@ function PreOrderFormModal({
   const [items, setItems] = useState<PreOrderItem[]>(initial?.items?.length ? initial.items : [{ ...EMPTY_ITEM }]);
   const [status, setStatus] = useState<PreOrderStatus>(initial?.status || "Pending");
   const [catatan, setCatatan] = useState(initial?.catatan || "");
+  const [totalKgInput, setTotalKgInput] = useState(String(initial?.totalKg || ""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -138,7 +229,12 @@ function PreOrderFormModal({
 
   const selectedSchedule = schedules.find((s) => s.id === idJadwal);
   const selectedCustomer = customers.find((c) => c.id === idPelanggan);
-  const totalKg = items.reduce((sum, i) => sum + Number(i.jumlahKg || 0), 0);
+  const totalKg = Number(totalKgInput) || 0;
+
+  const customerOptions = useMemo(
+    () => customers.map((c) => ({ label: c.nama, value: c.id || "" })),
+    [customers]
+  );
 
   function handleItemChange(idx: number, field: keyof PreOrderItem, val: string | number) {
     setItems((prev) => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
@@ -147,12 +243,34 @@ function PreOrderFormModal({
   function addItem() { setItems((prev) => [...prev, { ...EMPTY_ITEM }]); }
   function removeItem(idx: number) { setItems((prev) => prev.filter((_, i) => i !== idx)); }
 
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (items[idx].namaBarang.trim()) {
+        addItem();
+        setAutoFocusIndex(items.length);
+      }
+    }
+  };
+
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!idJadwal) { setError("Pilih Jadwal Keberangkatan."); return; }
     if (!idPelanggan) { setError("Pilih Pelanggan."); return; }
     if (items.some((i) => !i.namaBarang.trim())) { setError("Nama barang wajib diisi di setiap baris."); return; }
-    if (totalKg <= 0) { setError("Total berat harus lebih dari 0 Kg."); return; }
+    if (totalKg < 0) { setError("Total berat tidak boleh kurang dari 0 Kg."); return; }
+
+    // Validation: customer must be unique per schedule
+    const duplicate = preOrders.find(
+      (p) =>
+        p.idJadwal === idJadwal &&
+        p.idPelanggan === idPelanggan &&
+        p.id !== initial?.id
+    );
+    if (duplicate) {
+      setError(`Pelanggan "${selectedCustomer?.nama || "Pelanggan"}" sudah memiliki pre-order pada jadwal ini.`);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -164,7 +282,10 @@ function PreOrderFormModal({
         idPelanggan,
         namaPelanggan: selectedCustomer?.nama || "",
         noTelponPelanggan: selectedCustomer?.telpon || "",
-        items,
+        items: items.map(item => ({
+          ...item,
+          checked: item.checked ?? false
+        })),
         totalKg,
         status,
         catatan: catatan.trim(),
@@ -210,31 +331,36 @@ function PreOrderFormModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className={labelClass}>Jadwal Keberangkatan *</label>
-                <select value={idJadwal} onChange={(e) => setIdJadwal(e.target.value)} className={fieldClass}>
-                  <option value="">— Pilih Jadwal —</option>
-                  {schedules
-                    .filter((s) => s.status === "Open")
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.rute} — {s.tanggalBerangkat} ({s.namaJastiper})
-                      </option>
-                    ))}
-                </select>
+                <ScheduleSelect
+                  value={idJadwal}
+                  onChange={setIdJadwal}
+                  schedules={schedules.filter((s) => s.status === "Open")}
+                  fieldClass={fieldClass}
+                  disabled={loading}
+                />
                 {selectedSchedule && (
-                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg">
-                    <span className="flex items-center gap-1"><Weight size={11} className="text-blue-500" />Sisa: {Math.max(0, selectedSchedule.slotBeratKg - selectedSchedule.beratTerpakai)} Kg</span>
-                    <span className="text-blue-600">Last Drop: {selectedSchedule.tanggalLastDrop}</span>
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl mt-2 select-none">
+                    <span className="text-blue-600 font-extrabold flex items-center gap-1">
+                      📅 Last Drop: {selectedSchedule.tanggalLastDrop}
+                    </span>
+                    {selectedSchedule.catatan && (
+                      <span className="text-slate-400 italic font-medium truncate max-w-[200px]" title={selectedSchedule.catatan}>
+                        📝 {selectedSchedule.catatan}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
               <div className="space-y-1.5">
                 <label className={labelClass}>Pelanggan *</label>
-                <select value={idPelanggan} onChange={(e) => setIdPelanggan(e.target.value)} className={fieldClass}>
-                  <option value="">— Pilih Pelanggan —</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nama}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  value={idPelanggan}
+                  onChange={setIdPelanggan}
+                  options={customerOptions}
+                  disabled={loading}
+                  placeholder="Cari atau pilih pelanggan..."
+                  buttonClassName={fieldClass}
+                />
               </div>
             </div>
 
@@ -243,12 +369,11 @@ function PreOrderFormModal({
               <div className="flex items-center justify-between">
                 <label className={labelClass}>Daftar Barang *</label>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                    <Weight size={12} />
-                    Total: {totalKg.toFixed(1)} Kg
+                  <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-lg">
+                    {items.length} Jenis Barang
                   </span>
                   <button type="button" onClick={addItem} className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-all">
-                    <Plus size={13} stroke-width="3" />
+                    <Plus size={13} strokeWidth="3" />
                     Tambah Baris
                   </button>
                 </div>
@@ -260,30 +385,46 @@ function PreOrderFormModal({
                     onChange={handleItemChange}
                     onRemove={removeItem}
                     canRemove={items.length > 1}
+                    onKeyDown={handleNameKeyDown}
+                    autoFocus={idx === autoFocusIndex}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Status & Notes */}
+            {/* Berat & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelClass}>Berat Total (Kg)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={totalKgInput}
+                  onChange={(e) => setTotalKgInput(e.target.value)}
+                  placeholder="Contoh: 5.0"
+                  className={fieldClass}
+                />
+              </div>
               <div className="space-y-1.5">
                 <label className={labelClass}>Status</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value as PreOrderStatus)} className={fieldClass}>
-                  {(["Pending", "Diproses", "Selesai", "Dibatalkan"] as PreOrderStatus[]).map((s) => (
+                  {(["Pending", "Selesai"] as PreOrderStatus[]).map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className={labelClass}>Catatan (Opsional)</label>
-                <input
-                  value={catatan}
-                  onChange={(e) => setCatatan(e.target.value)}
-                  placeholder="Catatan..."
-                  className={fieldClass}
-                />
-              </div>
+            </div>
+
+            {/* Catatan */}
+            <div className="space-y-1.5">
+              <label className={labelClass}>Catatan (Opsional)</label>
+              <input
+                value={catatan}
+                onChange={(e) => setCatatan(e.target.value)}
+                placeholder="Catatan..."
+                className={fieldClass}
+              />
             </div>
           </div>
 
@@ -317,9 +458,7 @@ function ConvertModal({
   async function handleConvert() {
     setLoading(true);
     try {
-      // Build combined namaBarang from all items
       const namaBarang = preOrder.items.map((i) => i.namaBarang).join(", ");
-      const kategori = preOrder.items[0]?.kategori || "Lainnya";
 
       const orderId = await convertPreOrderToOrder(preOrder.id, {
         no: `PO-${Date.now()}`,
@@ -327,7 +466,7 @@ function ConvertModal({
         idPelanggan: preOrder.idPelanggan,
         namaPelanggan: preOrder.namaPelanggan,
         namaBarang,
-        kategori,
+        kategori: "",
         pengiriman: preOrder.rute,
         jumlahKg: preOrder.totalKg,
         kgCeil: Math.ceil(preOrder.totalKg),
@@ -338,7 +477,7 @@ function ConvertModal({
         totalPembayaran: 0,
         totalKeuntungan: 0,
         status: "Belum Membayar",
-        catatan: `Dikonversi dari Pre Order. Items: ${preOrder.items.map((i) => `${i.namaBarang} (${i.jumlahKg}Kg)`).join(", ")}`,
+        catatan: `Dikonversi dari Pre Order. Items: ${preOrder.items.map((i) => i.namaBarang).join(", ")}`,
       });
       onConverted(orderId);
     } catch (err: any) {
@@ -375,13 +514,12 @@ function ConvertModal({
               <p className="text-xs text-slate-500">{preOrder.rute}</p>
               <div className="pt-2 border-t border-slate-200 space-y-1">
                 {preOrder.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-xs">
-                    <span className="text-slate-600">{item.namaBarang}</span>
-                    <span className="font-bold text-slate-700">{item.jumlahKg} Kg</span>
+                  <div key={i} className="text-xs text-slate-600">
+                    • {item.namaBarang}
                   </div>
                 ))}
-                <div className="flex justify-between text-xs font-extrabold text-emerald-600 pt-1 border-t border-slate-200">
-                  <span>Total</span>
+                <div className="flex justify-between text-xs font-extrabold text-emerald-600 pt-2 border-t border-slate-200">
+                  <span>Total Berat</span>
                   <span>{preOrder.totalKg} Kg</span>
                 </div>
               </div>
@@ -412,14 +550,16 @@ function PreOrderCard({
   onEdit,
   onDelete,
   onConvert,
+  onToggleItemCheck,
 }: {
   po: PreOrder;
   onEdit: () => void;
   onDelete: () => void;
   onConvert: () => void;
+  onToggleItemCheck: (itemIdx: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const canConvert = po.status === "Pending" || po.status === "Diproses";
+  const [expanded, setExpanded] = useState(true); // default expand to show items & checkbox easily
+  const canConvert = po.status === "Pending";
 
   const formatDate = (d: string) => {
     if (!d) return "-";
@@ -431,30 +571,26 @@ function PreOrderCard({
     <motion.div
       layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
       className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${
-        po.status === "Selesai" ? "border-emerald-100/80" : po.status === "Dibatalkan" ? "border-slate-100/80 opacity-60" : "border-slate-100/80"
+        po.status === "Selesai" ? "border-emerald-100/80" : "border-slate-100/80"
       }`}
     >
       {/* Status stripe */}
-      <div className={`h-1 w-full ${
-        po.status === "Selesai" ? "bg-emerald-500" : po.status === "Dibatalkan" ? "bg-slate-300" : po.status === "Diproses" ? "bg-blue-500" : "bg-amber-400"
-      }`} />
+      <div className={`h-1 w-full ${po.status === "Selesai" ? "bg-emerald-500" : "bg-amber-400"}`} />
 
       <div className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-extrabold text-slate-800 text-sm">{po.namaPelanggan}</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm truncate max-w-[130px]">{po.namaPelanggan}</h3>
               <StatusBadge status={po.status} />
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
-              <span className="flex items-center gap-1"><Plane size={10} className="text-blue-400" />{po.rute}</span>
-              <span className="flex items-center gap-1"><Calendar size={10} className="text-violet-400" />{formatDate(po.tanggalBerangkat)}</span>
-              <span className="flex items-center gap-1"><User2 size={10} className="text-indigo-400" />{po.namaJastiper}</span>
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+              <span className="flex items-center gap-1 font-semibold"><Plane size={9} className="text-blue-400 shrink-0" />{po.rute}</span>
             </div>
           </div>
           <div className="flex items-center gap-1 ml-2 shrink-0">
-            {po.status !== "Selesai" && po.status !== "Dibatalkan" && (
+            {po.status !== "Selesai" && (
               <>
                 <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit"><Pencil size={13} /></button>
                 <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Hapus"><Trash2 size={13} /></button>
@@ -479,12 +615,21 @@ function PreOrderCard({
           <AnimatePresence>
             {expanded && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="space-y-1.5 mb-2 border-t border-slate-200 pt-2">
+                <div className="space-y-2 mb-2 border-t border-slate-200 pt-2 max-h-40 overflow-y-auto">
                   {po.items.map((item, i) => (
-                    <div key={i} className="grid grid-cols-12 text-xs gap-1">
-                      <div className="col-span-6 font-semibold text-slate-700 truncate">{item.namaBarang}</div>
-                      <div className="col-span-4 text-slate-500 truncate">{item.kategori}</div>
-                      <div className="col-span-2 font-bold text-right text-slate-700">{item.jumlahKg}kg</div>
+                    <div key={i} className="flex items-center justify-between text-xs gap-2 py-0.5">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={!!item.checked}
+                          onChange={() => onToggleItemCheck(i)}
+                          disabled={po.status === "Selesai"}
+                          className={`rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 shrink-0 ${po.status === "Selesai" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                        />
+                        <span className={`font-semibold truncate ${item.checked ? "text-slate-400 line-through font-normal" : "text-slate-700"}`}>
+                          {item.namaBarang}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -511,7 +656,7 @@ function PreOrderCard({
             onClick={onConvert}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-extrabold hover:from-emerald-600 hover:to-teal-600 transition-all active:scale-98 shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
           >
-            <ArrowRight size={14} stroke-width="3" />
+            <ArrowRight size={14} strokeWidth="3" />
             Pindahkan ke Pesanan
           </button>
         )}
@@ -566,6 +711,39 @@ export function PreOrdersPage() {
     return list;
   }, [preOrders, q, statusFilter]);
 
+  // Grouping pre-orders by schedule
+  const groupedBySchedule = useMemo(() => {
+    const list: { schedule?: DepartureSchedule; preOrders: PreOrder[]; label: string; date?: string; jastiper?: string }[] = [];
+
+    // Group by known schedules
+    schedules.forEach((sch) => {
+      // When viewing Pending pre-orders, hide groups for Closed schedules
+      if (statusFilter === "Pending" && sch.status === "Closed") return;
+
+      const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
+      if (matchPO.length > 0 || !q) {
+        list.push({
+          schedule: sch,
+          preOrders: matchPO,
+          label: `${sch.rute} (${sch.status})`,
+          date: sch.tanggalBerangkat,
+          jastiper: sch.namaJastiper,
+        });
+      }
+    });
+
+    // Check if there are pre-orders with schedules not in the list (or empty idJadwal)
+    const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
+    if (orphans.length > 0) {
+      list.push({
+        preOrders: orphans,
+        label: "Lainnya / Tanpa Jadwal",
+      });
+    }
+
+    return list;
+  }, [schedules, filtered, q, statusFilter]);
+
   function addToast(message: string, type: "success" | "error") {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -598,13 +776,30 @@ export function PreOrdersPage() {
     });
   }
 
+  async function handleToggleItemCheck(po: PreOrder, itemIdx: number) {
+    try {
+      const updatedItems = po.items.map((item, idx) =>
+        idx === itemIdx ? { ...item, checked: !item.checked } : item
+      );
+      await updatePreOrder(po.id, { items: updatedItems });
+      addToast("Status check barang berhasil diubah", "success");
+    } catch (err: any) {
+      addToast(err.message || "Gagal mengubah status barang", "error");
+    }
+  }
+
   const counts = {
     pending: preOrders.filter((p) => p.status === "Pending").length,
-    diproses: preOrders.filter((p) => p.status === "Diproses").length,
     selesai: preOrders.filter((p) => p.status === "Selesai").length,
   };
 
-  const STATUS_FILTERS = ["", "Pending", "Diproses", "Selesai", "Dibatalkan"];
+  const STATUS_FILTERS = ["", "Pending", "Selesai"];
+
+  const formatDate = (d: string) => {
+    if (!d) return "-";
+    try { return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }); }
+    catch { return d; }
+  };
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
@@ -614,10 +809,20 @@ export function PreOrdersPage() {
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+        {/* Mobile Header */}
+        <div className="block sm:hidden">
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            Daftar Pre Order 📦
+          </h2>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Kelola barang titipan konsumen sebelum berangkat.
+          </p>
+        </div>
+
         {/* Hero Header */}
         <motion.div
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#4c0519] via-[#881337] to-[#4c0519] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#4c0519] via-[#881337] to-[#4c0519] px-6 py-8 shadow-xl border border-white/5"
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-rose-400/15 blur-3xl" />
@@ -647,10 +852,9 @@ export function PreOrdersPage() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="hidden sm:grid grid-cols-2 gap-3">
           {[
             { label: "Pending", value: counts.pending, color: "text-amber-600", bg: "bg-amber-50 border-amber-200" },
-            { label: "Diproses", value: counts.diproses, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
             { label: "Selesai", value: counts.selesai, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
           ].map((stat) => (
             <div key={stat.label} className={`${stat.bg} border rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:gap-2`}>
@@ -683,7 +887,7 @@ export function PreOrdersPage() {
           </div>
         </div>
 
-        {/* Cards */}
+        {/* Grouped Lists by Schedule */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
@@ -694,7 +898,7 @@ export function PreOrdersPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : groupedBySchedule.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-20 h-20 rounded-3xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-5 shadow-inner">
               <ShoppingBag size={32} className="text-rose-300" />
@@ -707,19 +911,51 @@ export function PreOrdersPage() {
             </p>
           </div>
         ) : (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {filtered.map((po) => (
-                <PreOrderCard
-                  key={po.id}
-                  po={po}
-                  onEdit={() => { setEditing(po); setShowForm(true); }}
-                  onDelete={() => handleDelete(po)}
-                  onConvert={() => setConvertTarget(po)}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <div className="space-y-8">
+            {groupedBySchedule.map((group, idx) => (
+              <div key={group.schedule?.id || idx} className="bg-slate-100/40 border border-slate-200/50 rounded-3xl p-5 sm:p-6 space-y-4">
+                {/* Section Header */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                      <Plane className="w-4 h-4 text-rose-500" />
+                      <span>{group.label}</span>
+                    </h3>
+                    {group.date && (
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5 font-sans">
+                        Tanggal Berangkat: {formatDate(group.date)} &bull; Jastiper: <span className="text-blue-600 font-bold">{group.jastiper}</span>
+                      </p>
+                    )}
+                  </div>
+                  {group.schedule && (
+                    <div className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs select-none">
+                      Total Berat Terisi: <span className="text-slate-800 font-extrabold">{group.schedule.beratTerpakai.toFixed(1)} Kg</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pre-Orders under this schedule */}
+                {group.preOrders.length === 0 ? (
+                  <div className="py-8 text-center text-xs font-semibold text-slate-400 italic bg-white rounded-2xl border border-dashed border-slate-200 select-none">
+                    Belum ada pre-order di jadwal ini.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.preOrders.map((po) => (
+                      <PreOrderCard
+                        key={po.id}
+                        po={po}
+                        onEdit={() => { setEditing(po); setShowForm(true); }}
+                        onDelete={() => handleDelete(po)}
+                        onConvert={() => setConvertTarget(po)}
+                        onToggleItemCheck={(itemIdx) => handleToggleItemCheck(po, itemIdx)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -736,6 +972,7 @@ export function PreOrdersPage() {
           initial={editing}
           schedules={schedules}
           customers={customers}
+          preOrders={preOrders}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSubmit={handleSubmit}
         />

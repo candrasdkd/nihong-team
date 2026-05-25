@@ -12,13 +12,9 @@ import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 
-// ─── Status Config ────────────────────────────────────────────────────────────
-
 const STATUS_CONFIG: Record<ScheduleStatus, { label: string; color: string; bg: string; ring: string; icon: React.ElementType }> = {
   Open:       { label: "Open",      color: "text-emerald-700", bg: "bg-emerald-50",   ring: "ring-emerald-200",  icon: CheckCircle2 },
   Closed:     { label: "Closed",    color: "text-slate-600",   bg: "bg-slate-100",    ring: "ring-slate-200",    icon: X },
-  Berangkat:  { label: "Berangkat", color: "text-blue-700",    bg: "bg-blue-50",      ring: "ring-blue-200",     icon: Plane },
-  Selesai:    { label: "Selesai",   color: "text-violet-700",  bg: "bg-violet-50",    ring: "ring-violet-200",   icon: CheckCircle2 },
 };
 
 function StatusBadge({ status }: { status: ScheduleStatus }) {
@@ -58,9 +54,7 @@ function ToastContainer({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: n
   );
 }
 
-// ─── Form Modal ───────────────────────────────────────────────────────────────
-
-const SCHEDULE_STATUSES: ScheduleStatus[] = ["Open", "Closed", "Berangkat", "Selesai"];
+const SCHEDULE_STATUSES: ScheduleStatus[] = ["Open", "Closed"];
 
 function ScheduleFormModal({
   initial,
@@ -97,10 +91,6 @@ function ScheduleFormModal({
     if (!rute.trim()) { setError("Rute pengiriman wajib diisi."); return; }
     if (!tanggalBerangkat) { setError("Tanggal Keberangkatan wajib diisi."); return; }
     if (!tanggalLastDrop) { setError("Tanggal Last Drop wajib diisi."); return; }
-    if (!slotBeratKg || isNaN(Number(slotBeratKg)) || Number(slotBeratKg) <= 0) {
-      setError("Slot Berat Kg harus diisi dengan angka positif.");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -110,7 +100,7 @@ function ScheduleFormModal({
         rute: rute.trim(),
         tanggalBerangkat,
         tanggalLastDrop,
-        slotBeratKg: Number(slotBeratKg),
+        slotBeratKg: Number(slotBeratKg) || 0,
         status,
         catatan: catatan.trim(),
       });
@@ -286,13 +276,6 @@ function ScheduleCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const usedPct = schedule.slotBeratKg > 0
-    ? Math.min(100, Math.round((schedule.beratTerpakai / schedule.slotBeratKg) * 100))
-    : 0;
-  const remaining = Math.max(0, schedule.slotBeratKg - schedule.beratTerpakai);
-  const isAlmostFull = usedPct >= 80;
-  const isFull = usedPct >= 100;
-
   const formatDate = (d: string) => {
     if (!d) return "-";
     try {
@@ -309,7 +292,7 @@ function ScheduleCard({
       className="bg-white rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all duration-300 group overflow-hidden"
     >
       {/* Top stripe */}
-      <div className={`h-1 w-full ${isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-400" : "bg-blue-500"}`} />
+      <div className="h-1 w-full bg-blue-500" />
 
       <div className="p-5">
         {/* Header */}
@@ -349,31 +332,15 @@ function ScheduleCard({
           </div>
         </div>
 
-        {/* Weight Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-500 flex items-center gap-1">
-              <Weight size={12} />
-              Kapasitas Berat
-            </span>
-            <span className={`font-extrabold ${isFull ? "text-rose-600" : isAlmostFull ? "text-amber-600" : "text-slate-700"}`}>
-              {schedule.beratTerpakai} / {schedule.slotBeratKg} Kg
-            </span>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-            <motion.div
-              className={`h-2 rounded-full transition-all duration-500 ${isFull ? "bg-rose-500" : isAlmostFull ? "bg-amber-400" : "bg-blue-500"}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${usedPct}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] font-semibold">
-            <span className={isFull ? "text-rose-500" : "text-slate-400"}>{usedPct}% terpakai</span>
-            <span className={isFull ? "text-rose-500 font-extrabold" : "text-slate-500"}>
-              {isFull ? "PENUH" : `Sisa ${remaining} Kg`}
-            </span>
-          </div>
+        {/* Weight Box */}
+        <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 p-3 rounded-xl mt-2 select-none">
+          <span className="text-slate-500 flex items-center gap-1.5 font-semibold">
+            <Weight size={13} className="text-slate-400" />
+            Total Berat Terisi:
+          </span>
+          <span className="font-extrabold text-slate-800 text-sm">
+            {schedule.beratTerpakai} / {schedule.slotBeratKg} Kg
+          </span>
         </div>
 
         {schedule.catatan && (
@@ -402,7 +369,18 @@ export function SchedulesPage() {
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   useEffect(() => {
-    const unsubS = listenSchedules((rows) => { setSchedules(rows); setLoading(false); });
+    const unsubS = listenSchedules((rows) => {
+      setSchedules(rows);
+      setLoading(false);
+
+      // Auto-close schedules whose departure date has already passed
+      const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+      rows.forEach((sch) => {
+        if (sch.status === "Open" && sch.tanggalBerangkat < todayStr) {
+          updateSchedule(sch.id, { status: "Closed" }).catch(() => {});
+        }
+      });
+    });
     const unsubJ = listenJastipers((rows) => setJastipers(rows));
     return () => { unsubS(); unsubJ(); };
   }, []);
@@ -463,11 +441,21 @@ export function SchedulesPage() {
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+        {/* Mobile Header */}
+        <div className="block sm:hidden">
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            Jadwal Keberangkatan ✈️
+          </h2>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Kelola jadwal perjalanan jastiper dan kapasitas berat.
+          </p>
+        </div>
+
         {/* Hero Header */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c2a4a] via-[#1a3f6f] to-[#0c2a4a] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c2a4a] via-[#1a3f6f] to-[#0c2a4a] px-6 py-8 shadow-xl border border-white/5"
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-blue-400/15 blur-3xl" />
@@ -498,11 +486,11 @@ export function SchedulesPage() {
 
         {/* Stats + Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
             <Calendar size={16} className="text-blue-500" />
             <span className="text-sm font-bold text-slate-700">{schedules.length} Total Jadwal</span>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 shadow-sm">
             <CheckCircle2 size={16} className="text-emerald-600" />
             <span className="text-sm font-bold text-emerald-700">{openCount} Open</span>
           </div>

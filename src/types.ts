@@ -16,7 +16,7 @@ export interface Order {
   id?: string;
   no: string;
   namaBarang: string;
-  kategori: string;
+  kategori?: string;
   tanggal: string;
   namaPelanggan: string;
   jumlahKg: number;
@@ -61,7 +61,7 @@ export type OrderDoc = {
   idPelanggan: string;
   namaPelanggan: string;
   namaBarang: string;
-  kategori: string;
+  kategori?: string;
   pengiriman?: string;
   jumlahKg: number;
   kgCeil: number;
@@ -110,7 +110,7 @@ export interface Jastiper {
 }
 
 // ===== Departure Schedule Types =====
-export type ScheduleStatus = "Open" | "Closed" | "Berangkat" | "Selesai";
+export type ScheduleStatus = "Open" | "Closed";
 
 export interface DepartureSchedule {
   id: string;
@@ -130,12 +130,12 @@ export interface DepartureSchedule {
 // ===== Pre Order Types =====
 export interface PreOrderItem {
   namaBarang: string;
-  kategori: string;
-  jumlahKg: number;
+  kategori?: string;
   catatan?: string;
+  checked?: boolean;
 }
 
-export type PreOrderStatus = "Pending" | "Diproses" | "Selesai" | "Dibatalkan";
+export type PreOrderStatus = "Pending" | "Selesai";
 
 export interface PreOrder {
   id: string;
