@@ -282,7 +282,7 @@ export async function checkAndProcessExpiredSchedules() {
         totalPembayaran: 0,
         totalKeuntungan: 0,
         status: "Belum Membayar",
-        catatan: `Otomatis dikonversi dari Pre Order karena jadwal telah berangkat. Items: ${namaBarang}`,
+        catatan: poData.catatan || "",
       });
       convertedCount++;
     }

@@ -527,7 +527,7 @@ function ConvertModal({
         totalPembayaran: 0,
         totalKeuntungan: 0,
         status: "Belum Membayar",
-        catatan: `Dikonversi dari Pre Order. Items: ${preOrder.items.map((i) => i.namaBarang).join(", ")}`,
+        catatan: preOrder.catatan || "",
       });
       onConverted(orderId);
     } catch (err: any) {
