@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Plus, Pencil, Trash2, Search, Clock, Weight,
   Plane, CheckCircle2, AlertCircle, X, ChevronDown, Info,
-  Filter, User,
+  Filter, User, Coins,
 } from "lucide-react";
 import { DepartureSchedule, Jastiper, ScheduleStatus } from "../types";
 import { listenSchedules, addSchedule, updateSchedule, deleteSchedule } from "../services/schedulesFirebase";
@@ -12,6 +12,8 @@ import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import { FlagID, FlagJP } from "../components/ui/Flags";
+import { RupiahInput } from "../components/ui/RupiahInput";
+import { formatIDR } from "../utils/format";
 
 const STATUS_CONFIG: Record<ScheduleStatus, { label: string; color: string; bg: string; ring: string; icon: React.ElementType }> = {
   Open:       { label: "Open",      color: "text-emerald-700", bg: "bg-emerald-50",   ring: "ring-emerald-200",  icon: CheckCircle2 },
@@ -75,6 +77,7 @@ function ScheduleFormModal({
   const [slotBeratKg, setSlotBeratKg] = useState(String(initial?.slotBeratKg || ""));
   const [status, setStatus] = useState<ScheduleStatus>(initial?.status || "Open");
   const [catatan, setCatatan] = useState(initial?.catatan || "");
+  const [hargaFeeJastiper, setHargaFeeJastiper] = useState<number>(initial?.hargaFeeJastiper || 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -124,6 +127,7 @@ function ScheduleFormModal({
         slotBeratKg: Number(slotBeratKg) || 0,
         status,
         catatan: catatan.trim(),
+        hargaFeeJastiper: Number(hargaFeeJastiper) || 0,
       });
       onClose();
     } catch (err: any) {
@@ -302,10 +306,10 @@ function ScheduleFormModal({
               </div>
             </div>
 
-            {/* Weight & Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Weight & Fee & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className={labelClass}>Slot Berat Total (Kg) *</label>
+                <label className={labelClass}>Slot Berat (Kg) *</label>
                 <input
                   type="number"
                   value={slotBeratKg}
@@ -313,6 +317,17 @@ function ScheduleFormModal({
                   placeholder="Contoh: 50"
                   min="0"
                   step="0.5"
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Fee Jastiper</label>
+                <RupiahInput
+                  currency="IDR"
+                  label=""
+                  value={hargaFeeJastiper}
+                  onChange={setHargaFeeJastiper}
+                  placeholder="Rp 0"
                   className={fieldClass}
                 />
               </div>
@@ -517,6 +532,17 @@ function ScheduleCard({
               transition={{ duration: 0.8, ease: "easeOut" }}
               className={`h-full rounded-full transition-all duration-300 ${progressBarColor}`}
             />
+          </div>
+
+          {/* Fee Jastip Info */}
+          <div className="flex items-center justify-between text-[11px] font-bold pt-0.5">
+            <span className="text-slate-400 flex items-center gap-1 font-semibold">
+              <Coins size={12} className="text-slate-400 shrink-0" />
+              Fee Jastip
+            </span>
+            <span className="font-extrabold text-slate-800">
+              {schedule.hargaFeeJastiper ? formatIDR(schedule.hargaFeeJastiper) : "Rp 0"} <span className="text-slate-400 font-semibold">/ Kg</span>
+            </span>
           </div>
         </div>
 

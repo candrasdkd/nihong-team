@@ -123,6 +123,7 @@ export interface DepartureSchedule {
   beratTerpakai: number;      // Akumulasi dari Pre Order aktif
   status: ScheduleStatus;
   catatan?: string;
+  hargaFeeJastiper?: number;   // Fee Jastiper per Kg
   createdAt?: any;
   updatedAt?: any;
 }

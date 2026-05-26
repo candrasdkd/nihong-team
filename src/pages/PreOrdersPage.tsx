@@ -15,6 +15,7 @@ import { FAB_COLOR_CLASS } from "../utils/constants";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import { FlagID, FlagJP } from "../components/ui/Flags";
 import { openWhatsApp, toWaNumber } from "../utils/helpers";
+import { formatIDR } from "../utils/format";
 
 
 // ─── Status Config ─────────────────────────────────────────────────────────────
@@ -185,8 +186,12 @@ function ScheduleSelect({
                 {formatDate(selected.tanggalBerangkat)}
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 font-medium mt-1">
-              Jastiper: <span className="text-blue-600 font-bold">{selected.namaJastiper}</span> &bull; Terisi: <span className="text-rose-600 font-bold">{selected.beratTerpakai} / {selected.slotBeratKg} Kg</span>
+            <div className="text-[10px] text-slate-400 font-medium mt-1 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
+              <span>Jastiper: <span className="text-blue-600 font-bold">{selected.namaJastiper}</span></span>
+              <span>&bull;</span>
+              <span>Terisi: <span className="text-rose-600 font-bold">{selected.beratTerpakai} / {selected.slotBeratKg} Kg</span></span>
+              <span>&bull;</span>
+              <span>Fee: <span className="text-emerald-600 font-bold">{selected.hargaFeeJastiper ? formatIDR(selected.hargaFeeJastiper) : "Rp 0"} / Kg</span></span>
             </div>
           </div>
         ) : (
@@ -210,16 +215,17 @@ function ScheduleSelect({
                     onClick={() => { onChange(s.id); setOpen(false); }}
                     className={`w-full text-left p-3 rounded-xl transition-all duration-200 ${
                       isPicked 
-                        ? "bg-rose-50/70 border border-rose-100/60" 
-                        : "hover:bg-slate-50/80 border border-transparent"
+                    	? "bg-rose-50/70 border border-rose-100/60" 
+                    	: "hover:bg-slate-50/80 border border-transparent"
                     }`}
                   >
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-xs font-extrabold text-slate-800 uppercase tracking-tight">{s.rute}</span>
                       <span className="text-[9px] bg-slate-100 font-bold text-slate-500 px-1.5 py-0.5 rounded-md leading-none font-sans">{formatDate(s.tanggalBerangkat)}</span>
                     </div>
-                    <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-medium">
+                    <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-medium gap-2 flex-wrap">
                       <span>Jastiper: <span className="text-blue-600 font-bold">{s.namaJastiper}</span></span>
+                      <span>Fee: <span className="text-emerald-600 font-bold">{s.hargaFeeJastiper ? formatIDR(s.hargaFeeJastiper) : "Rp 0"} / Kg</span></span>
                       <span>Terisi: <span className="text-rose-600 font-bold">{s.beratTerpakai} / {s.slotBeratKg} Kg</span></span>
                     </div>
                   </button>
@@ -626,6 +632,7 @@ function PreOrderCard({
     const sch = schedules.find((s) => s.id === po.idJadwal);
     const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
     const departureDate = po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-";
+    const feeJastiper = sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0";
 
     const itemsText = po.items
       .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
@@ -635,6 +642,7 @@ function PreOrderCard({
 *Rute:* ${po.rute || "-"}
 *Last Drop:* ${lastDropDate}
 *Keberangkatan:* ${departureDate}
+*Fee Jastip:* ${feeJastiper} / Kg
 *Konsumen:* ${po.namaPelanggan}
 *Total Berat:* ${po.totalKg.toFixed(1)} Kg
 
@@ -739,6 +747,15 @@ ${itemsText}`;
               <span className="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100/30 shrink-0">
                 Jastiper: <span className="text-slate-700 font-extrabold">{po.namaJastiper || "-"}</span>
               </span>
+              {(() => {
+                const sch = schedules.find((s) => s.id === po.idJadwal);
+                if (!sch || !sch.hargaFeeJastiper) return null;
+                return (
+                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 shadow-2xs select-none">
+                    Fee: {formatIDR(sch.hargaFeeJastiper)} / Kg
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -966,6 +983,7 @@ export function PreOrdersPage() {
       rute: string;
       lastDrop: string;
       departure: string;
+      feeJastiper: string;
       pos: PreOrder[];
     }> = {};
 
@@ -978,6 +996,7 @@ export function PreOrdersPage() {
           rute: po.rute || sch?.rute || "-",
           lastDrop: sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-",
           departure: po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-",
+          feeJastiper: sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0",
           pos: []
         };
       }
@@ -989,7 +1008,8 @@ export function PreOrdersPage() {
       const header = `*Jastiper:* ${g.jastiper}
 *Rute:* ${g.rute}
 *Last Drop:* ${g.lastDrop}
-*Keberangkatan:* ${g.departure}`;
+*Keberangkatan:* ${g.departure}
+*Fee Jastip:* ${g.feeJastiper} / Kg`;
 
       const poDetails = g.pos.map((po) => {
         const itemsText = po.items
