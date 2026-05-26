@@ -43,9 +43,7 @@ export const messaging = typeof window !== "undefined" ? getMessaging(app) : nul
 // ✅ Firestore dengan fallback transport & cache yang stabil di browser
 export const db: Firestore = initializeFirestore(app, {
   experimentalForceLongPolling: true, // Dipaksa agar stabil di Safari
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
+  localCache: persistentLocalCache(), // Stable cache that doesn't crash on multiple tabs or Vite HMR
 });
 
 // (Opsional) Emulator lokal: set VITE_FB_EMULATOR=true di .env.local

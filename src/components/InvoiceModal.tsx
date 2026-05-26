@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import { Customer, ExtendedOrder } from "../types";
 import { formatCurrency } from "../utils/format";
 import { Modal } from "./ui/Modal";
@@ -627,14 +627,11 @@ export function InvoiceModal({
     try {
       await new Promise((r) => setTimeout(r, 100));
       const elementToCapture = hiddenPrintRef.current;
-      const canvas = await html2canvas(elementToCapture, {
-        scale: 2,
-        useCORS: true,
+      const imgData = await toPng(elementToCapture, {
         backgroundColor: "#ffffff",
-        logging: false,
+        pixelRatio: 2,
+        cacheBust: true,
       });
-
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();

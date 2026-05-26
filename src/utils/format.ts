@@ -15,3 +15,12 @@ export const formatCurrency = (val: number, currency?: string) => {
   }
   return formatIDR(val);
 };
+
+export const formatDate = (d: string) => {
+  if (!d) return "-";
+  try {
+    return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return d;
+  }
+};

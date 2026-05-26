@@ -913,6 +913,7 @@ export function OrdersPage({
         {orders.length >= limitValue && (
           <div className="flex justify-center mt-6">
             <Button
+              variant="outline"
               onClick={() => setLimitValue((prev) => prev + 50)}
               disabled={loading}
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center gap-2"
