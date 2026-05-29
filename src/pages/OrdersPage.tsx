@@ -444,21 +444,26 @@ export function OrdersPage({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Reset limit when filters change to save reads
+  // Reset limit when filters or sorting change to save reads
   useEffect(() => {
     setLimitValue(50);
-  }, [q, statusFilter, dateFrom, dateTo]);
+  }, [q, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
 
   // Data Fetching
   useEffect(() => {
     setLoading(true);
+    const isSearching = q.trim() !== "";
+    const isSortingNonDate = sortBy !== "tanggal";
+    const queryLimit = (isSearching || isSortingNonDate) ? undefined : limitValue;
+    const querySort = sortBy === "tanggal" ? (sortOrder as "asc" | "desc") : "desc";
+
     const unsub = subscribeOrders(
       {
         status: statusFilter,
         fromInput: dateFrom,
         toInput: dateTo,
-        limit: limitValue,
-        sort: "desc",
+        limit: queryLimit,
+        sort: querySort,
       },
       (rows) => {
         const ex = rows.map(toExtended);
@@ -471,12 +476,19 @@ export function OrdersPage({
       },
     );
     return () => unsub();
-  }, [q, statusFilter, dateFrom, dateTo, limitValue]);
+  }, [q, statusFilter, dateFrom, dateTo, limitValue, sortBy, sortOrder]);
 
   // Auto load more when scrolling near bottom
   useEffect(() => {
     function handleScroll() {
       if (loading) return;
+
+      // If we are searching or sorting by a non-date field, we already loaded all documents.
+      // Do not increment limitValue to avoid useless resubscriptions.
+      const isSearching = q.trim() !== "";
+      const isSortingNonDate = sortBy !== "tanggal";
+      if (isSearching || isSortingNonDate) return;
+
       const threshold = 150; // px from bottom
       const isNearBottom =
         window.innerHeight + window.scrollY >=
@@ -489,7 +501,7 @@ export function OrdersPage({
     
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [orders.length, limitValue, loading]);
+  }, [orders.length, limitValue, loading, q, sortBy]);
 
   function matchSearch(o: ExtendedOrder, query: string) {
     if (!query) return true;

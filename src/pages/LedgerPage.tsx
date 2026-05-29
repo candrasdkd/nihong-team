@@ -341,6 +341,11 @@ export function LedgerPage() {
   useEffect(() => {
     function handleScroll() {
       if (loading) return;
+
+      // If we are searching, we already loaded all documents.
+      // Do not increment limitValue to avoid useless resubscriptions.
+      if (q.trim() !== "") return;
+
       const threshold = 150; // px from bottom
       const isNearBottom =
         window.innerHeight + window.scrollY >=
@@ -353,7 +358,7 @@ export function LedgerPage() {
     
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [rows.length, limitValue, loading]);
+  }, [rows.length, limitValue, loading, q]);
 
   async function handleRecalculate() {
     setSyncingSummary(true);
@@ -515,12 +520,14 @@ export function LedgerPage() {
     async function go() {
       setLoading(true);
       try {
+        const isSearching = q.trim() !== "";
+        const queryLimit = isSearching ? undefined : limitValue;
         const data = await fetchLedger({
           from: dateFrom,
           to: dateTo,
           type: typeFilter || undefined,
           category: categoryFilter || undefined,
-          limit: limitValue,
+          limit: queryLimit,
           order: { field: "tanggal", direction: "desc" },
         });
         if (!cancelled) setRows(data);
@@ -533,7 +540,7 @@ export function LedgerPage() {
           to: dateTo,
           type: typeFilter || undefined,
           category: categoryFilter || undefined,
-          limit: limitValue,
+          limit: q.trim() !== "" ? undefined : limitValue,
           order: { field: "tanggal", direction: "desc" },
         },
         (live) => {
@@ -547,7 +554,7 @@ export function LedgerPage() {
       cancelled = true;
       if (unsub) unsub();
     };
-  }, [dateFrom, dateTo, typeFilter, categoryFilter, limitValue]);
+  }, [dateFrom, dateTo, typeFilter, categoryFilter, limitValue, q]);
 
   // ===== CRUD modal state =====
   const [showForm, setShowForm] = useState<{
