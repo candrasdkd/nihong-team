@@ -7,14 +7,7 @@ import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { OrderFormModal } from "../components/OrderFormModal";
 import { InvoiceModal } from "../components/InvoiceModal";
-import {
-  createOrder,
-  deleteOrder,
-  fromExtended,
-  subscribeOrders,
-  updateOrder,
-  toExtended,
-} from "../services/ordersFirebase";
+import { useOrders } from "../hooks/useOrders";
 import {
   compute,
   endOfMonth,
@@ -308,275 +301,60 @@ export function OrdersPage({
   customers: Customer[];
   unitPrice: number;
 }) {
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<string>("tanggal");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-
-  // Local state for paginated/direct orders fetching
-  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
-  const [limitValue, setLimitValue] = useState(50);
-  const [loading, setLoading] = useState(false);
-
-  // Date Logic (All-time by default)
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-
-  // UI State
-  const [editing, setEditing] = useState<ExtendedOrder | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewSrc, setPreviewSrc] = useState<string | string[] | null>(null);
-  const [previewPhone, setPreviewPhone] = useState<string | undefined>(undefined);
-  const [previewCustomerName, setPreviewCustomerName] = useState<string | undefined>(undefined);
-  const [selectedOrderDetail, setSelectedOrderDetail] = useState<ExtendedOrder | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText?: string;
-    type?: "danger" | "warning" | "info";
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: () => {},
-  });
-
-  const openPreview = (src: string | string[], phone?: string, customerName?: string) => {
-    if (!src || (Array.isArray(src) && src.length === 0)) return;
-    setPreviewSrc(src);
-    setPreviewPhone(phone);
-    setPreviewCustomerName(customerName);
-    setIsPreviewOpen(true);
-  };
-  
-  const [showInvoice, setShowInvoice] = useState<{
-    show: boolean;
-    order?: ExtendedOrder;
-    itemIds?: string[];
-  }>({ show: false });
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  // Toast State
-  const [toasts, setToasts] = useState<ToastType[]>([]);
-
-  // Derived State
-  const selectedOrders = useMemo(
-    () => orders.filter((o) => selectedIds.includes(o.id)),
-    [orders, selectedIds],
-  );
-
-  // Client-side sorting based on active filters
-  const sortedOrders = useMemo(() => {
-    const list = [...orders];
-    list.sort((a, b) => {
-      let valA: any;
-      let valB: any;
-
-      if (sortBy === "keuntungan") {
-        const compA = compute(a, unitPrice);
-        const compB = compute(b, unitPrice);
-        valA = compA.totalKeuntungan;
-        valB = compB.totalKeuntungan;
-      } else if (sortBy === "totalPembayaran") {
-        const compA = compute(a, unitPrice);
-        const compB = compute(b, unitPrice);
-        valA = compA.totalPembayaran;
-        valB = compB.totalPembayaran;
-      } else if (sortBy === "namaPelanggan") {
-        valA = String(a.namaPelanggan || "").toLowerCase();
-        valB = String(b.namaPelanggan || "").toLowerCase();
-      } else {
-        valA = String(a.tanggal || "");
-        valB = String(b.tanggal || "");
-      }
-
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
-      } else {
-        const numA = Number(valA || 0);
-        const numB = Number(valB || 0);
-        return sortOrder === "asc" ? numA - numB : numB - numA;
-      }
-    });
-    return list;
-  }, [orders, sortBy, sortOrder, unitPrice]);
-
-  // Live filtered metrics based on currently computed list of orders
-  const metrics = useMemo(() => {
-    let totalKg = 0;
-    let unpaidCount = 0;
-    let paidCount = 0;
-    
-    orders.forEach((o) => {
-      const comp = compute(o, unitPrice);
-      totalKg += comp.kg;
-      if (o.status === "Belum Membayar") {
-        unpaidCount++;
-      } else {
-        paidCount++;
-      }
-    });
-
-    return {
-      totalOrders: orders.length,
-      totalKg: Math.round(totalKg * 10) / 10,
-      unpaidCount,
-      paidCount,
-      unpaidPercent: orders.length > 0 ? Math.round((unpaidCount / orders.length) * 100) : 0,
-      paidPercent: orders.length > 0 ? Math.round((paidCount / orders.length) * 100) : 0,
-    };
-  }, [orders, unitPrice]);
-
-  // Toast Helper
-  const showToast = (message: string, type: "success" | "error") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { message, type, id }]);
-    setTimeout(() => removeToast(id), 4000); // Auto remove after 4s
-  };
-
-  const removeToast = (id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  // Reset limit when filters or sorting change to save reads
-  useEffect(() => {
-    setLimitValue(50);
-  }, [q, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
-
-  // Data Fetching
-  useEffect(() => {
-    setLoading(true);
-    const isSearching = q.trim() !== "";
-    const isSortingNonDate = sortBy !== "tanggal";
-    const queryLimit = (isSearching || isSortingNonDate) ? undefined : limitValue;
-    const querySort = sortBy === "tanggal" ? (sortOrder as "asc" | "desc") : "desc";
-
-    const unsub = subscribeOrders(
-      {
-        status: statusFilter,
-        fromInput: dateFrom,
-        toInput: dateTo,
-        limit: queryLimit,
-        sort: querySort,
-      },
-      (rows) => {
-        const ex = rows.map(toExtended);
-        const filtered = q ? ex.filter((o) => matchSearch(o, q)) : ex;
-        setOrders(filtered);
-        setSelectedIds((prev) =>
-          prev.filter((id) => filtered.some((x) => x.id === id)),
-        );
-        setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, [q, statusFilter, dateFrom, dateTo, limitValue, sortBy, sortOrder]);
-
-  // Auto load more when scrolling near bottom
-  useEffect(() => {
-    function handleScroll() {
-      if (loading) return;
-
-      // If we are searching or sorting by a non-date field, we already loaded all documents.
-      // Do not increment limitValue to avoid useless resubscriptions.
-      const isSearching = q.trim() !== "";
-      const isSortingNonDate = sortBy !== "tanggal";
-      if (isSearching || isSortingNonDate) return;
-
-      const threshold = 150; // px from bottom
-      const isNearBottom =
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - threshold;
-        
-      if (isNearBottom && orders.length >= limitValue) {
-        setLimitValue((prev) => prev + 50);
-      }
-    }
-    
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [orders.length, limitValue, loading, q, sortBy]);
-
-  function matchSearch(o: ExtendedOrder, query: string) {
-    if (!query) return true;
-    const s = query.trim().toLowerCase();
-    return [o.no, o.namaBarang, o.namaPelanggan, o.catatan].some((field) =>
-      String(field ?? "")
-        .toLowerCase()
-        .includes(s),
-    );
-  }
-
-  // Handlers
-  async function handleDelete(id: string) {
-    setConfirmModal({
-      isOpen: true,
-      title: "Hapus Pesanan",
-      message: "Apakah Anda yakin ingin menghapus pesanan ini secara permanen dari database?",
-      confirmText: "Hapus",
-      type: "danger",
-      onConfirm: async () => {
-        await deleteOrder(id);
-        showToast("Pesanan berhasil dihapus", "success");
-      },
-    });
-  }
-
-  // --- REFACTORED INVOICE CLICK (NO ALERTS) ---
-  const handleInvoiceClick = () => {
-    // 1. Cek Minimal Satu
-    if (selectedOrders.length === 0) {
-      showToast("Pilih minimal satu pesanan untuk membuat invoice.", "error");
-      return;
-    }
-
-    // 2. Cek Pelanggan Sama
-    const sameCustomer = selectedOrders.every(
-      (o) => o.namaPelanggan === selectedOrders[0]?.namaPelanggan,
-    );
-    if (!sameCustomer) {
-      showToast("Pesanan harus dari pelanggan yang sama.", "error");
-      return;
-    }
-
-    // 3. Cek Status Sama
-    const sameStatus = selectedOrders.every(
-      (o) => o.status === selectedOrders[0]?.status,
-    );
-    if (!sameStatus) {
-      showToast("Status pesanan yang dipilih harus sama semua.", "error");
-      return;
-    }
-
-    setShowInvoice({
-      show: true,
-      order: selectedOrders[0],
-      itemIds: selectedIds,
-    });
-  };
-
-  const handleSubmitOrder = async (val: any) => {
-    try {
-      const dto = fromExtended(val);
-      if (editing?.id) {
-        await updateOrder(editing.id, dto, unitPrice);
-        showToast("Pesanan berhasil diperbarui", "success");
-      } else {
-        await createOrder(dto, unitPrice);
-        showToast("Pesanan berhasil dibuat", "success");
-      }
-      setShowForm(false);
-      setEditing(null);
-    } catch (err: any) {
-      showToast(err.message || "Gagal menyimpan pesanan", "error");
-    }
-  };
+  const {
+    q,
+    setQ,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
+    orders,
+    limitValue,
+    setLimitValue,
+    renderLimit,
+    setRenderLimit,
+    loading,
+    dateFrom,
+    setDateFrom,
+    dateTo,
+    setDateTo,
+    editing,
+    setEditing,
+    showForm,
+    setShowForm,
+    selectedIds,
+    setSelectedIds,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    previewSrc,
+    setPreviewSrc,
+    previewPhone,
+    setPreviewPhone,
+    previewCustomerName,
+    setPreviewCustomerName,
+    selectedOrderDetail,
+    setSelectedOrderDetail,
+    confirmModal,
+    setConfirmModal,
+    showInvoice,
+    setShowInvoice,
+    expandedRows,
+    setExpandedRows,
+    toasts,
+    setToasts,
+    selectedOrders,
+    sortedOrders,
+    displayedOrders,
+    metrics,
+    openPreview,
+    showToast,
+    removeToast,
+    handleDelete,
+    handleInvoiceClick,
+    handleSubmitOrder,
+  } = useOrders({ customers, unitPrice });
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900 relative">
@@ -832,7 +610,7 @@ export function OrdersPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/70">
-                {sortedOrders.length === 0 ? (
+                {displayedOrders.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
@@ -845,7 +623,7 @@ export function OrdersPage({
                     </td>
                   </tr>
                 ) : (
-                  sortedOrders.map((o) => (
+                  displayedOrders.map((o) => (
                     <ExpandableRow
                       key={o.id}
                       order={o}
@@ -886,7 +664,7 @@ export function OrdersPage({
 
         {/* ── Mobile Card View ── */}
         <div className="sm:hidden space-y-4">
-          {sortedOrders.map((o) => (
+          {displayedOrders.map((o) => (
             <MobileCard
               key={o.id}
               order={o}
@@ -911,7 +689,7 @@ export function OrdersPage({
               onShowDetail={() => setSelectedOrderDetail(o)}
             />
           ))}
-          {sortedOrders.length === 0 && (
+          {displayedOrders.length === 0 && (
             <div className="py-16 text-center">
               <div className="inline-block bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3">
                 <Box className="w-6 h-6 text-slate-300" />
@@ -922,11 +700,19 @@ export function OrdersPage({
         </div>
 
         {/* Fallback "Muat Lebih Banyak" Button */}
-        {orders.length >= limitValue && (
+        {((q.trim() !== "" || sortBy !== "tanggal") ? renderLimit < sortedOrders.length : orders.length >= limitValue) && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
-              onClick={() => setLimitValue((prev) => prev + 50)}
+              onClick={() => {
+                const isSearching = q.trim() !== "";
+                const isSortingNonDate = sortBy !== "tanggal";
+                if (isSearching || isSortingNonDate) {
+                  setRenderLimit((prev) => prev + 50);
+                } else {
+                  setLimitValue((prev) => prev + 50);
+                }
+              }}
               disabled={loading}
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center gap-2"
             >
