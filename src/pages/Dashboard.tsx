@@ -27,7 +27,6 @@ import {
   PackageCheck,
   CircleDollarSign,
   Clock,
-  Crown,
   ChevronRight,
   RotateCw,
 } from "lucide-react";
@@ -185,7 +184,6 @@ function DashboardView({
 }) {
   const [period, setPeriod] = useState<PeriodType>("12m");
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [loadingExtras, setLoadingExtras] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [hasOrdersButNoStats, setHasOrdersButNoStats] = useState(false);
@@ -200,21 +198,6 @@ function DashboardView({
         const recentQ = query(ordersCol, orderBy("tanggal", "desc"), qLimit(8));
         const recentSnap = await getDocs(recentQ);
         setRecentOrders(recentSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-        // Query 5 top customers based on total spend
-        const customersCol = collection(db, "customers");
-        const topQ = query(customersCol, orderBy("totalSpendIdr", "desc"), qLimit(5));
-        const topSnap = await getDocs(topQ);
-        setTopCustomers(topSnap.docs.map((d) => {
-          const raw = d.data();
-          return {
-            name: raw.nama || "?",
-            count: raw.orderCount || 0,
-            revIdr: raw.totalSpendIdr || 0,
-            revJpy: raw.totalSpendJpy || 0,
-            sortScore: (raw.totalSpendIdr || 0) + (raw.totalSpendJpy || 0) * 105
-          };
-        }));
 
         // Check if there are orders but monthlySummaries is empty
         if (!monthlySummaries || monthlySummaries.length === 0) {
@@ -614,51 +597,6 @@ function DashboardView({
             </div>
           </div>
 
-          {/* Top Pelanggan */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-50">
-              <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Crown size={13} className="text-amber-500" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">Top Pelanggan</h3>
-            </div>
-
-            <div className="px-5 py-4 space-y-3">
-              {topCustomers.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">Belum ada data</p>
-              ) : (
-                topCustomers.map((c, i) => {
-                  const pct = topCustomers[0] ? (c.sortScore / topCustomers[0].sortScore) * 100 : 0;
-                  const MEDAL = ["🥇", "🥈", "🥉"];
-                  return (
-                    <div key={i}>
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-base w-5 text-center shrink-0">{MEDAL[i] ?? `${i + 1}`}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-700 truncate">{c.name}</p>
-                        </div>
-                        <div className="text-[11px] font-bold text-slate-600 shrink-0 text-right">
-                          {c.revIdr > 0 && <span>{formatIDR(c.revIdr)}</span>}
-                          {c.revJpy > 0 && <span>{c.revIdr > 0 ? " + " : ""}¥{c.revJpy.toLocaleString("id-ID")}</span>}
-                          <span className="text-slate-400 font-normal ml-1">({c.count}x)</span>
-                        </div>
-                      </div>
-                      <div className="pl-8">
-                        <div className="w-full bg-slate-100 rounded-full h-1">
-                          <motion.div
-                            className="h-1 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.8, delay: 0.5 + i * 0.1 }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
