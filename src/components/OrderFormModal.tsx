@@ -305,6 +305,46 @@ export function OrderFormModal({
       title={initial ? "Edit Pesanan" : "Tambah Pesanan"}
       size="5xl"
       contentClassName="w-full bg-slate-50/30"
+      footer={
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 w-full">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold self-start sm:self-auto select-none">
+            <Info size={11} className="text-slate-400" />
+            <span>Wajib mengisi semua kolom bertanda bintang (*)</span>
+          </div>
+
+          <div className="flex justify-end gap-2.5 w-full sm:w-auto">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-xl h-11 text-xs font-bold"
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="order-form"
+              disabled={loading || profitNegative || customerEmpty}
+              className={`px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-md shadow-orange-200 flex items-center gap-2 font-bold transition-all active:scale-[0.98] h-11 text-xs ${
+                loading || profitNegative || customerEmpty ? "opacity-40 cursor-not-allowed shadow-none" : ""
+              }`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} />
+                  <span>{initial ? "Simpan Perubahan" : "Simpan Pesanan"}</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      }
     >
       {/* HEADER INFO & CURRENCY SWITCHER */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 pb-4 border-b border-slate-100 mb-6">
@@ -358,8 +398,7 @@ export function OrderFormModal({
         </div>
       </div>
 
-      <div className="max-h-[65vh] overflow-y-auto pr-1">
-        <form id="order-form" onSubmit={submit} className="space-y-6">
+      <form id="order-form" onSubmit={submit} className="space-y-6">
           <fieldset disabled={loading} className={`space-y-6 ${loading ? "opacity-70" : ""}`}>
             
             {/* GRID SECTIONS A & B */}
@@ -755,47 +794,6 @@ export function OrderFormModal({
             </div>
           </fieldset>
         </form>
-      </div>
-
-      {/* FOOTER ACTIONS */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-100 pt-5 mt-6">
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold self-start sm:self-auto">
-          <Info size={11} className="text-slate-400" />
-          <span>Wajib mengisi semua kolom bertanda bintang (*)</span>
-        </div>
-
-        <div className="flex justify-end gap-2.5 w-full sm:w-auto">
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="px-5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-xl"
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            form="order-form"
-            disabled={loading || profitNegative || customerEmpty}
-            className={`px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-md shadow-orange-200 flex items-center gap-2 font-bold transition-all active:scale-[0.98] ${
-              loading || profitNegative || customerEmpty ? "opacity-40 cursor-not-allowed shadow-none" : ""
-            }`}
-          >
-            {loading ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Menyimpan...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={15} />
-                <span>{initial ? "Simpan Perubahan" : "Simpan Pesanan"}</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
 
       <input
         type="file"

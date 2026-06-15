@@ -4,6 +4,7 @@ interface ModalProps {
   title?: string;
   onClose: () => void;
   children: ReactNode;
+  footer?: ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
   contentClassName?: string;
 }
@@ -24,6 +25,7 @@ export function Modal({
   title,
   onClose,
   children,
+  footer,
   size = "lg",
   contentClassName = "",
 }: ModalProps) {
@@ -34,14 +36,14 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 m-0">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 m-0">
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
         aria-hidden
       />
       <div
-        className={`relative mx-auto w-full ${sizeMap[size]} max-h-[95vh] flex flex-col rounded-2xl bg-white shadow-xl ring-1 ring-black/10`}
+        className={`relative mx-auto w-full ${sizeMap[size]} max-h-[92vh] sm:max-h-[95vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-white shadow-xl ring-1 ring-black/10`}
       >
         {title && (
           <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b flex-shrink-0">
@@ -60,6 +62,11 @@ export function Modal({
         >
           {children}
         </div>
+        {footer && (
+          <div className="px-4 sm:px-6 py-4 border-t bg-slate-50 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
