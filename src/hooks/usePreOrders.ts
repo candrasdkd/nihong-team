@@ -276,20 +276,10 @@ export function usePreOrders() {
 *Fee Jastip:* ${g.feeJastiper} / Kg`;
 
       const poDetails = g.pos
-        .map((po) => {
-          const itemsText = po.items
-            .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
-            .join("\n");
+        .map((po, idx) => `${idx + 1}. ${po.namaPelanggan} (${po.totalKg.toFixed(1)} Kg)`)
+        .join("\n");
 
-          return `*Konsumen:* ${po.namaPelanggan}
-*Total Berat:* ${po.totalKg.toFixed(1)} Kg
-
-*Daftar Barang:*
-${itemsText}`;
-        })
-        .join("\n\n");
-
-      return `${header}\n\n${poDetails}`;
+      return `${header}\n\n*Konsumen:*\n${poDetails}`;
     });
 
     const message = formattedGroups.join("\n\n-----------------------------\n\n");
