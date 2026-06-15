@@ -21,7 +21,7 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
 import { LogoutModal } from "./components/ModalLogout";
 import UpdatePrompt from "./components/UpdatePrompt";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
 
 // Types & Services
 import { Customer, Order, TabId } from "./types";
@@ -41,8 +41,24 @@ import { endOfMonth, startOfMonth, toInputDate } from "./utils/helpers";
 // Assets
 import logoLight from "./assets/logo-admin.png";
 
+const MENU_CHILD_TABS = new Set(["customers", "jastipers", "schedules", "preorders"]);
+const TAB_NAMES: Record<string, string> = {
+  home: "Dashboard",
+  orders: "Pesanan",
+  cash: "Kas",
+  menu: "Menu",
+  customers: "Pelanggan",
+  jastipers: "Jastiper",
+  schedules: "Jadwal Keberangkatan",
+  preorders: "Pre Order",
+};
+
 export default function App() {
-  const [tab, setTab] = useState<TabId>("home");
+  const [tab, setTab] = useState<TabId>(() => {
+    const hash = window.location.hash.replace("#", "");
+    const validTabs = ["home", "orders", "customers", "cash", "jastipers", "schedules", "preorders", "menu"];
+    return validTabs.includes(hash) ? (hash as TabId) : "home";
+  });
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [unitPrice, setUnitPrice] = useState<number>(100_000);
@@ -63,6 +79,37 @@ export default function App() {
   const [customersLoading, setCustomersLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(true);
 
+  // 📍 Sync tab state with URL hash for browser Back/Forward navigation support
+  useEffect(() => {
+    const validTabs = ["home", "orders", "customers", "cash", "jastipers", "schedules", "preorders", "menu"];
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (validTabs.includes(hash)) {
+        setTab(hash as TabId);
+      } else {
+        setTab("home");
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, []);
+
+  // 2. Keep URL hash in sync when 'tab' changes
+  useEffect(() => {
+    if (user) {
+      const validTabs = ["home", "orders", "customers", "cash", "jastipers", "schedules", "preorders", "menu"];
+      if (validTabs.includes(tab)) {
+        const currentHash = window.location.hash.replace("#", "");
+        if (currentHash !== tab) {
+          window.location.hash = tab;
+        }
+      }
+    }
+  }, [tab, user]);
+
   // 🔐 Listen auth
   useEffect(() => {
     const unsub = listenAuth((u) => {
@@ -71,6 +118,10 @@ export default function App() {
       if (!u) {
         setCustomersLoading(true);
         setOrdersLoading(true);
+        setTab("home");
+        if (window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       }
     });
     return () => unsub();
@@ -328,10 +379,22 @@ export default function App() {
               {/* MOBILE TOP BAR */}
               <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur border-b border-slate-100/80 sticky top-0 z-40 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg overflow-hidden ring-2 ring-[#0a2342]/10 shrink-0">
-                    <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />
-                  </div>
-                  <span className="text-sm font-extrabold text-slate-800 tracking-tight">Nihong Jastip</span>
+                  {MENU_CHILD_TABS.has(tab) ? (
+                    <button
+                      onClick={() => setTab("menu")}
+                      className="flex items-center justify-center p-2 -ml-2 rounded-xl text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+                      title="Back to Menu"
+                    >
+                      <ArrowLeft size={20} className="stroke-[2.5]" />
+                    </button>
+                  ) : (
+                    <div className="h-8 w-8 rounded-lg overflow-hidden ring-2 ring-[#0a2342]/10 shrink-0">
+                      <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+                  <span className="text-sm font-extrabold text-slate-800 tracking-tight">
+                    {MENU_CHILD_TABS.has(tab) ? TAB_NAMES[tab] || "Detail" : "Nihong Jastip"}
+                  </span>
                 </div>
                 <button
                   onClick={() => setShowLogoutModal(true)}

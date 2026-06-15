@@ -6,10 +6,10 @@ import { TabId } from "../types";
 // Tab "menu" berfungsi sebagai hub untuk fitur-fitur lainnya
 // (Pelanggan, Jastiper, Jadwal, Pre Order).
 const TAB_CONFIG: { id: TabId; label: string; Icon: ElementType }[] = [
-  { id: "home",    label: "Dashboard", Icon: Home },
-  { id: "menu",    label: "Menu",      Icon: LayoutGrid },
-  { id: "orders",  label: "Pesanan",   Icon: ClipboardList },
-  { id: "cash",    label: "Kas",       Icon: Wallet },
+  { id: "home", label: "Dashboard", Icon: Home },
+  { id: "orders", label: "Pesanan", Icon: ClipboardList },
+  { id: "menu", label: "Menu", Icon: LayoutGrid },
+  { id: "cash", label: "Kas", Icon: Wallet },
 ];
 
 // Daftar tab yang termasuk di dalam "menu" (untuk highlight tab menu saat salah satunya aktif)
@@ -39,11 +39,10 @@ export function BottomTabBar({ current, setTab }: BottomTabBarProps) {
                 onClick={() => setTab(id)}
                 aria-current={active ? "page" : undefined}
                 title={label}
-                className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition ${
-                  active
+                className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition ${active
                     ? "bg-[#0a2342] text-white"
                     : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                }`}
+                  }`}
               >
                 <Icon className={`h-5 w-5 ${active ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`} />
                 <span className={`text-[10px] leading-none ${active ? "font-semibold" : ""}`}>

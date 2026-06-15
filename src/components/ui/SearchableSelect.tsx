@@ -25,6 +25,7 @@ export default function SearchableSelect({
   className = "",
   buttonClassName = "",
   disabled = false,
+  onAddOption,
 }: {
   label?: string;
   value?: string;
@@ -34,12 +35,18 @@ export default function SearchableSelect({
   className?: string;
   buttonClassName?: string;
   disabled?: boolean;
+  onAddOption?: (query: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const exactMatch = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return options.some((o) => o.label.toLowerCase() === q);
+  }, [options, query]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -66,6 +73,12 @@ export default function SearchableSelect({
   );
 
   function commitSelection(idx: number) {
+    const hasAddOption = query.trim() !== "" && !exactMatch && onAddOption;
+    if (hasAddOption && idx === filtered.length) {
+      onAddOption(query.trim());
+      setOpen(false);
+      return;
+    }
     if (!filtered.length) return;
     const picked = filtered[Math.max(0, Math.min(idx, filtered.length - 1))];
     onChange(picked.value);
@@ -131,9 +144,11 @@ export default function SearchableSelect({
                 setHighlight(0);
               }}
               onKeyDown={(e) => {
+                const hasAddOption = query.trim() !== "" && !exactMatch && onAddOption;
+                const totalCount = filtered.length + (hasAddOption ? 1 : 0);
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
-                  setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+                  setHighlight((h) => Math.min(h + 1, totalCount - 1));
                 }
                 if (e.key === "ArrowUp") {
                   e.preventDefault();
@@ -154,7 +169,7 @@ export default function SearchableSelect({
           </div>
 
           <ul className="max-h-64 overflow-y-auto py-1">
-            {filtered.length === 0 && (
+            {filtered.length === 0 && (!onAddOption || query.trim() === "") && (
               <li className="px-3 py-2 text-sm text-neutral-500">
                 Tidak ada hasil
               </li>
@@ -186,6 +201,17 @@ export default function SearchableSelect({
                 </li>
               );
             })}
+            {query.trim() !== "" && !exactMatch && onAddOption && (
+              <li
+                onMouseEnter={() => setHighlight(filtered.length)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => commitSelection(filtered.length)}
+                className={`px-3 py-2.5 text-xs cursor-pointer font-bold text-orange-600 bg-orange-50/50 hover:bg-orange-55 border-t border-neutral-100 flex items-center gap-1.5 transition-all
+                  ${highlight === filtered.length ? "bg-orange-100/70 text-orange-700" : ""}`}
+              >
+                <span>➕ Tambah "{query.trim().toUpperCase()}" sebagai pelanggan baru</span>
+              </li>
+            )}
           </ul>
         </div>
       )}

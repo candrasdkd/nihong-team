@@ -5,6 +5,7 @@ import { PreOrder, PreOrderItem, PreOrderStatus, DepartureSchedule, Customer } f
 import { formatIDR, formatDate } from "../../utils/format";
 import { Button } from "../ui/Button";
 import SearchableSelect from "../ui/SearchableSelect";
+import { addCustomer } from "../../services/customersFirebase";
 
 // ─── Click Outside hook ──────────────────────────────────────────────────────
 function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void) {
@@ -180,6 +181,18 @@ export function PreOrderFormModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const handleAddCustomer = async (name: string) => {
+    try {
+      const formattedName = name.toUpperCase().trim();
+      const newCust = await addCustomer({ nama: formattedName });
+      if (newCust && newCust.id) {
+        setIdPelanggan(newCust.id);
+      }
+    } catch (err: any) {
+      setError(`Gagal menambahkan pelanggan baru: ${err?.message || err}`);
+    }
+  };
+
   const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -319,6 +332,7 @@ export function PreOrderFormModal({
                   onChange={setIdPelanggan}
                   options={customerOptions}
                   disabled={loading}
+                  onAddOption={handleAddCustomer}
                   placeholder="Cari atau pilih pelanggan..."
                   buttonClassName={fieldClass}
                 />

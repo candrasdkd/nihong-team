@@ -28,6 +28,7 @@ import {
   Plus,
 } from "lucide-react";
 import { compressImage } from "../utils/image";
+import { addCustomer } from "../services/customersFirebase";
 
 const toStr = (v: number) => (Number.isFinite(v) ? String(v) : "");
 const num = (v: any) => {
@@ -230,6 +231,16 @@ export function OrderFormModal({
       alert("Gagal mengunggah gambar. Pastikan setting Cloudinary di .env sudah benar.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleAddCustomer = async (name: string) => {
+    try {
+      const formattedName = name.toUpperCase().trim();
+      const newCust = await addCustomer({ nama: formattedName });
+      setNamaPelanggan(newCust.nama);
+    } catch (err: any) {
+      alert(`Gagal menambahkan pelanggan baru: ${err?.message || err}`);
     }
   };
 
@@ -452,6 +463,7 @@ export function OrderFormModal({
                       onChange={setNamaPelanggan}
                       options={customerOptions}
                       disabled={loading}
+                      onAddOption={handleAddCustomer}
                       placeholder="Cari atau pilih pelanggan..."
                       buttonClassName={getInputClass(namaPelanggan, true)}
                     />
