@@ -36,7 +36,7 @@ const SUB_MENU_ITEMS = [
   { id: "customers",  label: "Pelanggan",  icon: Users },
   { id: "jastipers",  label: "Jastiper",   icon: UserRound },
   { id: "schedules",  label: "Jadwal",     icon: Calendar },
-  { id: "preorders",  label: "Pre Order",  icon: ShoppingBag },
+  { id: "preorders",  label: "Booking Jadwal",  icon: ShoppingBag },
 ];
 
 // Reusable nav button used for both main and sub menu items

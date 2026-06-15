@@ -176,7 +176,7 @@ export function LedgerFormModal({
     <div
       aria-modal="true"
       role="dialog"
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden"
+      className="fixed inset-0 z-[80] flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden"
     >
       {/* Backdrop */}
       <motion.div 

@@ -277,7 +277,7 @@ export function PreOrderFormModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
         <motion.div
           initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
@@ -291,7 +291,7 @@ export function PreOrderFormModal({
                 <ShoppingBag size={18} className="text-rose-600" />
               </div>
               <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-                {initial ? "Edit Pre Order" : "Pre Order Baru"}
+                {initial ? "Edit Booking" : "Booking Baru"}
               </h2>
             </div>
             <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"><X size={18} /></button>
@@ -409,7 +409,7 @@ export function PreOrderFormModal({
           <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Batal</Button>
             <Button onClick={() => handleSubmit()} isLoading={loading} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0 shadow-md shadow-rose-600/20">
-              {initial ? "Simpan Perubahan" : "Buat Pre Order"}
+              {initial ? "Simpan Perubahan" : "Buat Booking"}
             </Button>
           </div>
         </motion.div>

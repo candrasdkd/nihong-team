@@ -195,22 +195,22 @@ export function usePreOrders() {
   async function handleSubmit(data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) {
     if (editing) {
       await updatePreOrder(editing.id, data);
-      addToast("Pre Order berhasil diperbarui", "success");
+      addToast("Booking berhasil diperbarui", "success");
     } else {
       await addPreOrder(data);
-      addToast("Pre Order berhasil dibuat", "success");
+      addToast("Booking berhasil dibuat", "success");
     }
   }
 
   function handleDelete(po: PreOrder) {
     setConfirmModal({
       isOpen: true,
-      title: "Hapus Pre Order",
+      title: "Hapus Booking",
       message: `Yakin ingin menghapus pre order "${po.namaPelanggan}"? Berat ${po.totalKg} Kg akan dikembalikan ke jadwal.`,
       onConfirm: async () => {
         try {
           await deletePreOrder(po.id);
-          addToast("Pre Order berhasil dihapus", "success");
+          addToast("Booking berhasil dihapus", "success");
         } catch {
           addToast("Gagal menghapus pre order", "error");
         }

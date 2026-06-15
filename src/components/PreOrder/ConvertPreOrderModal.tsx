@@ -51,7 +51,7 @@ export function ConvertPreOrderModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -73,7 +73,7 @@ export function ConvertPreOrderModal({
               <h3 className="font-extrabold text-lg">Pindahkan ke Pesanan</h3>
             </div>
             <p className="text-emerald-100 text-sm">
-              Pre Order akan dikonversi menjadi Pesanan resmi. Lengkapi harga setelah konversi.
+              Booking akan dikonversi menjadi Pesanan resmi. Lengkapi harga setelah konversi.
             </p>
           </div>
 

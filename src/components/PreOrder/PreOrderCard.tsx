@@ -148,51 +148,56 @@ ${itemsText}`;
             </p>
           )}
         </div>
-
-        {/* Quick action icons */}
-        <div className="flex items-center gap-0.5 shrink-0 self-start">
-          <button
-            onClick={handleShareWhatsApp}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-            title="Bagikan WA"
-          >
-            <MessageCircle size={13} />
-          </button>
-          {!isSelesai && (
-            <>
-              <button
-                onClick={onEdit}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Edit"
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                onClick={onDelete}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                title="Hapus"
-              >
-                <Trash2 size={13} />
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
-      {/* ── Expand toggle ── */}
-      <button
-        onClick={() => setExpanded((p) => !p)}
-        className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors select-none"
-      >
-        {expanded ? "Sembunyikan" : "Lihat Detail"}
-        <motion.span
-          animate={{ rotate: expanded ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="inline-flex"
+      {/* ── Quick Action Bar ── */}
+      <div className="mx-3.5 mb-3 flex items-center gap-2 border border-slate-100 rounded-xl overflow-hidden bg-slate-50/60">
+        <button
+          onClick={handleShareWhatsApp}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 transition-colors"
         >
-          <ChevronDown size={12} strokeWidth={3} />
-        </motion.span>
-      </button>
+          <MessageCircle size={13} />
+          WA
+        </button>
+
+        {!isSelesai && (
+          <>
+            <div className="w-px h-5 bg-slate-200 shrink-0" />
+            <button
+              onClick={onEdit}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors"
+            >
+              <Pencil size={13} />
+              Edit
+            </button>
+            <div className="w-px h-5 bg-slate-200 shrink-0" />
+            <button
+              onClick={onDelete}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-rose-500 hover:bg-rose-50 active:bg-rose-100 transition-colors"
+            >
+              <Trash2 size={13} />
+              Hapus
+            </button>
+          </>
+        )}
+
+        <div className="w-px h-5 bg-slate-200 shrink-0" />
+        <button
+          onClick={() => setExpanded((p) => !p)}
+          className="flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors select-none"
+        >
+          {expanded ? "Tutup" : "Detail"}
+          <motion.span
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="inline-flex"
+          >
+            <ChevronDown size={12} strokeWidth={3} />
+          </motion.span>
+        </button>
+      </div>
+
+
 
       {/* ── Expanded detail ── */}
       <AnimatePresence initial={false}>

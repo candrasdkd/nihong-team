@@ -14,7 +14,7 @@ import { Button } from "../components/ui/Button";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import { formatDate } from "../utils/format";
 
-export function PreOrdersPage() {
+export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
   const {
     preOrders,
     schedules,
@@ -51,6 +51,15 @@ export function PreOrdersPage() {
   const STATUS_FILTERS = ["", "Pending", "Selesai"];
   const totalPO = (counts.pending || 0) + (counts.selesai || 0);
 
+  // Auto-open create form when triggered by SpeedDialFAB
+  React.useEffect(() => {
+    if (formTrigger > 0) {
+      setEditing(null);
+      setShowForm(true);
+      onFormTriggerConsumed?.();
+    }
+  }, [formTrigger, onFormTriggerConsumed]);
+
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
       <AnimatePresence>
@@ -72,7 +81,7 @@ export function PreOrdersPage() {
               <ShoppingBag size={18} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Pre Order</h2>
+              <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Booking Jadwal</h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full select-none">
                   {counts.pending} Pending
@@ -123,7 +132,7 @@ export function PreOrdersPage() {
               className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold shadow-md shadow-rose-500/25 transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shrink-0"
             >
               <Plus size={14} strokeWidth="3" />
-              Buat Pre Order
+              Buat Booking
             </button>
           </div>
         </motion.div>
@@ -156,10 +165,10 @@ export function PreOrdersPage() {
               <Package size={26} className="text-rose-300" />
             </div>
             <p className="font-extrabold text-slate-600 text-base mb-1">
-              {q || statusFilter ? "Pre Order Tidak Ditemukan" : "Belum Ada Pre Order"}
+              {q || statusFilter ? "Booking Tidak Ditemukan" : "Belum Ada Booking Jadwal"}
             </p>
             <p className="text-slate-400 text-xs max-w-xs leading-relaxed">
-              {q || statusFilter ? "Coba ubah filter pencarian." : "Buat Pre Order baru untuk mencatat titipan konsumen."}
+              {q || statusFilter ? "Coba ubah filter pencarian." : "Buat Booking Jadwal baru untuk mencatat titipan konsumen."}
             </p>
           </div>
         ) : (
@@ -277,7 +286,7 @@ export function PreOrdersPage() {
       {/* Mobile FAB */}
       <button
         onClick={() => { setEditing(null); setShowForm(true); }}
-        className={`sm:hidden fixed bottom-20 right-5 h-13 w-13 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-all z-40 ${FAB_COLOR_CLASS}`}
+        className={`sm:hidden fixed bottom-20 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-all z-40 ${FAB_COLOR_CLASS}`}
       >
         <Plus className="w-6 h-6 stroke-[3]" />
       </button>
@@ -299,7 +308,7 @@ export function PreOrdersPage() {
           preOrder={convertTarget}
           onClose={() => setConvertTarget(null)}
           onConverted={() => {
-            addToast("Pre Order berhasil dikonversi ke Pesanan!", "success");
+            addToast("Booking berhasil dikonversi ke Pesanan!", "success");
             setConvertTarget(null);
           }}
         />
@@ -320,7 +329,7 @@ export function PreOrdersPage() {
               </div>
               <div>
                 <p className="text-xs font-extrabold text-white leading-none">{selectedIds.length} Terpilih</p>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Pre Order dipilih</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Booking dipilih</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

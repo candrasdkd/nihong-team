@@ -34,7 +34,7 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 m-0">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 m-0">
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}

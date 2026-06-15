@@ -9,7 +9,7 @@ import { Button } from "../components/ui/Button";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 
-export function SchedulesPage() {
+export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
   const {
     jastipers,
     loading,
@@ -33,6 +33,14 @@ export function SchedulesPage() {
     handleSubmit,
     handleDelete,
   } = useSchedules();
+
+  React.useEffect(() => {
+    if (formTrigger > 0) {
+      setEditing(null);
+      setShowForm(true);
+      onFormTriggerConsumed?.();
+    }
+  }, [formTrigger, onFormTriggerConsumed]);
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">

@@ -297,9 +297,13 @@ function MiniStatCard({ label, value, sub, icon: Icon, colorClass, index }: Mini
 export function OrdersPage({
   customers,
   unitPrice,
+  formTrigger = 0,
+  onFormTriggerConsumed,
 }: {
   customers: Customer[];
   unitPrice: number;
+  formTrigger?: number;
+  onFormTriggerConsumed?: () => void;
 }) {
   const {
     q,
@@ -355,6 +359,15 @@ export function OrdersPage({
     handleInvoiceClick,
     handleSubmitOrder,
   } = useOrders({ customers, unitPrice });
+
+  // Auto-open create form when triggered by SpeedDialFAB
+  useEffect(() => {
+    if (formTrigger > 0) {
+      setEditing(null);
+      setShowForm(true);
+      onFormTriggerConsumed?.();
+    }
+  }, [formTrigger, onFormTriggerConsumed]);
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900 relative">
@@ -802,7 +815,7 @@ export function OrdersPage({
       {/* ── Global Floating Action Bar for Selections (Desktop & Mobile) ── */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-full max-w-[90vw] flex justify-center pointer-events-none">
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] w-full max-w-[90vw] flex justify-center pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

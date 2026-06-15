@@ -45,8 +45,8 @@ const MENU_ITEMS = [
   },
   {
     id: "preorders" as TabId,
-    label: "Pre Order",
-    description: "Catat titipan konsumen & konversi ke pesanan",
+    label: "Booking Jadwal",
+    description: "Catat booking konsumen & konversi ke pesanan",
     icon: ShoppingBag,
     gradient: "from-rose-500 to-pink-600",
     glow: "shadow-rose-500/20",

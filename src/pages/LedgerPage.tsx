@@ -302,7 +302,7 @@ function CategorySummaryCard({ data }: { data: { kategori: string; total: number
   );
 }
 
-export function LedgerPage() {
+export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
   const {
     q,
     setQ,
@@ -357,6 +357,13 @@ export function LedgerPage() {
     defaultFrom,
     defaultTo,
   } = useLedger();
+
+  React.useEffect(() => {
+    if (formTrigger > 0) {
+      setShowForm({ open: true, editing: null });
+      onFormTriggerConsumed?.();
+    }
+  }, [formTrigger, onFormTriggerConsumed]);
 
 
 
@@ -869,7 +876,7 @@ export function LedgerPage() {
       {/* Selection Summary Bar (Premium Floating Action Dock) */}
       <AnimatePresence>
         {selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="fixed bottom-24 sm:bottom-6 left-0 right-0 z-[80] flex justify-center px-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -949,7 +956,7 @@ function FilterModal({ initial, defaults, onApply, onReset, onClose }: any) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

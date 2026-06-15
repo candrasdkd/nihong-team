@@ -50,7 +50,7 @@ const TAB_NAMES: Record<string, string> = {
   customers: "Pelanggan",
   jastipers: "Jastiper",
   schedules: "Jadwal Keberangkatan",
-  preorders: "Pre Order",
+  preorders: "Booking Jadwal",
 };
 
 export default function App() {
@@ -72,6 +72,12 @@ export default function App() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     "Notification" in window ? Notification.permission : "default"
   );
+
+  // SpeedDialFAB form triggers — increment to auto-open the create form
+  const [orderFormTrigger, setOrderFormTrigger] = useState(0);
+  const [preorderFormTrigger, setPreorderFormTrigger] = useState(0);
+  const [ledgerFormTrigger, setLedgerFormTrigger] = useState(0);
+  const [scheduleFormTrigger, setScheduleFormTrigger] = useState(0);
 
   // 🔐 AUTH STATE
   const [user, setUser] = useState<User | null>(null);
@@ -431,14 +437,31 @@ export default function App() {
                       <OrdersPage
                         customers={customers}
                         unitPrice={unitPrice}
+                        formTrigger={orderFormTrigger}
+                        onFormTriggerConsumed={() => setOrderFormTrigger(0)}
                       />
                     )}
                     {tab === "customers" && <CustomersPage />}
-                    {tab === "cash" && <LedgerPage />}
+                    {tab === "cash" && (
+                      <LedgerPage
+                        formTrigger={ledgerFormTrigger}
+                        onFormTriggerConsumed={() => setLedgerFormTrigger(0)}
+                      />
+                    )}
                     {tab === "menu" && <MenuPage onTabChange={setTab} />}
                     {tab === "jastipers" && <JastipersPage />}
-                    {tab === "schedules" && <SchedulesPage />}
-                    {tab === "preorders" && <PreOrdersPage />}
+                    {tab === "schedules" && (
+                      <SchedulesPage
+                        formTrigger={scheduleFormTrigger}
+                        onFormTriggerConsumed={() => setScheduleFormTrigger(0)}
+                      />
+                    )}
+                    {tab === "preorders" && (
+                      <PreOrdersPage
+                        formTrigger={preorderFormTrigger}
+                        onFormTriggerConsumed={() => setPreorderFormTrigger(0)}
+                      />
+                    )}
 
                   </motion.div>
                 </AnimatePresence>
@@ -446,7 +469,26 @@ export default function App() {
             </div>
 
             {/* NAVBAR MOBILE */}
-            <BottomTabBar current={tab} setTab={setTab} />
+            <BottomTabBar
+              current={tab}
+              setTab={setTab}
+              onAddOrder={() => {
+                setTab("orders");
+                setOrderFormTrigger((p) => p + 1);
+              }}
+              onAddBooking={() => {
+                setTab("preorders");
+                setPreorderFormTrigger((p) => p + 1);
+              }}
+              onAddTransaction={() => {
+                setTab("cash");
+                setLedgerFormTrigger((p) => p + 1);
+              }}
+              onAddSchedule={() => {
+                setTab("schedules");
+                setScheduleFormTrigger((p) => p + 1);
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
