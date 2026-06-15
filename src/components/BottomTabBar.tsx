@@ -252,7 +252,7 @@ export function BottomTabBar({
               className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-colors duration-200
                 ${fabOpen
                   ? "bg-slate-800 shadow-slate-800/50"
-                  : "bg-gradient-to-br from-rose-500 to-pink-600 shadow-rose-500/50"
+                  : "bg-gradient-to-br from-orange-500 to-amber-500 shadow-orange-500/50"
                 }`}
             >
               <motion.div
