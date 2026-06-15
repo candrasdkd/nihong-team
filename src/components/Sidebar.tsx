@@ -35,7 +35,7 @@ const MENU_ITEMS = [
 const SUB_MENU_ITEMS = [
   { id: "customers",  label: "Pelanggan",  icon: Users },
   { id: "jastipers",  label: "Jastiper",   icon: UserRound },
-  { id: "schedules",  label: "Jadwal",     icon: Calendar },
+  { id: "schedules",  label: "Jadwal Keberangkatan",     icon: Calendar },
   { id: "preorders",  label: "Booking Jadwal",  icon: ShoppingBag },
 ];
 
