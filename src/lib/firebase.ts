@@ -36,14 +36,25 @@ const firebaseConfig = {
 // Reuse app jika sudah ada (hindari duplikasi init di HMR)
 const app: FirebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const messaging = typeof window !== "undefined" ? getMessaging(app) : null;
+export const messaging = (typeof window !== "undefined" && window.isSecureContext)
+  ? (() => {
+      try {
+        return getMessaging(app);
+      } catch (e) {
+        console.warn("Firebase messaging not supported:", e);
+        return null;
+      }
+    })()
+  : null;
 // Log detail untuk debug network/rules
 // setLogLevel('debug');
 
 // ✅ Firestore dengan fallback transport & cache yang stabil di browser
 export const db: Firestore = initializeFirestore(app, {
   experimentalForceLongPolling: true, // Dipaksa agar stabil di Safari
-  localCache: persistentLocalCache(), // Stable cache that doesn't crash on multiple tabs or Vite HMR
+  localCache: (typeof window !== "undefined" && window.isSecureContext)
+    ? persistentLocalCache()
+    : undefined,
 });
 
 // (Opsional) Emulator lokal: set VITE_FB_EMULATOR=true di .env.local

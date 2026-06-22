@@ -497,24 +497,28 @@ export function CustomersPage() {
           initial={editing || undefined}
           onClose={() => setShowForm(false)}
           onSubmit={async (val: Customer) => {
-            try {
-              if (editing?.id) {
-                await updateCustomer(editing.id, {
-                  nama: val.nama,
-                  alamat: val.alamat,
-                  telpon: val.telpon,
-                });
-              } else {
-                await addCustomer({
-                  nama: val.nama,
-                  alamat: val.alamat,
-                  telpon: val.telpon,
-                });
-              }
-              setShowForm(false);
-            } catch (err: any) {
-              alert("Gagal menyimpan: " + (err?.message || err));
+            const cleanName = val.nama.trim().toUpperCase();
+            const isDuplicate = customers.some(
+              (c) => c.nama.toUpperCase().trim() === cleanName && c.id !== editing?.id
+            );
+            if (isDuplicate) {
+              throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
             }
+
+            if (editing?.id) {
+              await updateCustomer(editing.id, {
+                nama: cleanName,
+                alamat: val.alamat,
+                telpon: val.telpon,
+              });
+            } else {
+              await addCustomer({
+                nama: cleanName,
+                alamat: val.alamat,
+                telpon: val.telpon,
+              });
+            }
+            setShowForm(false);
           }}
         />
       )}

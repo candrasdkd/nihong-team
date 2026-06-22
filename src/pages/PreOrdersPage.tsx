@@ -52,7 +52,6 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
   const STATUS_FILTERS = ["", "Pending", "Selesai"];
   const totalPO = (counts.pending || 0) + (counts.selesai || 0);
   const [viewItemsPO, setViewItemsPO] = React.useState<PreOrder | null>(null);
-  const [openSwipeId, setOpenSwipeId] = React.useState<string | null>(null);
 
   // Auto-open create form when triggered by SpeedDialFAB
   React.useEffect(() => {
@@ -117,6 +116,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                 </button>
               ))}
             </div>
+
 
             {/* Search */}
             <div className="relative hidden sm:flex items-center">
@@ -243,46 +243,42 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                     )}
                   </div>
 
-                  {/* Pre-Orders Desktop Table & Mobile List */}
-                  <div className="p-0 sm:p-4">
+                  {/* Pre-Orders Spreadsheet Grid View */}
+                  <div className="p-2 sm:p-4">
                     {group.preOrders.length === 0 ? (
-                      <div className="py-6 text-center text-xs font-semibold text-slate-400 italic border border-dashed border-slate-200 rounded-xl select-none m-4">
+                      <div className="py-6 text-center text-xs font-semibold text-slate-400 italic border border-dashed border-slate-200 rounded-xl select-none m-2">
                         Belum ada pre-order di jadwal ini.
                       </div>
                     ) : (
-                      <>
-                        {/* Desktop Table View */}
-                        <div className="hidden sm:block overflow-x-auto">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-100">
-                              <tr className="text-slate-500 text-left font-bold uppercase tracking-wider text-[10px]">
-                                <th className="px-6 py-4 w-[50px] text-center">Pilih</th>
-                                <th className="px-6 py-4">Pelanggan</th>
-                                <th className="px-6 py-4">Total Berat</th>
-                                <th className="px-6 py-4">Daftar Barang</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Aksi</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
-                              {group.preOrders.map((po) => {
-                                const isSelesai = po.status === "Selesai";
-                                const checkedCount = po.items.filter((i) => i.checked).length;
-                                const totalItems = po.items.length;
-                                const initials = po.namaPelanggan
-                                  ? po.namaPelanggan.split(" ").slice(0, 2).map((n) => n[0]?.toUpperCase()).join("")
-                                  : "?";
+                      <div className="overflow-x-auto w-full border border-slate-200/80 rounded-xl bg-white shadow-xs">
+                        <table className="min-w-[850px] w-full border-collapse text-xs text-left">
+                          <thead className="bg-slate-50 border-b border-slate-350 sticky top-0 z-20">
+                            <tr className="text-slate-500 font-bold uppercase tracking-wider text-[10px] select-none">
+                              <th className="border border-slate-200 px-2 py-2 w-9 text-center bg-slate-100/50">#</th>
+                              <th className="border border-slate-200 px-2 py-2 w-10 text-center bg-slate-50/20">Pilih</th>
+                              <th className="border border-slate-200 px-3 py-2 min-w-[160px]">Pelanggan</th>
+                              <th className="border border-slate-200 px-3 py-2 w-28">Total Berat</th>
+                              <th className="border border-slate-200 px-3 py-2 min-w-[220px]">Daftar Barang</th>
+                              <th className="border border-slate-200 px-3 py-2 w-24 text-center">Status</th>
+                              <th className="border border-slate-200 px-3 py-2 w-32 text-right">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-slate-100">
+                            {group.preOrders.map((po, poIdx) => {
+                              const isSelesai = po.status === "Selesai";
+                              const checkedCount = po.items.filter((i) => i.checked).length;
+                              const totalItems = po.items.length;
 
-                                const individualShareWA = () => {
-                                  const sch = schedules.find((s) => s.id === po.idJadwal);
-                                  const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
-                                  const departureDate = po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-";
-                                  const feeJastiper = sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0";
-                                  const itemsText = po.items
-                                    .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
-                                    .join("\n");
+                              const individualShareWA = () => {
+                                const sch = schedules.find((s) => s.id === po.idJadwal);
+                                const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
+                                const departureDate = po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-";
+                                const feeJastiper = sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0";
+                                const itemsText = po.items
+                                  .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
+                                  .join("\n");
 
-                                  const message = `*Jastiper:* ${po.namaJastiper || "-"}
+                                const message = `*Jastiper:* ${po.namaJastiper || "-"}
 *Rute:* ${po.rute || "-"}
 *Last Drop:* ${lastDropDate}
 *Keberangkatan:* ${departureDate}
@@ -293,255 +289,136 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 *Daftar Barang:*
 ${itemsText}`;
 
-                                  window.open(
-                                    `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                  );
-                                };
+                                window.open(
+                                  `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                );
+                              };
 
-                                return (
-                                  <tr key={po.id} className="group hover:bg-slate-50/50 transition-all duration-200">
-                                    <td className="px-6 py-4 text-center align-middle">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedIds.includes(po.id)}
-                                        onChange={() => handleSelectToggle(po.id)}
-                                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-4 h-4 cursor-pointer"
-                                      />
-                                    </td>
-                                    <td className="px-6 py-4 align-middle">
-                                      <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-xs select-none shrink-0 ${isSelesai ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                                          {initials}
-                                        </div>
-                                        <div>
-                                          <div className="font-extrabold text-slate-800 text-sm leading-tight">{po.namaPelanggan}</div>
-                                          {po.noTelponPelanggan && (
-                                            <div className="text-[10px] text-slate-400 font-semibold mt-0.5">{po.noTelponPelanggan}</div>
-                                          )}
-                                        </div>
+                              return (
+                                <tr
+                                  key={po.id}
+                                  className={`group transition-all duration-150 ${
+                                    selectedIds.includes(po.id)
+                                      ? "bg-rose-50/40 hover:bg-rose-50/60"
+                                      : "hover:bg-slate-50/80"
+                                  }`}
+                                >
+                                  {/* Row index */}
+                                  <td className="border border-slate-200 px-2 py-1.5 w-9 text-center bg-slate-50/80 font-mono text-[10px] text-slate-400 select-none">
+                                    {poIdx + 1}
+                                  </td>
+
+                                  {/* Checkbox */}
+                                  <td className="border border-slate-200 px-2 py-1.5 w-10 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedIds.includes(po.id)}
+                                      onChange={() => handleSelectToggle(po.id)}
+                                      className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 cursor-pointer"
+                                    />
+                                  </td>
+
+                                  {/* Pelanggan */}
+                                  <td className="border border-slate-200 px-3 py-1.5 min-w-[160px] align-middle">
+                                    <div className="font-extrabold text-slate-800 text-xs leading-tight">
+                                      {po.namaPelanggan}
+                                    </div>
+                                    {po.noTelponPelanggan && (
+                                      <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                        {po.noTelponPelanggan}
                                       </div>
-                                    </td>
-                                    <td className="px-6 py-4 align-middle">
-                                      <div className={`inline-flex items-center gap-1.5 font-extrabold text-xs ${isSelesai ? "text-emerald-600" : "text-rose-600"}`}>
-                                        <Weight size={12} />
-                                        <span>{po.totalKg.toFixed(1)} Kg</span>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4 align-middle">
+                                    )}
+                                  </td>
+
+                                  {/* Total Berat */}
+                                  <td className="border border-slate-200 px-3 py-1.5 w-28 align-middle text-slate-700">
+                                    <div className="flex items-center gap-1 font-bold text-xs">
+                                      <Weight size={11} className="text-slate-400 shrink-0" />
+                                      <span>{po.totalKg.toFixed(1)} Kg</span>
+                                    </div>
+                                  </td>
+
+                                  {/* Daftar Barang */}
+                                  <td className="border border-slate-200 px-3 py-1.5 min-w-[220px] align-middle">
+                                    <div className="flex flex-col gap-1">
                                       {totalItems === 0 ? (
-                                        <span className="text-slate-400 italic text-xs">Tidak ada barang</span>
+                                        <span className="text-slate-400 italic text-[11px]">Tidak ada barang</span>
                                       ) : (
                                         <button
                                           onClick={() => setViewItemsPO(po)}
-                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600 font-extrabold text-[11px] text-slate-600 transition-all active:scale-95 shadow-2xs"
+                                          className="inline-flex items-center justify-start gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600 font-extrabold text-[10px] text-slate-600 transition-all active:scale-95 w-max"
                                         >
-                                          <Package size={12} className="shrink-0" />
+                                          <Package size={11} className="shrink-0" />
                                           <span>{totalItems} Barang ({checkedCount} Selesai)</span>
                                         </button>
                                       )}
                                       {po.catatan && (
-                                        <div className="text-[10px] text-slate-400 font-medium italic mt-1.5 leading-tight flex items-start gap-1" title={po.catatan}>
-                                          <span>📝</span> <span className="line-clamp-2 max-w-[200px]">{po.catatan}</span>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="px-6 py-4 align-middle">
-                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full select-none ${isSelesai ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"}`}>
-                                        {po.status}
-                                      </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right align-middle">
-                                      <div className="flex items-center justify-end gap-1.5">
-                                        <button
-                                          onClick={individualShareWA}
-                                          className="p-1.5 rounded-lg text-emerald-605 hover:bg-emerald-50 hover:text-emerald-700 transition-colors border border-transparent hover:border-emerald-100"
-                                          title="Bagikan WA"
-                                        >
-                                          <MessageCircle size={14} />
-                                        </button>
-
-                                        {!isSelesai ? (
-                                          <>
-                                            <button
-                                              onClick={() => { setEditing(po); setShowForm(true); }}
-                                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100"
-                                              title="Edit"
-                                            >
-                                              <Pencil size={14} />
-                                            </button>
-                                            <button
-                                              onClick={() => handleDelete(po)}
-                                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-650 transition-colors border border-transparent hover:border-rose-100"
-                                              title="Hapus"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
-                                            <button
-                                              onClick={() => setConvertTarget(po)}
-                                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-extrabold shadow-xs transition-all active:scale-95 shrink-0"
-                                              title="Pindahkan ke Pesanan"
-                                            >
-                                              <ArrowRight size={10} strokeWidth={3} />
-                                              <span>Pindahkan</span>
-                                            </button>
-                                          </>
-                                        ) : (
-                                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg select-none">
-                                            Selesai
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Mobile Cards List View */}
-                        <div className="sm:hidden p-4">
-                          {group.preOrders.length === 0 ? (
-                            <div className="py-6 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/60 text-xs font-semibold">
-                              Tidak ada booking
-                            </div>
-                          ) : (
-                            <div className="bg-white rounded-2xl border border-slate-200/60 divide-y divide-slate-100 overflow-hidden shadow-xs">
-                              {group.preOrders.map((po) => {
-                                const isSelesai = po.status === "Selesai";
-                                const checkedCount = po.items.filter((i) => i.checked).length;
-                                const totalItems = po.items.length;
-
-                                const individualShareWA = () => {
-                                  const sch = schedules.find((s) => s.id === po.idJadwal);
-                                  const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
-                                  const departureDate = po.tanggalBerangkat ? formatDate(po.tanggalBerangkat) : "-";
-                                  const feeJastiper = sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0";
-                                  const itemsText = po.items
-                                    .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
-                                    .join("\n");
-
-                                  const message = `*Jastiper:* ${po.namaJastiper || "-"}
-*Rute:* ${po.rute || "-"}
-*Last Drop:* ${lastDropDate}
-*Keberangkatan:* ${departureDate}
-*Fee Jastip:* ${feeJastiper} / Kg
-*Konsumen:* ${po.namaPelanggan}
-*Total Berat:* ${po.totalKg.toFixed(1)} Kg
-
-*Daftar Barang:*
-${itemsText}`;
-
-                                  window.open(
-                                    `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                  );
-                                };
-
-                                return (
-                                  <SwipeableRow
-                                    key={po.id}
-                                    id={po.id}
-                                    isOpen={openSwipeId === po.id}
-                                    onOpen={() => setOpenSwipeId(po.id)}
-                                    onClose={() => setOpenSwipeId(null)}
-                                    onShare={individualShareWA}
-                                    onEdit={() => { setEditing(po); setShowForm(true); }}
-                                    onDelete={() => handleDelete(po)}
-                                    isSelesai={isSelesai}
-                                  >
-                                    <div
-                                      onClick={() => {
-                                        if (openSwipeId === po.id) {
-                                          setOpenSwipeId(null);
-                                        }
-                                      }}
-                                      className={`px-4 py-3.5 flex flex-col gap-2.5 transition-all ${
-                                        selectedIds.includes(po.id) ? "bg-rose-50/30" : "bg-white"
-                                      }`}
-                                    >
-                                      {/* Row 1: Checkbox, Pelanggan, Status */}
-                                      <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(po.id)}
-                                            onChange={() => handleSelectToggle(po.id)}
-                                            className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-4 h-4 cursor-pointer shrink-0"
-                                          />
-                                          <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-800 text-xs truncate leading-tight">
-                                              {po.namaPelanggan}
-                                            </h4>
-                                            {po.noTelponPelanggan && (
-                                              <p className="text-[10px] text-slate-405 font-semibold mt-0.5 truncate leading-none">
-                                                {po.noTelponPelanggan}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full select-none shrink-0 ${isSelesai ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"}`}>
-                                          {po.status}
-                                        </span>
-                                      </div>
-
-                                      {/* Row 2: Berat, Barang (Checklist trigger), Actions */}
-                                      <div className="flex items-center justify-between gap-3 text-[10px] font-bold">
-                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg ${isSelesai ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-rose-50 text-rose-700 border border-rose-100"}`}>
-                                            <Weight size={10} />
-                                            <span>{po.totalKg.toFixed(1)} Kg</span>
-                                          </span>
-
-                                          {totalItems > 0 ? (
-                                            <button
-                                              onClick={() => setViewItemsPO(po)}
-                                              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600 transition-all active:scale-95 text-slate-655 shrink-0"
-                                            >
-                                              <Package size={10} />
-                                              <span>{checkedCount}/{totalItems} Barang</span>
-                                            </button>
-                                          ) : (
-                                            <span className="text-slate-400 italic font-semibold text-[10px]">Tanpa Barang</span>
-                                          )}
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-1 shrink-0">
-                                          {!isSelesai ? (
-                                            <button
-                                              onClick={() => setConvertTarget(po)}
-                                              className="h-7 px-2 rounded-lg flex items-center justify-center gap-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[9px] font-black active:scale-90 transition-all"
-                                              title="Pindahkan ke Pesanan"
-                                            >
-                                              <ArrowRight size={9} strokeWidth={3} />
-                                              <span>Pindahkan</span>
-                                            </button>
-                                          ) : (
-                                            <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg select-none">
-                                              Selesai
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Row 3: Optional notes */}
-                                      {po.catatan && (
-                                        <div className="text-[10px] text-slate-400 font-medium italic mt-0.5 leading-tight truncate">
-                                          📝 {po.catatan}
+                                        <div className="text-[10px] text-slate-400 font-medium italic leading-tight flex items-start gap-1" title={po.catatan}>
+                                          <span>📝</span>
+                                          <span className="line-clamp-1 max-w-[180px]">{po.catatan}</span>
                                         </div>
                                       )}
                                     </div>
-                                  </SwipeableRow>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </>
+                                  </td>
+
+                                  {/* Status */}
+                                  <td className="border border-slate-200 px-3 py-1.5 w-24 text-center align-middle">
+                                    <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded select-none ${isSelesai ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"}`}>
+                                      {po.status}
+                                    </span>
+                                  </td>
+
+                                  {/* Aksi */}
+                                  <td className="border border-slate-200 px-3 py-1.5 w-32 text-right align-middle">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        onClick={individualShareWA}
+                                        className="p-1 rounded text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors border border-transparent hover:border-emerald-100"
+                                        title="Bagikan WA"
+                                      >
+                                        <MessageCircle size={13} />
+                                      </button>
+
+                                      {!isSelesai ? (
+                                        <>
+                                          <button
+                                            onClick={() => { setEditing(po); setShowForm(true); }}
+                                            className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100"
+                                            title="Edit"
+                                          >
+                                            <Pencil size={13} />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDelete(po)}
+                                            className="p-1 rounded text-rose-500 hover:bg-rose-50 hover:text-rose-650 transition-colors border border-transparent hover:border-rose-100"
+                                            title="Hapus"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                          <button
+                                            onClick={() => setConvertTarget(po)}
+                                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
+                                            title="Pindahkan ke Pesanan"
+                                          >
+                                            <ArrowRight size={9} strokeWidth={3} />
+                                            <span>Pindahkan</span>
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded select-none">
+                                          Selesai
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </motion.div>
@@ -765,93 +642,3 @@ ${itemsText}`;
   );
 }
 
-// ─── SwipeableRow Helper for Mobile Swipe-to-Reveal ──────────
-function SwipeableRow({
-  id,
-  children,
-  onShare,
-  onEdit,
-  onDelete,
-  isSelesai,
-  isOpen,
-  onOpen,
-  onClose
-}: {
-  id: string;
-  children: React.ReactNode;
-  onShare: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  isSelesai: boolean;
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-}) {
-  const swipeWidth = isSelesai ? 64 : 192;
-
-  return (
-    <div className="relative overflow-hidden bg-slate-50">
-      {/* Background Actions (revealed on drag) */}
-      <div className="absolute inset-y-0 right-0 flex items-center z-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onShare();
-            onClose();
-          }}
-          className="w-16 h-full flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] gap-1 transition-colors active:opacity-90"
-        >
-          <MessageCircle size={14} />
-          <span>WA</span>
-        </button>
-        {!isSelesai && (
-          <>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-                onClose();
-              }}
-              className="w-16 h-full flex flex-col items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] gap-1 transition-colors active:opacity-90"
-            >
-              <Pencil size={14} />
-              <span>Edit</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-                onClose();
-              }}
-              className="w-16 h-full flex flex-col items-center justify-center bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] gap-1 transition-colors active:opacity-90"
-            >
-              <Trash2 size={14} />
-              <span>Hapus</span>
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Foreground Draggable Card */}
-      <motion.div
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{ left: -swipeWidth, right: 0 }}
-        dragElastic={{ left: 0.05, right: 0.05 }}
-        animate={{ x: isOpen ? -swipeWidth : 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        onDragEnd={(event, info) => {
-          // If swiped left past threshold or with sufficient velocity, keep open
-          if (info.offset.x < -30 || info.velocity.x < -50) {
-            onOpen();
-          } else {
-            onClose();
-          }
-        }}
-        className="relative bg-white z-10 w-full touch-pan-y"
-      >
-        {children}
-      </motion.div>
-    </div>
-  );
-}

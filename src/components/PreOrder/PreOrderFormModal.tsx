@@ -6,6 +6,7 @@ import { formatIDR, formatDate } from "../../utils/format";
 import { Button } from "../ui/Button";
 import SearchableSelect from "../ui/SearchableSelect";
 import { addCustomer } from "../../services/customersFirebase";
+import { CustomerFormModal } from "../CustomerFormModal";
 
 // ─── Click Outside hook ──────────────────────────────────────────────────────
 function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void) {
@@ -180,17 +181,12 @@ export function PreOrderFormModal({
   const [totalKgInput, setTotalKgInput] = useState(String(initial?.totalKg || ""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [tempCustomerName, setTempCustomerName] = useState("");
 
-  const handleAddCustomer = async (name: string) => {
-    try {
-      const formattedName = name.toUpperCase().trim();
-      const newCust = await addCustomer({ nama: formattedName });
-      if (newCust && newCust.id) {
-        setIdPelanggan(newCust.id);
-      }
-    } catch (err: any) {
-      setError(`Gagal menambahkan pelanggan baru: ${err?.message || err}`);
-    }
+  const handleAddCustomer = async (initialName: string) => {
+    setTempCustomerName(initialName);
+    setCustomerModalOpen(true);
   };
 
   const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
@@ -205,10 +201,19 @@ export function PreOrderFormModal({
   const selectedCustomer = customers.find((c) => c.id === idPelanggan);
   const totalKg = Number(totalKgInput) || 0;
 
-  const customerOptions = useMemo(
-    () => customers.map((c) => ({ label: c.nama, value: c.id || "" })),
-    [customers]
-  );
+  const customerOptions = useMemo(() => {
+    const sorted = [...customers].sort((a, b) => a.nama.localeCompare(b.nama));
+    return sorted.map((c) => {
+      const parts = [];
+      if (c.telpon) parts.push(c.telpon);
+      if (c.alamat) parts.push(c.alamat);
+      return {
+        label: c.nama,
+        value: c.id || "",
+        sublabel: parts.length > 0 ? parts.join(" • ") : undefined,
+      };
+    });
+  }, [customers]);
 
   function handleItemChange(idx: number, field: keyof PreOrderItem, val: string | number) {
     setItems((prev) => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
@@ -413,6 +418,30 @@ export function PreOrderFormModal({
             </Button>
           </div>
         </motion.div>
+        {customerModalOpen && (
+          <CustomerFormModal
+            initial={{ nama: tempCustomerName }}
+            onClose={() => setCustomerModalOpen(false)}
+            onSubmit={async (values) => {
+              const cleanName = values.nama.trim().toUpperCase();
+              const isDuplicate = customers.some(
+                (c) => c.nama.toUpperCase().trim() === cleanName
+              );
+              if (isDuplicate) {
+                throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
+              }
+              const newCust = await addCustomer({
+                nama: cleanName,
+                telpon: values.telpon || "",
+                alamat: values.alamat || "",
+              });
+              if (newCust && newCust.id) {
+                setIdPelanggan(newCust.id);
+              }
+              setCustomerModalOpen(false);
+            }}
+          />
+        )}
       </div>
     </AnimatePresence>
   );

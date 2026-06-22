@@ -48,7 +48,15 @@ export async function addCustomer(
   const cleanData = {
     ...data,
     nama: data.nama.toUpperCase().trim(), // Standarisasi nama agar seragam
-  };
+  } as any;
+
+  // Hapus properti bernilai undefined agar tidak menyebabkan error di Firestore
+  Object.keys(cleanData).forEach((key) => {
+    if (cleanData[key] === undefined) {
+      delete cleanData[key];
+    }
+  });
+
   const ref = await addDoc(collection(db, COL), {
     ...cleanData,
     createdAt: serverTimestamp(), // Menggunakan timestamp server agar presisi
@@ -67,10 +75,18 @@ export async function updateCustomer(
   id: string,
   data: Partial<Omit<Customer, "id" | "createdAt">>,
 ) {
-  const cleanData = { ...data };
+  const cleanData = { ...data } as any;
   if (cleanData.nama) {
     cleanData.nama = cleanData.nama.toUpperCase().trim();
   }
+
+  // Hapus properti bernilai undefined agar tidak menyebabkan error di Firestore
+  Object.keys(cleanData).forEach((key) => {
+    if (cleanData[key] === undefined) {
+      delete cleanData[key];
+    }
+  });
+
   await updateDoc(doc(db, COL, id), { ...cleanData, updatedAt: serverTimestamp() });
 }
 
