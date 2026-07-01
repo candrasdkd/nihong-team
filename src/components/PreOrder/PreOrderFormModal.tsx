@@ -165,6 +165,7 @@ export function PreOrderFormModal({
   preOrders,
   onClose,
   onSubmit,
+  defaultScheduleId,
 }: {
   initial?: PreOrder | null;
   schedules: DepartureSchedule[];
@@ -172,8 +173,9 @@ export function PreOrderFormModal({
   preOrders: PreOrder[];
   onClose: () => void;
   onSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  defaultScheduleId?: string;
 }) {
-  const [idJadwal, setIdJadwal] = useState(initial?.idJadwal || "");
+  const [idJadwal, setIdJadwal] = useState(initial?.idJadwal || defaultScheduleId || "");
   const [idPelanggan, setIdPelanggan] = useState(initial?.idPelanggan || "");
   const [items, setItems] = useState<PreOrderItem[]>(initial?.items?.length ? initial.items : [{ ...EMPTY_ITEM }]);
   const [status, setStatus] = useState<PreOrderStatus>(initial?.status || "Pending");
