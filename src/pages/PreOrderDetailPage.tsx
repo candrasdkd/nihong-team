@@ -91,10 +91,6 @@ function EditableCell({
       title="Klik untuk edit"
     >
       <span className={`flex-1 ${isRotated ? "truncate" : "break-words whitespace-normal leading-tight"}`}>{value ?? "—"}</span>
-      <Pencil
-        size={9}
-        className="text-slate-300 group-hover/cell:text-rose-400 shrink-0 opacity-0 group-hover/cell:opacity-100 transition-all"
-      />
     </div>
   );
 }
@@ -145,8 +141,26 @@ function VirtualKeyboard({
     } else if (actualChar === "ALPHA") {
       setLayout("lowercase");
     } else if (actualChar === "DONE") {
-      inputEl.blur();
-      onClose();
+      const enterEvent = new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true,
+      });
+      inputEl.dispatchEvent(enterEvent);
+
+      // Check if focus shifted to a new element (e.g. new item row was focused)
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (active && active !== inputEl && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+          // Focus shifted, keep keyboard open for the new input
+        } else {
+          inputEl.blur();
+          onClose();
+        }
+      }, 50);
     } else if (actualChar === "CLEAR") {
       applyValue("");
     } else {
@@ -275,10 +289,25 @@ function VirtualKeyboard({
   };
 
   return (
-    <div data-vkeyboard="true" className="fixed bottom-0 left-0 right-0 z-[99999] bg-slate-950/95 backdrop-blur-md border-t border-white/10 pt-2 pb-3 shadow-2xl select-none">
-      {renderDisplay()}
-      <div className="px-3">
-        {isNumeric ? renderNumeric() : renderQwerty()}
+    <div data-vkeyboard="true" className="fixed inset-0 z-[99999] flex flex-col justify-end select-none">
+      {/* Subtle backdrop blur overlay for the area above the keyboard */}
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          inputEl.blur();
+          onClose();
+        }}
+        className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1.5px]"
+      />
+      {/* Keyboard panel container */}
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        className="relative bg-slate-950/95 border-t border-white/10 pt-2 pb-3 shadow-2xl z-10"
+      >
+        {renderDisplay()}
+        <div className="px-3">
+          {isNumeric ? renderNumeric() : renderQwerty()}
+        </div>
       </div>
     </div>
   );
@@ -307,10 +336,21 @@ function CustomerPickerModal({
         (c.telpon || "").toLowerCase().includes(q)
     );
   }, [customers, query]);
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    const activeEl = document.activeElement;
+    const isInputActive = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+    if (isInputActive) {
+      if (activeEl instanceof HTMLElement) {
+        activeEl.blur();
+      }
+      return;
+    }
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 select-none">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleBackdropClick} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -456,7 +496,6 @@ function CustomerDropdownCell({
                 ? `${po.namaPelanggan.slice(0, 10)}...`
                 : po.namaPelanggan || "—"}
             </span>
-            < Pencil size={9} className="text-slate-300 group-hover/cell:text-rose-400 shrink-0 opacity-0 group-hover/cell:opacity-100 transition-all" />
           </div>
         ) : (
           <div className="relative w-full">
@@ -801,6 +840,9 @@ export function PreOrderDetailPage({
 
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as Node;
+      // If clicked another input/textarea, do not close the keyboard (let focusin listener transfer focus)
+      if (target && (target.nodeName === "INPUT" || target.nodeName === "TEXTAREA")) return;
+
       const kbEl = document.querySelector('[data-vkeyboard]');
       // If clicked inside keyboard, let keyboard handle it
       if (kbEl && kbEl.contains(target)) return;
@@ -1066,23 +1108,6 @@ export function PreOrderDetailPage({
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spreadsheet</span>
                       <span className="text-[10px] text-slate-400">— Klik cell untuk edit langsung</span>
                     </div>
-
-                    {/* Font Size Selector */}
-                    <div className="flex items-center gap-1 p-0.5 rounded-lg border border-slate-200 bg-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 px-1 uppercase">Font:</span>
-                      {[9, 10, 11, 12].map((size) => (
-                        <button
-                          key={size}
-                          onClick={() => setTableFontSize(size)}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${tableFontSize === size
-                            ? "bg-white text-rose-600 shadow-2xs border border-slate-200/50"
-                            : "text-slate-500 hover:text-slate-800"
-                            }`}
-                        >
-                          {size}px
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500">
@@ -1310,13 +1335,7 @@ export function PreOrderDetailPage({
 
                                 {!isSelesai ? (
                                   <>
-                                    <button
-                                      onClick={() => { setEditing(po); setShowForm(true); }}
-                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-blue-600 hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100`}
-                                      title="Edit"
-                                    >
-                                      <Pencil size={isRotated ? 11 : 13} />
-                                    </button>
+
                                     <button
                                       onClick={() => handleDelete(po)}
                                       className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}

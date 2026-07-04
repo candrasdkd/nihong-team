@@ -140,23 +140,8 @@ export function SharedPreOrderPage({ scheduleId }: { scheduleId: string }) {
   // ── Main View ──
   return (
     <div className="min-h-screen bg-[#f8fafc] relative overflow-hidden">
-      {/* Background ambient glows */}
-      <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] right-[5%] w-[600px] h-[600px] rounded-full bg-indigo-400/8 blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: "8s" }} />
-        <div className="absolute bottom-[10%] left-[5%] w-[550px] h-[550px] rounded-full bg-emerald-400/6 blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDuration: "12s" }} />
-        <div
-          className="absolute inset-0 opacity-[0.6]"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px)
-            `,
-            backgroundSize: "24px 24px",
-            maskImage: "radial-gradient(ellipse at 50% 50%, black 60%, transparent 100%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 50% 50%, black 60%, transparent 100%)",
-          }}
-        />
-      </div>
+      {/* Background static clean gradient */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none bg-gradient-to-tr from-slate-50 via-slate-50/80 to-rose-50/20" />
 
       {/* ── Share Mode Banner ── */}
       {!isRotated && (

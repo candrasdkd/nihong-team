@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+
 import { ShoppingBag, Plus, X, ChevronDown } from "lucide-react";
 import { PreOrder, PreOrderItem, PreOrderStatus, DepartureSchedule, Customer } from "../../types";
 import { formatIDR, formatDate } from "../../utils/format";
@@ -222,8 +222,28 @@ export function PreOrderFormModal({
 
   const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
 
+  const handleClose = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    // Give browser a frame to register blur before state change / unmounting
+    setTimeout(onClose, 50);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    const activeEl = document.activeElement;
+    const isInputActive = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+    if (isInputActive) {
+      if (activeEl instanceof HTMLElement) {
+        activeEl.blur();
+      }
+      return;
+    }
+    handleClose();
+  };
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
@@ -299,7 +319,7 @@ export function PreOrderFormModal({
         status,
         catatan: catatan.trim(),
       });
-      onClose();
+      handleClose();
     } catch (err: any) {
       setError(err.message || "Gagal menyimpan.");
     } finally {
@@ -317,13 +337,11 @@ export function PreOrderFormModal({
   // ── Landscape (rotated) layout ────────────────────────────────────────────
   if (isRotated) {
     return (
-      <AnimatePresence>
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-2">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-            className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-rose-500 z-10 max-h-[48vh] flex flex-col"
-          >
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-2">
+        <div onClick={handleBackdropClick} className="absolute inset-0 bg-slate-900/60" />
+        <div
+          className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-rose-500 z-10 max-h-[48vh] flex flex-col"
+        >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2">
@@ -334,7 +352,7 @@ export function PreOrderFormModal({
                   {initial ? "Edit Booking" : "Booking Baru"}
                 </h2>
               </div>
-              <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"><X size={14} /></button>
+              <button onClick={handleClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"><X size={14} /></button>
             </div>
 
             {/* Body — two-column landscape layout */}
@@ -451,7 +469,7 @@ export function PreOrderFormModal({
                 <div className="flex gap-2 mt-auto pt-1">
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-extrabold text-[10px] transition-all active:scale-95"
                   >
                     Batal
@@ -466,7 +484,7 @@ export function PreOrderFormModal({
                 </div>
               </div>
             </div>
-          </motion.div>
+        </div>
 
           {customerModalOpen && (
             <CustomerFormModal
@@ -492,21 +510,32 @@ export function PreOrderFormModal({
               }}
             />
           )}
-        </div>
 
-          {/* ── Customer picker overlay for landscape (fixed, avoids overflow-hidden clipping) ── */}
+          {/* ── Customer picker overlay for landscape ── */}
           {showCustPickerInForm && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-2">
-              <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => { setShowCustPickerInForm(false); setCustQuery(""); }} />
+              <div
+                className="absolute inset-0 bg-slate-900/50"
+                onClick={() => {
+                  const activeEl = document.activeElement;
+                  const isInputActive = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+                  if (isInputActive) {
+                    if (activeEl instanceof HTMLElement) {
+                      activeEl.blur();
+                    }
+                    return;
+                  }
+                  setShowCustPickerInForm(false);
+                  setCustQuery("");
+                }}
+              />
               <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[45vh] flex flex-col z-10 overflow-hidden">
-                {/* Header */}
                 <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
                   <h4 className="text-xs font-extrabold text-slate-800">Pilih Pelanggan</h4>
                   <button onClick={() => { setShowCustPickerInForm(false); setCustQuery(""); }} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
                     <X size={13} />
                   </button>
                 </div>
-                {/* Search */}
                 <div className="px-3 py-2 border-b border-slate-50 shrink-0">
                   <input
                     value={custQuery}
@@ -516,7 +545,6 @@ export function PreOrderFormModal({
                     autoFocus
                   />
                 </div>
-                {/* List — 2 columns */}
                 <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-1.5 content-start">
                   {customers
                     .filter((c) => {
@@ -551,20 +579,17 @@ export function PreOrderFormModal({
               </div>
             </div>
           )}
-      </AnimatePresence>
+        </div>
     );
   }
 
   // ── Portrait (default) layout ─────────────────────────────────────────────
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-        <motion.div
-          initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
-          transition={{ type: "spring", stiffness: 340, damping: 28 }}
-          className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-rose-500 z-10 max-h-[95vh] flex flex-col"
-        >
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div onClick={handleBackdropClick} className="absolute inset-0 bg-slate-900/60" />
+      <div
+        className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-rose-500 z-10 max-h-[95vh] flex flex-col"
+      >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
             <div className="flex items-center gap-3">
@@ -575,7 +600,7 @@ export function PreOrderFormModal({
                 {initial ? "Edit Booking" : "Booking Baru"}
               </h2>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"><X size={18} /></button>
+            <button onClick={handleClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"><X size={18} /></button>
           </div>
 
           {/* Body */}
@@ -689,37 +714,36 @@ export function PreOrderFormModal({
 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Batal</Button>
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">Batal</Button>
             <Button onClick={() => handleSubmit()} isLoading={loading} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0 shadow-md shadow-rose-600/20">
               {initial ? "Simpan Perubahan" : "Buat Booking"}
             </Button>
           </div>
-        </motion.div>
-        {customerModalOpen && (
-          <CustomerFormModal
-            initial={{ nama: tempCustomerName }}
-            onClose={() => setCustomerModalOpen(false)}
-            onSubmit={async (values) => {
-              const cleanName = values.nama.trim().toUpperCase();
-              const isDuplicate = customers.some(
-                (c) => c.nama.toUpperCase().trim() === cleanName
-              );
-              if (isDuplicate) {
-                throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
-              }
-              const newCust = await addCustomer({
-                nama: cleanName,
-                telpon: values.telpon || "",
-                alamat: values.alamat || "",
-              });
-              if (newCust && newCust.id) {
-                setIdPelanggan(newCust.id);
-              }
-              setCustomerModalOpen(false);
-            }}
-          />
-        )}
+          {customerModalOpen && (
+            <CustomerFormModal
+              initial={{ nama: tempCustomerName }}
+              onClose={() => setCustomerModalOpen(false)}
+              onSubmit={async (values) => {
+                const cleanName = values.nama.trim().toUpperCase();
+                const isDuplicate = customers.some(
+                  (c) => c.nama.toUpperCase().trim() === cleanName
+                );
+                if (isDuplicate) {
+                  throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
+                }
+                const newCust = await addCustomer({
+                  nama: cleanName,
+                  telpon: values.telpon || "",
+                  alamat: values.alamat || "",
+                });
+                if (newCust && newCust.id) {
+                  setIdPelanggan(newCust.id);
+                }
+                setCustomerModalOpen(false);
+              }}
+            />
+          )}
+        </div>
       </div>
-    </AnimatePresence>
-  );
+    );
 }
