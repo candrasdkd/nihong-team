@@ -228,7 +228,7 @@ export function SharedPreOrderPage({ scheduleId }: { scheduleId: string }) {
         schedules={schedules}
         customers={customers}
         preOrders={preOrders}
-        onBack={() => {}}
+        onBack={() => { }}
         onOpenCreateForm={() => {
           setEditing(null);
           setShowForm(true);

@@ -99,6 +99,286 @@ function EditableCell({
   );
 }
 
+// ─── Virtual Keyboard ─────────────────────────────────────────────────────────
+
+function VirtualKeyboard({
+  inputEl,
+  onClose,
+}: {
+  inputEl: HTMLInputElement | HTMLTextAreaElement;
+  onClose: () => void;
+}) {
+  const [layout, setLayout] = useState<"lowercase" | "uppercase" | "symbols">("lowercase");
+  const [currentVal, setCurrentVal] = useState(inputEl.value);
+
+  // Sync display with the real input value
+  useEffect(() => {
+    const handler = () => setCurrentVal(inputEl.value);
+    inputEl.addEventListener("input", handler);
+    return () => inputEl.removeEventListener("input", handler);
+  }, [inputEl]);
+
+  const isNumeric = inputEl.type === "number" || inputEl.inputMode === "decimal" || inputEl.inputMode === "numeric";
+
+  const applyValue = (newVal: string) => {
+    const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    const nativeTextAreaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    const setter = inputEl.tagName === "TEXTAREA" ? nativeTextAreaSetter : nativeInputSetter;
+    if (setter) {
+      setter.call(inputEl, newVal);
+      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      inputEl.value = newVal;
+    }
+  };
+
+  const handleKeyPress = (actualChar: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const val = inputEl.value;
+
+    if (actualChar === "BACKSPACE") {
+      applyValue(val.slice(0, -1));
+    } else if (actualChar === "SHIFT") {
+      setLayout(prev => prev === "lowercase" ? "uppercase" : "lowercase");
+    } else if (actualChar === "SYMBOLS") {
+      setLayout("symbols");
+    } else if (actualChar === "ALPHA") {
+      setLayout("lowercase");
+    } else if (actualChar === "DONE") {
+      inputEl.blur();
+      onClose();
+    } else if (actualChar === "CLEAR") {
+      applyValue("");
+    } else {
+      // actualChar is the real character to insert (space, letter, number, symbol)
+      const newVal = val + actualChar;
+      applyValue(newVal);
+      if (layout === "uppercase") setLayout("lowercase");
+    }
+  };
+
+  const fieldLabel = inputEl.placeholder || inputEl.getAttribute("aria-label") || "Input";
+
+  const renderDisplay = () => (
+    <div className="px-3 pb-2">
+      <p className="text-[8px] font-extrabold text-slate-500 uppercase tracking-widest mb-1 px-0.5">{fieldLabel}</p>
+      <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2 min-h-[36px]">
+        <div className="flex-1 min-w-0">
+          {currentVal ? (
+            <span className="text-white text-sm font-semibold leading-snug break-all">
+              {currentVal}
+              <span className="inline-block w-0.5 h-4 bg-rose-400 ml-0.5 animate-pulse rounded-full align-middle" />
+            </span>
+          ) : (
+            <span className="text-slate-500 text-xs font-semibold italic">
+              {fieldLabel}...
+              <span className="inline-block w-0.5 h-3.5 bg-slate-600 ml-0.5 animate-pulse rounded-full align-middle" />
+            </span>
+          )}
+        </div>
+        {currentVal && (
+          <button
+            onMouseDown={(e) => handleKeyPress("CLEAR", e)}
+            className="shrink-0 w-5 h-5 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors"
+          >
+            <X size={10} className="text-slate-400" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderNumeric = () => (
+    <div className="grid grid-cols-3 gap-1.5 max-w-sm mx-auto">
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((key) => (
+        <button
+          key={key}
+          onMouseDown={(e) => handleKeyPress(key, e)}
+          className="h-9 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-extrabold text-base rounded-lg shadow border border-white/5 transition-all flex items-center justify-center"
+        >
+          {key}
+        </button>
+      ))}
+      <button
+        onMouseDown={(e) => handleKeyPress("BACKSPACE", e)}
+        className="h-9 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-300 font-extrabold text-sm rounded-lg shadow border border-white/5 transition-all flex items-center justify-center"
+      >
+        ⌫
+      </button>
+      <button
+        onMouseDown={(e) => handleKeyPress("DONE", e)}
+        className="col-span-3 h-9 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs rounded-lg shadow transition-all active:scale-95 flex items-center justify-center"
+      >
+        Selesai ✓
+      </button>
+    </div>
+  );
+
+  const renderQwerty = () => {
+    // Each row: [displayLabel, actualChar]
+    const rows: [string, string][][] = layout === "symbols"
+      ? [
+          [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"],["6","6"],["7","7"],["8","8"],["9","9"],["0","0"]],
+          [["-","-"],["/","/"],[":",";"],[";",";"],[  "(","("],[")",")"  ],["$","$"],["&","&"],["@","@"],['"','"']],
+          [["abc","ALPHA"],[".","."],[ ",",","],[  "?","?"],[  "!","!"],[  "'","'"],["⌫","BACKSPACE"]],
+          [["⎵ Spasi"," "],["Selesai ✓","DONE"]],
+        ]
+      : [
+          [["q","q"],["w","w"],["e","e"],["r","r"],["t","t"],["y","y"],["u","u"],["i","i"],["o","o"],["p","p"]],
+          [["a","a"],["s","s"],["d","d"],["f","f"],["g","g"],["h","h"],["j","j"],["k","k"],["l","l"]],
+          [["⇧","SHIFT"],["z","z"],["x","x"],["c","c"],["v","v"],["b","b"],["n","n"],["m","m"],["⌫","BACKSPACE"]],
+          [["123","SYMBOLS"],["⎵ Spasi"," "],["Selesai ✓","DONE"]],
+        ];
+
+    return (
+      <div className="flex flex-col gap-1 max-w-xl mx-auto">
+        {rows.map((row, rowIdx) => (
+          <div key={rowIdx} className="flex justify-center gap-1 w-full">
+            {row.map(([displayLabel, actualChar]) => {
+              let widthClass = "flex-1";
+              let bgClass = "bg-slate-800 hover:bg-slate-700 text-white";
+              let finalLabel = displayLabel;
+
+              if (actualChar === "SHIFT") {
+                widthClass = "w-11 shrink-0";
+                bgClass = layout === "uppercase" ? "bg-rose-600 hover:bg-rose-500 text-white" : "bg-slate-700 text-slate-300";
+              } else if (actualChar === "BACKSPACE") {
+                widthClass = "w-11 shrink-0";
+                bgClass = "bg-slate-700 text-slate-300";
+              } else if (actualChar === "SYMBOLS" || actualChar === "ALPHA") {
+                widthClass = "w-14 shrink-0";
+                bgClass = "bg-slate-900 text-slate-400 text-[10px]";
+              } else if (actualChar === " ") {
+                widthClass = "flex-[3]";
+              } else if (actualChar === "DONE") {
+                widthClass = "w-20 shrink-0";
+                bgClass = "bg-rose-600 hover:bg-rose-500 text-white text-[10px]";
+              } else {
+                // Regular letter: respect uppercase layout
+                finalLabel = layout === "uppercase" ? displayLabel.toUpperCase() : displayLabel;
+              }
+
+              return (
+                <button
+                  key={actualChar + displayLabel}
+                  onMouseDown={(e) => handleKeyPress(actualChar === "SHIFT" && layout === "uppercase" ? "SHIFT" : actualChar, e)}
+                  className={`h-8 rounded-lg font-bold text-xs shadow transition-all active:scale-90 flex items-center justify-center border border-white/5 ${widthClass} ${bgClass}`}
+                >
+                  {finalLabel}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[99999] bg-slate-950/95 backdrop-blur-md border-t border-white/10 pt-2 pb-3 shadow-2xl select-none">
+      {renderDisplay()}
+      <div className="px-3">
+        {isNumeric ? renderNumeric() : renderQwerty()}
+      </div>
+    </div>
+  );
+}
+
+// ─── Customer Picker Modal (Spacious rotated picker for landscape mode) ───────
+
+function CustomerPickerModal({
+  po,
+  customers,
+  onSelect,
+  onClose,
+}: {
+  po: PreOrder;
+  customers: Customer[];
+  onSelect: (customer: Customer) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return customers.filter(
+      (c) =>
+        c.nama.toLowerCase().includes(q) ||
+        (c.telpon || "").toLowerCase().includes(q)
+    );
+  }, [customers, query]);
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 select-none">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[48vh] flex flex-col overflow-hidden z-10"
+      >
+        {/* Header */}
+        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <div>
+            <h4 className="font-extrabold text-slate-800 text-xs">Pilih Pelanggan</h4>
+            <p className="text-[9px] text-slate-400 font-semibold">Cari dan pilih untuk booking ini</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="p-3 border-b border-slate-50">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari nama atau nomor telepon..."
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-rose-400 outline-none text-xs font-semibold text-slate-800 focus:bg-white"
+            inputMode="none"
+          />
+        </div>
+
+        {/* Grid customer list (2 columns to fit horizontal viewport) */}
+        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2 content-start pb-20">
+          {filtered.length === 0 ? (
+            <div className="col-span-2 py-8 text-center text-xs text-slate-400 font-semibold">
+              Tidak ditemukan
+            </div>
+          ) : (
+            filtered.map((c) => {
+              const isActive = c.id === po.idPelanggan;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(c);
+                    onClose();
+                  }}
+                  className={`text-left p-2.5 rounded-xl border flex items-center gap-2.5 transition-all hover:bg-rose-50/50 hover:border-rose-100 ${
+                    isActive ? "border-rose-300 bg-rose-50/30" : "border-slate-100 bg-slate-50/30"
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${isActive ? "bg-rose-500 text-white" : "bg-slate-200 text-slate-600"}`}>
+                    {c.nama.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-extrabold leading-tight truncate ${isActive ? "text-rose-600" : "text-slate-800"}`}>{c.nama}</p>
+                    {c.telpon && <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{c.telpon}</p>}
+                  </div>
+                  {isActive && <Check size={11} className="text-rose-500 shrink-0 ml-auto" strokeWidth={3} />}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Customer Dropdown Cell ────────────────────────────────────────────────────
 
 function CustomerDropdownCell({
@@ -278,11 +558,13 @@ function ItemsEditModal({
   onClose,
   onToggleCheck,
   onSaveItems,
+  isRotated = false,
 }: {
   po: PreOrder;
   onClose: () => void;
   onToggleCheck: (po: PreOrder, idx: number) => void;
   onSaveItems: (poId: string, items: PreOrderItem[]) => Promise<void>;
+  isRotated?: boolean;
 }) {
   const [localItems, setLocalItems] = useState<PreOrderItem[]>(() =>
     po.items.map((i) => ({ ...i }))
@@ -324,13 +606,17 @@ function ItemsEditModal({
   const checkedCount = localItems.filter((i) => i.checked).length;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={isReadOnly ? onClose : undefined} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="relative bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden z-10 flex flex-col max-h-[90vh]"
+        className={`relative bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col transition-all overflow-hidden z-10 ${
+          isRotated 
+            ? "max-w-2xl w-[95%] max-h-[48vh]" 
+            : "max-w-md w-full max-h-[90vh]"
+        }`}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -361,7 +647,7 @@ function ItemsEditModal({
         </div>
 
         {/* Items list */}
-        <div className="px-5 py-3 flex-1 overflow-y-auto space-y-1.5">
+        <div className="px-5 py-3 flex-1 overflow-y-auto">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               Checklist Barang
@@ -383,43 +669,45 @@ function ItemsEditModal({
             </div>
           )}
 
-          {localItems.map((item, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-2.5 py-1.5 px-2.5 rounded-xl transition-colors ${isReadOnly ? "bg-slate-50/40" : "hover:bg-slate-50"
-                }`}
-            >
-              <input
-                type="checkbox"
-                checked={!!item.checked}
-                onChange={() => toggleCheck(idx)}
-                disabled={isReadOnly}
-                className="rounded border-slate-300 text-rose-500 focus:ring-rose-400 w-4 h-4 shrink-0 cursor-pointer"
-              />
-              {isReadOnly ? (
-                <span className={`text-xs font-semibold flex-1 ${item.checked ? "line-through text-slate-400" : "text-slate-700"
-                  }`}>{item.namaBarang}</span>
-              ) : (
+          <div className={isRotated ? "grid grid-cols-2 gap-x-4 gap-y-1 pb-16" : "space-y-1.5"}>
+            {localItems.map((item, idx) => (
+              <div
+                key={idx}
+                className={`flex items-center gap-2 py-1 px-2 rounded-xl transition-colors ${isReadOnly ? "bg-slate-50/40" : "hover:bg-slate-50"
+                  }`}
+              >
                 <input
-                  type="text"
-                  value={item.namaBarang}
-                  onChange={(e) => updateName(idx, e.target.value)}
-                  placeholder="Nama barang..."
-                  autoFocus={idx === localItems.length - 1 && item.namaBarang === ""}
-                  className={`flex-1 text-xs font-semibold bg-transparent outline-none border-b border-transparent focus:border-rose-300 transition-colors py-0.5 ${item.checked ? "line-through text-slate-400" : "text-slate-700"
-                    }`}
+                  type="checkbox"
+                  checked={!!item.checked}
+                  onChange={() => toggleCheck(idx)}
+                  disabled={isReadOnly}
+                  className="rounded border-slate-300 text-rose-500 focus:ring-rose-400 w-4 h-4 shrink-0 cursor-pointer"
                 />
-              )}
-              {!isReadOnly && (
-                <button
-                  onClick={() => removeItem(idx)}
-                  className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors shrink-0"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-          ))}
+                {isReadOnly ? (
+                  <span className={`text-xs font-semibold flex-1 ${item.checked ? "line-through text-slate-400" : "text-slate-700"
+                    }`}>{item.namaBarang}</span>
+                ) : (
+                  <input
+                    type="text"
+                    value={item.namaBarang}
+                    onChange={(e) => updateName(idx, e.target.value)}
+                    placeholder="Nama barang..."
+                    autoFocus={idx === localItems.length - 1 && item.namaBarang === ""}
+                    className={`flex-1 text-xs font-semibold bg-transparent outline-none border-b border-transparent focus:border-rose-300 transition-colors py-0.5 ${item.checked ? "line-through text-slate-400" : "text-slate-700"
+                      }`}
+                  />
+                )}
+                {!isReadOnly && (
+                  <button
+                    onClick={() => removeItem(idx)}
+                    className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors shrink-0"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Footer */}
@@ -495,6 +783,8 @@ export function PreOrderDetailPage({
   const [linkCopied, setLinkCopied] = useState(false);
   const [tableFontSize, setTableFontSize] = useState<number>(10);
   const [localIsRotated, setLocalIsRotated] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [customerPickPO, setCustomerPickPO] = useState<PreOrder | null>(null);
 
   const isRotated = propIsRotated !== undefined ? propIsRotated : localIsRotated;
   const setIsRotated = (v: boolean) => {
@@ -504,6 +794,41 @@ export function PreOrderDetailPage({
       setLocalIsRotated(v);
     }
   };
+
+  // Global focus interception for Rotated Layout
+  useEffect(() => {
+    if (!isRotated) {
+      setFocusedInput(null);
+      return;
+    }
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        target.setAttribute("inputmode", "none");
+        setFocusedInput(target);
+      }
+    };
+
+    const active = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+      active.setAttribute("inputmode", "none");
+      setFocusedInput(active);
+    }
+
+    document.addEventListener("focusin", handleFocusIn);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+    };
+  }, [isRotated]);
+
+  // Restore inputmode when returning to portrait mode
+  useEffect(() => {
+    if (!isRotated) {
+      const inputs = document.querySelectorAll("input, textarea");
+      inputs.forEach(el => el.removeAttribute("inputmode"));
+    }
+  }, [isRotated]);
 
   const handleShareLink = () => {
     const shareUrl = `${window.location.origin}/?share=${schedule.id}`;
@@ -600,8 +925,8 @@ export function PreOrderDetailPage({
               )}
               <span className="text-sm font-extrabold text-slate-800 truncate">{schedule.rute}</span>
               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${schedule.status === "Open"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-slate-100 text-slate-500 border border-slate-200"
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-slate-100 text-slate-500 border border-slate-200"
                 }`}>
                 {schedule.status}
               </span>
@@ -646,8 +971,8 @@ export function PreOrderDetailPage({
               <button
                 onClick={() => setIsRotated(!isRotated)}
                 className={`flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-xl border text-xs font-extrabold transition-all active:scale-95 ${isRotated
-                    ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
-                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                  ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                  : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                   }`}
                 title="Putar Layar ke Horizontal"
               >
@@ -732,8 +1057,8 @@ export function PreOrderDetailPage({
                           key={size}
                           onClick={() => setTableFontSize(size)}
                           className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${tableFontSize === size
-                              ? "bg-white text-rose-600 shadow-2xs border border-slate-200/50"
-                              : "text-slate-500 hover:text-slate-800"
+                            ? "bg-white text-rose-600 shadow-2xs border border-slate-200/50"
+                            : "text-slate-500 hover:text-slate-800"
                             }`}
                         >
                           {size}px
@@ -785,10 +1110,10 @@ export function PreOrderDetailPage({
                           <tr
                             key={po.id}
                             className={`group transition-colors duration-100 ${selectedIds.includes(po.id)
-                                ? "bg-rose-50/50"
-                                : isSelesai
-                                  ? "bg-emerald-50/20"
-                                  : "hover:bg-slate-50/60"
+                              ? "bg-rose-50/50"
+                              : isSelesai
+                                ? "bg-emerald-50/20"
+                                : "hover:bg-slate-50/60"
                               } ${isSaving ? "opacity-70" : ""}`}
                           >
                             {/* # */}
@@ -811,23 +1136,33 @@ export function PreOrderDetailPage({
 
                             {/* Pelanggan */}
                             <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 min-w-[75px]" : "px-2 py-1.5 min-w-[160px]"} align-middle`}>
-                              {isSelesai ? (
-                                <span
-                                  style={{ fontSize: "var(--table-fs)" }}
-                                  className={isRotated ? "font-extrabold text-slate-800 break-words whitespace-normal leading-tight block" : "font-extrabold text-slate-800 truncate block"}
+                              {isRotated ? (
+                                <div
+                                  onClick={() => !isSelesai && setCustomerPickPO(po)}
+                                  className="cursor-pointer font-extrabold text-slate-800 break-words whitespace-normal leading-tight block min-h-[22px] hover:bg-rose-50 hover:ring-1 hover:ring-rose-200 rounded px-1 py-0.5 transition-all w-full"
+                                  title={isSelesai ? undefined : "Klik untuk ganti pelanggan"}
                                 >
-                                  {!isRotated && po.namaPelanggan && po.namaPelanggan.length > 10
-                                    ? `${po.namaPelanggan.slice(0, 10)}...`
-                                    : po.namaPelanggan}
-                                </span>
+                                  {po.namaPelanggan || "—"}
+                                </div>
                               ) : (
-                                <CustomerDropdownCell
-                                  po={po}
-                                  customers={customers}
-                                  onSelect={(c) => handleCustomerChange(po.id, c)}
-                                  style={{ fontSize: "var(--table-fs)" }}
-                                  isRotated={!isRotated}
-                                />
+                                isSelesai ? (
+                                  <span
+                                    style={{ fontSize: "var(--table-fs)" }}
+                                    className="font-extrabold text-slate-800 truncate block"
+                                  >
+                                    {po.namaPelanggan && po.namaPelanggan.length > 10
+                                      ? `${po.namaPelanggan.slice(0, 10)}...`
+                                      : po.namaPelanggan}
+                                  </span>
+                                ) : (
+                                  <CustomerDropdownCell
+                                    po={po}
+                                    customers={customers}
+                                    onSelect={(c) => handleCustomerChange(po.id, c)}
+                                    style={{ fontSize: "var(--table-fs)" }}
+                                    isRotated={!isRotated}
+                                  />
+                                )
                               )}
                             </td>
 
@@ -936,8 +1271,8 @@ export function PreOrderDetailPage({
                               <span
                                 style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
                                 className={`font-bold px-1 py-0.5 rounded select-none ${isRotated ? "block break-words whitespace-normal leading-tight" : "inline-block"} ${isSelesai
-                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                                    : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                  : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
                                   }`}
                               >
                                 {po.status}
@@ -1024,7 +1359,7 @@ export function PreOrderDetailPage({
               customers={customers}
               preOrders={allPreOrders}
               defaultScheduleId={schedule.id}
-              onClose={() => { setShowForm(false); setEditing(null); }}
+              onClose={() => { setShowForm(false); setEditing(null); setFocusedInput(null); }}
               onSubmit={handleSubmit}
             />
           )}
@@ -1032,9 +1367,10 @@ export function PreOrderDetailPage({
           {convertTarget && (
             <ConvertPreOrderModal
               preOrder={convertTarget}
-              onClose={() => setConvertTarget(null)}
+              onClose={() => { setConvertTarget(null); setFocusedInput(null); }}
               onConverted={() => {
                 setConvertTarget(null);
+                setFocusedInput(null);
               }}
             />
           )}
@@ -1047,7 +1383,7 @@ export function PreOrderDetailPage({
                 message={confirmModal.message}
                 confirmText="Hapus"
                 type="danger"
-                onClose={() => setConfirmModal((p) => ({ ...p, isOpen: false }))}
+                onClose={() => { setConfirmModal((p) => ({ ...p, isOpen: false })); setFocusedInput(null); }}
                 onConfirm={confirmModal.onConfirm}
               />
             )}
@@ -1058,13 +1394,26 @@ export function PreOrderDetailPage({
             {viewItemsPO && (
               <ItemsEditModal
                 po={viewItemsPO}
-                onClose={() => setViewItemsPO(null)}
+                onClose={() => { setViewItemsPO(null); setFocusedInput(null); }}
                 onToggleCheck={handleToggleItemCheck}
                 onSaveItems={async (poId, items) => {
                   await updatePreOrder(poId, { items });
                   // Sync viewItemsPO state
                   setViewItemsPO((prev) => prev ? { ...prev, items } : prev);
                 }}
+                isRotated={isRotated}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* ── Customer Picker Modal (rotated landscape mode) ── */}
+          <AnimatePresence>
+            {customerPickPO && (
+              <CustomerPickerModal
+                po={customerPickPO}
+                customers={customers}
+                onSelect={(c) => { handleCustomerChange(customerPickPO.id, c); setFocusedInput(null); }}
+                onClose={() => { setCustomerPickPO(null); setFocusedInput(null); }}
               />
             )}
           </AnimatePresence>
@@ -1132,6 +1481,14 @@ export function PreOrderDetailPage({
               </motion.button>
             )}
           </AnimatePresence>
+
+          {/* ── Custom Virtual Keyboard (rotated inside content area) ── */}
+          {focusedInput && (
+            <VirtualKeyboard
+              inputEl={focusedInput}
+              onClose={() => setFocusedInput(null)}
+            />
+          )}
         </div>
       </div>
     </div>
