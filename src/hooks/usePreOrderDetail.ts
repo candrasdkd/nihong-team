@@ -8,7 +8,7 @@ import { ToastMsg } from "./usePreOrders";
 
 export interface EditingCell {
   poId: string;
-  field: "namaPelanggan" | "noTelponPelanggan" | "totalKg" | "catatan";
+  field: "namaPelanggan" | "noTelponPelanggan" | "totalKg" | "catatan" | "pic";
 }
 
 interface ConfirmModalState {
@@ -174,6 +174,30 @@ export function usePreOrderDetail(
     );
   }
 
+  // ─── Customer change (dropdown) ───────────────────────────────────────────
+  const handleCustomerChange = useCallback(
+    async (poId: string, customer: Customer) => {
+      const po = pos.find((p) => p.id === poId);
+      if (!po) return;
+      // Skip jika tidak ada perubahan
+      if (po.idPelanggan === customer.id) return;
+      setSavingCell(poId + "namaPelanggan");
+      try {
+        await updatePreOrder(poId, {
+          idPelanggan: customer.id || "",
+          namaPelanggan: customer.nama || "",
+          noTelponPelanggan: customer.telpon || "",
+        });
+        addToast(`Pelanggan diubah ke ${customer.nama}`, "success");
+      } catch (err: any) {
+        addToast(err.message || "Gagal menyimpan", "error");
+      } finally {
+        setSavingCell(null);
+      }
+    },
+    [pos]
+  );
+
   // ─── Derived ─────────────────────────────────────────────────────────────
   const totalBeratPOs = pos.reduce((s, p) => s + (p.totalKg || 0), 0);
 
@@ -194,6 +218,7 @@ export function usePreOrderDetail(
     setViewItemsPO,
     // actions
     handleCellSave,
+    handleCustomerChange,
     handleToggleItemCheck,
     handleDelete,
     shareWA,

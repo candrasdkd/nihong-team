@@ -12,6 +12,7 @@ import { MenuPage } from "./pages/MenuPage";
 import { JastipersPage } from "./pages/JastipersPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
 import { PreOrdersPage } from "./pages/PreOrdersPage";
+import { SharedPreOrderPage } from "./pages/SharedPreOrderPage";
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -54,6 +55,12 @@ const TAB_NAMES: Record<string, string> = {
 };
 
 export default function App() {
+  // 🔗 Detect share link — render standalone page without auth
+  const shareScheduleId = new URLSearchParams(window.location.search).get("share");
+  if (shareScheduleId) {
+    return <SharedPreOrderPage scheduleId={shareScheduleId} />;
+  }
+
   const [tab, setTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace("#", "");
     const validTabs = ["home", "orders", "customers", "cash", "jastipers", "schedules", "preorders", "menu"];

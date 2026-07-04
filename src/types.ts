@@ -147,6 +147,7 @@ export interface PreOrder {
   idPelanggan: string;
   namaPelanggan: string;
   noTelponPelanggan?: string;
+  pic?: string;
   items: PreOrderItem[];
   totalKg: number;
   status: PreOrderStatus;
