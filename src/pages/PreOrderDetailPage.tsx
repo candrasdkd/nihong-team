@@ -232,17 +232,17 @@ function VirtualKeyboard({
     // Each row: [displayLabel, actualChar]
     const rows: [string, string][][] = layout === "symbols"
       ? [
-          [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"],["6","6"],["7","7"],["8","8"],["9","9"],["0","0"]],
-          [["-","-"],["/","/"],[":",";"],[";",";"],[  "(","("],[")",")"  ],["$","$"],["&","&"],["@","@"],['"','"']],
-          [["abc","ALPHA"],[".","."],[ ",",","],[  "?","?"],[  "!","!"],[  "'","'"],["⌫","BACKSPACE"]],
-          [["⎵ Spasi"," "],["Selesai ✓","DONE"]],
-        ]
+        [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"], ["6", "6"], ["7", "7"], ["8", "8"], ["9", "9"], ["0", "0"]],
+        [["-", "-"], ["/", "/"], [":", ";"], [";", ";"], ["(", "("], [")", ")"], ["$", "$"], ["&", "&"], ["@", "@"], ['"', '"']],
+        [["abc", "ALPHA"], [".", "."], [",", ","], ["?", "?"], ["!", "!"], ["'", "'"], ["⌫", "BACKSPACE"]],
+        [["⎵ Spasi", " "], ["Selesai ✓", "DONE"]],
+      ]
       : [
-          [["q","q"],["w","w"],["e","e"],["r","r"],["t","t"],["y","y"],["u","u"],["i","i"],["o","o"],["p","p"]],
-          [["a","a"],["s","s"],["d","d"],["f","f"],["g","g"],["h","h"],["j","j"],["k","k"],["l","l"]],
-          [["⇧","SHIFT"],["z","z"],["x","x"],["c","c"],["v","v"],["b","b"],["n","n"],["m","m"],["⌫","BACKSPACE"]],
-          [["123","SYMBOLS"],["⎵ Spasi"," "],["Selesai ✓","DONE"]],
-        ];
+        [["q", "q"], ["w", "w"], ["e", "e"], ["r", "r"], ["t", "t"], ["y", "y"], ["u", "u"], ["i", "i"], ["o", "o"], ["p", "p"]],
+        [["a", "a"], ["s", "s"], ["d", "d"], ["f", "f"], ["g", "g"], ["h", "h"], ["j", "j"], ["k", "k"], ["l", "l"]],
+        [["⇧", "SHIFT"], ["z", "z"], ["x", "x"], ["c", "c"], ["v", "v"], ["b", "b"], ["n", "n"], ["m", "m"], ["⌫", "BACKSPACE"]],
+        [["123", "SYMBOLS"], ["⎵ Spasi", " "], ["Selesai ✓", "DONE"]],
+      ];
 
     return (
       <div className="flex flex-col gap-1 max-w-xl mx-auto">
@@ -397,9 +397,8 @@ function CustomerPickerModal({
                     onSelect(c);
                     onClose();
                   }}
-                  className={`text-left p-2.5 rounded-xl border flex items-center gap-2.5 transition-all hover:bg-rose-50/50 hover:border-rose-100 ${
-                    isActive ? "border-rose-300 bg-rose-50/30" : "border-slate-100 bg-slate-50/30"
-                  }`}
+                  className={`text-left p-2.5 rounded-xl border flex items-center gap-2.5 transition-all hover:bg-rose-50/50 hover:border-rose-100 ${isActive ? "border-rose-300 bg-rose-50/30" : "border-slate-100 bg-slate-50/30"
+                    }`}
                 >
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${isActive ? "bg-rose-500 text-white" : "bg-slate-200 text-slate-600"}`}>
                     {c.nama.charAt(0).toUpperCase()}
@@ -651,11 +650,10 @@ function ItemsEditModal({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className={`relative bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col transition-all overflow-hidden z-10 ${
-          isRotated 
-            ? "max-w-2xl w-[95%] max-h-[48vh]" 
+        className={`relative bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col transition-all overflow-hidden z-10 ${isRotated
+            ? "max-w-2xl w-[95%] max-h-[48vh]"
             : "max-w-md w-full max-h-[90vh]"
-        }`}
+          }`}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1332,35 +1330,33 @@ export function PreOrderDetailPage({
                                 >
                                   <MessageCircle size={isRotated ? 11 : 13} />
                                 </button>
+                                
+                                <button
+                                  onClick={() => handleDelete(po)}
+                                  className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
+                                  title="Hapus"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
 
-                                {!isSelesai ? (
-                                  <>
-
-                                    <button
-                                      onClick={() => handleDelete(po)}
-                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
-                                      title="Hapus"
-                                    >
-                                      <Trash2 size={11} />
-                                    </button>
-                                    {!isShareMode && (
-                                      <button
-                                        onClick={() => setConvertTarget(po)}
-                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
-                                        title="Pindahkan ke Pesanan"
-                                      >
-                                        <ArrowRight size={9} strokeWidth={3} />
-                                        Pindahkan
-                                      </button>
-                                    )}
-                                  </>
-                                ) : (
+                                {isSelesai ? (
                                   <span
                                     style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
                                     className="text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1 py-0.5 rounded select-none whitespace-nowrap"
                                   >
-                                    Selesai ✓
+                                    Sudah dipindahkan ✓
                                   </span>
+                                ) : (
+                                  !isShareMode && (
+                                    <button
+                                      onClick={() => setConvertTarget(po)}
+                                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
+                                      title="Pindahkan ke Pesanan"
+                                    >
+                                      <ArrowRight size={9} strokeWidth={3} />
+                                      Pindahkan
+                                    </button>
+                                  )
                                 )}
                               </div>
                             </td>

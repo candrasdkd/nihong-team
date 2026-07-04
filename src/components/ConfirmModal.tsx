@@ -1,10 +1,11 @@
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Trash2, Info } from "lucide-react";
 
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
   message: string | React.ReactNode;
   confirmText?: string;
@@ -22,6 +23,8 @@ export function ConfirmModal({
   cancelText = "Batal",
   type = "danger",
 }: ConfirmModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!isOpen) return null;
 
   const typeConfig = {
@@ -52,7 +55,7 @@ export function ConfirmModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={isLoading ? undefined : onClose}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
       />
 
@@ -78,20 +81,32 @@ export function ConfirmModal({
         <div className="grid grid-cols-2 gap-3 mt-6">
           <button
             type="button"
+            disabled={isLoading}
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/80 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 transition-colors"
+            className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/80 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelText}
           </button>
           <button
             type="button"
-            onClick={() => {
-              onConfirm();
-              onClose();
+            disabled={isLoading}
+            onClick={async () => {
+              setIsLoading(true);
+              try {
+                await onConfirm();
+                onClose();
+              } catch (err) {
+                console.error("Confirmation action failed:", err);
+              } finally {
+                setIsLoading(false);
+              }
             }}
-            className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white ${config.btnClass} transition-all active:scale-95`}
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white ${config.btnClass} transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {confirmText}
+            {isLoading && (
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+            )}
+            <span>{isLoading ? "Memproses..." : confirmText}</span>
           </button>
         </div>
       </motion.div>
