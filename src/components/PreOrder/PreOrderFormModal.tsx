@@ -29,6 +29,7 @@ function ItemRow({
   canRemove,
   onKeyDown,
   autoFocus,
+  compact = false,
 }: {
   item: PreOrderItem;
   index: number;
@@ -37,30 +38,53 @@ function ItemRow({
   canRemove: boolean;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => void;
   autoFocus: boolean;
+  compact?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-12 gap-2 items-start bg-slate-50 border border-slate-200 rounded-xl p-3">
-      <div className="col-span-11 space-y-1">
-        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Barang *</label>
-        <input
-          value={item.namaBarang}
-          onChange={(e) => onChange(index, "namaBarang", e.target.value)}
-          onKeyDown={(e) => onKeyDown(e, index)}
-          autoFocus={autoFocus}
-          placeholder="Nama barang..."
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
-        />
-      </div>
-      <div className="col-span-1 flex items-end justify-center pb-1 pt-5">
-        {canRemove && (
-          <button
-            onClick={() => onRemove(index)}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
+    <div className={`flex items-center gap-1.5 ${compact ? "bg-slate-50 border border-slate-100 rounded-lg px-2 py-1" : "grid grid-cols-12 gap-2 items-start bg-slate-50 border border-slate-200 rounded-xl p-3"}`}>
+      {compact ? (
+        <>
+          <span className="text-[9px] text-slate-400 font-bold w-4 shrink-0 text-center">{index + 1}</span>
+          <input
+            value={item.namaBarang}
+            onChange={(e) => onChange(index, "namaBarang", e.target.value)}
+            onKeyDown={(e) => onKeyDown(e, index)}
+            autoFocus={autoFocus}
+            placeholder="Nama barang..."
+            inputMode="none"
+            className="flex-1 text-[11px] font-semibold bg-transparent outline-none border-b border-transparent focus:border-rose-300 transition-colors py-0.5 text-slate-800"
+          />
+          {canRemove && (
+            <button onClick={() => onRemove(index)} className="p-0.5 rounded text-slate-300 hover:text-rose-500 transition-colors shrink-0">
+              <X size={11} />
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="col-span-11 space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Barang *</label>
+            <input
+              value={item.namaBarang}
+              onChange={(e) => onChange(index, "namaBarang", e.target.value)}
+              onKeyDown={(e) => onKeyDown(e, index)}
+              autoFocus={autoFocus}
+              placeholder="Nama barang..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
+            />
+          </div>
+          <div className="col-span-1 flex items-end justify-center pb-1 pt-5">
+            {canRemove && (
+              <button
+                onClick={() => onRemove(index)}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -131,8 +155,8 @@ function ScheduleSelect({
                     type="button"
                     onClick={() => { onChange(s.id); setOpen(false); }}
                     className={`w-full text-left p-3 rounded-xl transition-all duration-200 ${
-                      isPicked 
-                        ? "bg-rose-50/70 border border-rose-100/60" 
+                      isPicked
+                        ? "bg-rose-50/70 border border-rose-100/60"
                         : "hover:bg-slate-50/80 border border-transparent"
                     }`}
                   >
@@ -166,6 +190,7 @@ export function PreOrderFormModal({
   onClose,
   onSubmit,
   defaultScheduleId,
+  isRotated = false,
 }: {
   initial?: PreOrder | null;
   schedules: DepartureSchedule[];
@@ -174,6 +199,7 @@ export function PreOrderFormModal({
   onClose: () => void;
   onSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   defaultScheduleId?: string;
+  isRotated?: boolean;
 }) {
   const [idJadwal, setIdJadwal] = useState(initial?.idJadwal || defaultScheduleId || "");
   const [idPelanggan, setIdPelanggan] = useState(initial?.idPelanggan || "");
@@ -185,6 +211,9 @@ export function PreOrderFormModal({
   const [error, setError] = useState("");
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [tempCustomerName, setTempCustomerName] = useState("");
+  // Landscape-mode customer picker overlay
+  const [showCustPickerInForm, setShowCustPickerInForm] = useState(false);
+  const [custQuery, setCustQuery] = useState("");
 
   const handleAddCustomer = async (initialName: string) => {
     setTempCustomerName(initialName);
@@ -241,7 +270,6 @@ export function PreOrderFormModal({
     if (items.some((i) => !i.namaBarang.trim())) { setError("Nama barang wajib diisi di setiap baris."); return; }
     if (totalKg < 0) { setError("Total berat tidak boleh kurang dari 0 Kg."); return; }
 
-    // Validation: customer must be unique per schedule
     const duplicate = preOrders.find(
       (p) =>
         p.idJadwal === idJadwal &&
@@ -279,9 +307,255 @@ export function PreOrderFormModal({
     }
   }
 
-  const fieldClass = "w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-sm font-semibold text-slate-800 transition-all";
-  const labelClass = "text-xs font-bold text-slate-500 uppercase tracking-wider";
+  const fieldClass = isRotated
+    ? "w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-1 focus:ring-rose-500 outline-none text-xs font-semibold text-slate-800 transition-all"
+    : "w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-sm font-semibold text-slate-800 transition-all";
+  const labelClass = isRotated
+    ? "text-[9px] font-bold text-slate-500 uppercase tracking-wider"
+    : "text-xs font-bold text-slate-500 uppercase tracking-wider";
 
+  // ── Landscape (rotated) layout ────────────────────────────────────────────
+  if (isRotated) {
+    return (
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-2">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-rose-500 z-10 max-h-[48vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 shrink-0 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center">
+                  <ShoppingBag size={13} className="text-rose-600" />
+                </div>
+                <h2 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                  {initial ? "Edit Booking" : "Booking Baru"}
+                </h2>
+              </div>
+              <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"><X size={14} /></button>
+            </div>
+
+            {/* Body — two-column landscape layout */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* LEFT: Jadwal, Pelanggan, Berat, Status */}
+              <div className="w-[52%] border-r border-slate-100 overflow-y-auto p-3 space-y-2.5">
+                {error && <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-[10px] font-semibold text-red-600">{error}</div>}
+
+                {/* Jadwal */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Jadwal *</label>
+                  <ScheduleSelect
+                    value={idJadwal}
+                    onChange={setIdJadwal}
+                    schedules={schedules.filter((s) => s.status === "Open")}
+                    fieldClass={fieldClass}
+                    disabled={loading}
+                    placeholder="— Pilih Jadwal —"
+                  />
+                  {selectedSchedule && (
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg select-none">
+                      <span className="text-blue-600">📅 Last Drop: {selectedSchedule.tanggalLastDrop}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pelanggan — custom overlay to bypass overflow-hidden clipping */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Pelanggan *</label>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setShowCustPickerInForm(true)}
+                    className={`${fieldClass} text-left flex items-center justify-between gap-2`}
+                  >
+                    <span className={idPelanggan ? "text-slate-800 truncate" : "text-slate-400"}>
+                      {selectedCustomer?.nama || "Pilih Pelanggan..."}
+                    </span>
+                    <ChevronDown size={12} className="text-slate-400 shrink-0" />
+                  </button>
+                </div>
+
+                {/* Berat & Status side by side */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Berat (Kg)</label>
+                    <input
+                      type="text"
+                      inputMode="none"
+                      data-keyboard-type="numeric"
+                      value={totalKgInput}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+                        setTotalKgInput(cleaned);
+                      }}
+                      placeholder="Contoh: 5.0"
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>Status</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value as PreOrderStatus)} className={fieldClass}>
+                      {(["Pending", "Selesai"] as PreOrderStatus[]).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Barang + Catatan */}
+              <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+                {/* Barang */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className={labelClass}>Daftar Barang *</label>
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="flex items-center gap-1 text-[9px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-1 rounded-md transition-all"
+                    >
+                      <Plus size={10} strokeWidth={3} />
+                      Tambah
+                    </button>
+                  </div>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {items.map((item, idx) => (
+                      <ItemRow
+                        key={idx} item={item} index={idx}
+                        onChange={handleItemChange}
+                        onRemove={removeItem}
+                        canRemove={items.length > 1}
+                        onKeyDown={handleNameKeyDown}
+                        autoFocus={idx === autoFocusIndex}
+                        compact={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Catatan */}
+                <div className="space-y-1">
+                  <label className={labelClass}>Catatan</label>
+                  <input
+                    value={catatan}
+                    onChange={(e) => setCatatan(e.target.value)}
+                    placeholder="Catatan opsional..."
+                    inputMode="none"
+                    className={fieldClass}
+                  />
+                </div>
+
+                {/* Footer buttons inline on right column */}
+                <div className="flex gap-2 mt-auto pt-1">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-extrabold text-[10px] transition-all active:scale-95"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => handleSubmit()}
+                    disabled={loading}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white font-extrabold text-[10px] shadow-md transition-all active:scale-95"
+                  >
+                    {loading ? "Menyimpan..." : (initial ? "Simpan" : "Buat Booking")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {customerModalOpen && (
+            <CustomerFormModal
+              initial={{ nama: tempCustomerName }}
+              onClose={() => setCustomerModalOpen(false)}
+              onSubmit={async (values) => {
+                const cleanName = values.nama.trim().toUpperCase();
+                const isDuplicate = customers.some(
+                  (c) => c.nama.toUpperCase().trim() === cleanName
+                );
+                if (isDuplicate) {
+                  throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
+                }
+                const newCust = await addCustomer({
+                  nama: cleanName,
+                  telpon: values.telpon || "",
+                  alamat: values.alamat || "",
+                });
+                if (newCust && newCust.id) {
+                  setIdPelanggan(newCust.id);
+                }
+                setCustomerModalOpen(false);
+              }}
+            />
+          )}
+        </div>
+
+          {/* ── Customer picker overlay for landscape (fixed, avoids overflow-hidden clipping) ── */}
+          {showCustPickerInForm && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-2">
+              <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => { setShowCustPickerInForm(false); setCustQuery(""); }} />
+              <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[45vh] flex flex-col z-10 overflow-hidden">
+                {/* Header */}
+                <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                  <h4 className="text-xs font-extrabold text-slate-800">Pilih Pelanggan</h4>
+                  <button onClick={() => { setShowCustPickerInForm(false); setCustQuery(""); }} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
+                    <X size={13} />
+                  </button>
+                </div>
+                {/* Search */}
+                <div className="px-3 py-2 border-b border-slate-50 shrink-0">
+                  <input
+                    value={custQuery}
+                    onChange={(e) => setCustQuery(e.target.value)}
+                    placeholder="Cari nama / telepon..."
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-1 focus:ring-rose-400 outline-none text-xs font-semibold text-slate-800"
+                    autoFocus
+                  />
+                </div>
+                {/* List — 2 columns */}
+                <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-1.5 content-start">
+                  {customers
+                    .filter((c) => {
+                      const q = custQuery.toLowerCase();
+                      return !q || c.nama.toLowerCase().includes(q) || (c.telpon || "").includes(q);
+                    })
+                    .map((c) => {
+                      const isSelected = c.id === idPelanggan;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => { setIdPelanggan(c.id || ""); setShowCustPickerInForm(false); setCustQuery(""); }}
+                          className={`text-left p-2 rounded-xl border transition-all active:scale-95 ${isSelected ? "border-rose-300 bg-rose-50" : "border-slate-100 hover:border-rose-100 hover:bg-rose-50/40"}`}
+                        >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold mb-1 ${isSelected ? "bg-rose-500 text-white" : "bg-slate-200 text-slate-600"}`}>
+                            {c.nama.charAt(0).toUpperCase()}
+                          </div>
+                          <p className={`text-[10px] font-extrabold leading-tight truncate ${isSelected ? "text-rose-600" : "text-slate-800"}`}>{c.nama}</p>
+                          {c.telpon && <p className="text-[8px] text-slate-400 mt-0.5">{c.telpon}</p>}
+                        </button>
+                      );
+                    })
+                  }
+                  {customers.filter((c) => {
+                    const q = custQuery.toLowerCase();
+                    return !q || c.nama.toLowerCase().includes(q) || (c.telpon || "").includes(q);
+                  }).length === 0 && (
+                    <div className="col-span-2 py-6 text-center text-xs text-slate-400 font-semibold">Tidak ditemukan</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+      </AnimatePresence>
+    );
+  }
+
+  // ── Portrait (default) layout ─────────────────────────────────────────────
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -369,6 +643,7 @@ export function PreOrderFormModal({
                     canRemove={items.length > 1}
                     onKeyDown={handleNameKeyDown}
                     autoFocus={idx === autoFocusIndex}
+                    compact={false}
                   />
                 ))}
               </div>

@@ -118,7 +118,7 @@ function VirtualKeyboard({
     return () => inputEl.removeEventListener("input", handler);
   }, [inputEl]);
 
-  const isNumeric = inputEl.type === "number" || inputEl.inputMode === "decimal" || inputEl.inputMode === "numeric";
+  const isNumeric = inputEl.type === "number" || inputEl.inputMode === "decimal" || inputEl.inputMode === "numeric" || (inputEl as HTMLElement).dataset.keyboardType === "numeric";
 
   const applyValue = (newVal: string) => {
     const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
@@ -275,7 +275,7 @@ function VirtualKeyboard({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[99999] bg-slate-950/95 backdrop-blur-md border-t border-white/10 pt-2 pb-3 shadow-2xl select-none">
+    <div data-vkeyboard="true" className="fixed bottom-0 left-0 right-0 z-[99999] bg-slate-950/95 backdrop-blur-md border-t border-white/10 pt-2 pb-3 shadow-2xl select-none">
       {renderDisplay()}
       <div className="px-3">
         {isNumeric ? renderNumeric() : renderQwerty()}
@@ -794,6 +794,24 @@ export function PreOrderDetailPage({
       setLocalIsRotated(v);
     }
   };
+
+  // Close keyboard when clicking outside it (any area that's not the keyboard)
+  useEffect(() => {
+    if (!focusedInput || !isRotated) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const kbEl = document.querySelector('[data-vkeyboard]');
+      // If clicked inside keyboard, let keyboard handle it
+      if (kbEl && kbEl.contains(target)) return;
+      // Otherwise, close keyboard
+      setFocusedInput(null);
+      focusedInput.blur();
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [focusedInput, isRotated]);
 
   // Global focus interception for Rotated Layout
   useEffect(() => {
@@ -1361,6 +1379,7 @@ export function PreOrderDetailPage({
               defaultScheduleId={schedule.id}
               onClose={() => { setShowForm(false); setEditing(null); setFocusedInput(null); }}
               onSubmit={handleSubmit}
+              isRotated={isRotated}
             />
           )}
 
@@ -1459,7 +1478,7 @@ export function PreOrderDetailPage({
           {isRotated && (
             <button
               onClick={() => setIsRotated(false)}
-              className="fixed bottom-6 left-6 z-[10000] flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-900/90 backdrop-blur text-white rounded-xl text-xs font-extrabold shadow-2xl transition-all active:scale-90"
+              className="fixed bottom-6 left-6 z-[60] flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-900/90 backdrop-blur text-white rounded-xl text-xs font-extrabold shadow-2xl transition-all active:scale-90"
             >
               <RotateCw size={12} className="animate-spin-slow" />
               Vertikal
