@@ -22,7 +22,7 @@ import { Sidebar } from "./components/Sidebar";
 
 import { BottomTabBar } from "./components/BottomTabBar";
 import { InstallPrompt } from "./components/InstallPrompt";
-import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
+
 import { LogoutModal } from "./components/ModalLogout";
 import UpdatePrompt from "./components/UpdatePrompt";
 
@@ -40,7 +40,7 @@ import {
   toExtended
 } from "./services/ordersFirebase";
 import { checkAndProcessExpiredSchedules } from "./services/preOrdersFirebase";
-import { notificationService } from "./services/notificationService";
+
 
 // Assets
 import logoLight from "./assets/logo-admin.png";
@@ -134,10 +134,7 @@ function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
-    "Notification" in window ? Notification.permission : "default"
-  );
+
 
   // SpeedDialFAB form triggers — increment to auto-open the create form
   const [orderFormTrigger, setOrderFormTrigger] = useState(0);
@@ -170,20 +167,7 @@ function AppShell() {
       });
   }, [user]);
 
-  // 🔔 Check Notification Permission
-  useEffect(() => {
-    if ("Notification" in window) {
-      const perm = Notification.permission;
-      setNotificationPermission(perm);
 
-      if (perm !== "granted") {
-        const timer = setTimeout(() => {
-          setShowNotificationModal(true);
-        }, 3000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, []);
 
   // 🔊 Realtime customers
   useEffect(() => {
@@ -214,23 +198,9 @@ function AppShell() {
     return () => unsub();
   }, [user, currentTab]);
 
-  // 🔔 Notification Logic
-  useEffect(() => {
-    if (orders.length > 0 && currentTab === "home") {
-      const timer = setTimeout(() => {
-        notificationService.checkAndNotifyOrders(orders);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [orders, currentTab]);
 
-  const handleEnableNotifications = async () => {
-    const res = await notificationService.requestPermission();
-    setNotificationPermission(res);
-    if (res === "granted") {
-      setShowNotificationModal(false);
-    }
-  };
+
+
 
   return (
     <motion.div
@@ -327,12 +297,7 @@ function AppShell() {
       </AnimatePresence>
 
       <InstallPrompt />
-      <NotificationPermissionModal
-        isOpen={showNotificationModal}
-        isDenied={notificationPermission === "denied"}
-        onClose={() => setShowNotificationModal(false)}
-        onConfirm={handleEnableNotifications}
-      />
+
       <UpdatePrompt />
     </motion.div>
   );

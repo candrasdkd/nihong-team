@@ -684,20 +684,6 @@ export function Dashboard({
   const { user } = useAuth();
   const { unitPrice, globalJastipYen } = useSettings();
 
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "granted" && user?.uid) registerFCM();
-  }, [user?.uid]);
-
-  const registerFCM = async () => {
-    const VAPID_KEY = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY;
-    if (VAPID_KEY && user?.uid) {
-      try {
-        const { fcmService } = await import("../services/fcmService");
-        await fcmService.registerToken(user.uid, VAPID_KEY);
-      } catch (err) { console.error("[Dashboard] FCM error:", err); }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-transparent pb-24 font-sans text-slate-900">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
