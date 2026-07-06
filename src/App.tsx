@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Pages
-import { Dashboard } from "./pages/Dashboard";
-import { OrdersPage } from "./pages/OrdersPage";
-import { CustomersPage } from "./pages/CustomersPage";
-import { LedgerPage } from "./pages/LedgerPage";
-import { LoginPage } from "./pages/LoginPage";
-import { MenuPage } from "./pages/MenuPage";
-import { JastipersPage } from "./pages/JastipersPage";
-import { SchedulesPage } from "./pages/SchedulesPage";
-import { PreOrdersPage } from "./pages/PreOrdersPage";
-import { SharedPreOrderPage } from "./pages/SharedPreOrderPage";
+// Skeletons
+import { PageSkeleton, DashboardSkeleton, OrdersSkeleton } from "./components/Skeletons";
+
+// Pages (Dynamically imported)
+const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const OrdersPage = React.lazy(() => import("./pages/OrdersPage").then(m => ({ default: m.OrdersPage })));
+const CustomersPage = React.lazy(() => import("./pages/CustomersPage").then(m => ({ default: m.CustomersPage })));
+const LedgerPage = React.lazy(() => import("./pages/LedgerPage").then(m => ({ default: m.LedgerPage })));
+const LoginPage = React.lazy(() => import("./pages/LoginPage").then(m => ({ default: m.LoginPage })));
+const MenuPage = React.lazy(() => import("./pages/MenuPage").then(m => ({ default: m.MenuPage })));
+const JastipersPage = React.lazy(() => import("./pages/JastipersPage").then(m => ({ default: m.JastipersPage })));
+const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
+const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
+const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -58,7 +61,11 @@ export default function App() {
   // 🔗 Detect share link — render standalone page without auth
   const shareScheduleId = new URLSearchParams(window.location.search).get("share");
   if (shareScheduleId) {
-    return <SharedPreOrderPage scheduleId={shareScheduleId} />;
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <SharedPreOrderPage scheduleId={shareScheduleId} />
+      </Suspense>
+    );
   }
 
   const [tab, setTab] = useState<TabId>(() => {
@@ -172,13 +179,13 @@ export default function App() {
 
   // 🔊 Realtime customers
   useEffect(() => {
-    if (!user) return;
+    if (!user || (tab !== "home" && tab !== "orders")) return;
     const unsub = listenCustomers((rows) => {
       setCustomers(rows as Customer[]);
       setCustomersLoading(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, tab]);
 
   // 🔊 Realtime Global Settings
   useEffect(() => {
@@ -196,23 +203,23 @@ export default function App() {
 
   // 🔊 Realtime Active Orders (for notifications & active count)
   useEffect(() => {
-    if (!user) return;
+    if (!user || tab !== "home") return;
     const unsub = subscribeActiveOrders((rows) => {
       setOrders(rows.map(toExtended) as Order[]);
       setOrdersLoading(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, tab]);
 
   // 🔊 Realtime Monthly Order Summaries (for Dashboard)
   const [monthlySummaries, setMonthlySummaries] = useState<any[]>([]);
   useEffect(() => {
-    if (!user) return;
+    if (!user || tab !== "home") return;
     const unsub = subscribeMonthlySummaries((data) => {
       setMonthlySummaries(data);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, tab]);
 
   // 🔔 Notification Logic
   useEffect(() => {
@@ -239,7 +246,7 @@ export default function App() {
   };
 
   // ⏳ Loading Screen
-  const isAppLoading = authLoading || (user !== null && (customersLoading || ordersLoading));
+  const isAppLoading = authLoading;
 
   return (
     <div className="min-h-screen text-slate-900 bg-[#f8fafc] relative overflow-hidden">
@@ -367,7 +374,9 @@ export default function App() {
             transition={{ duration: 0.35, ease: "easeInOut" }}
             className="w-full h-full min-h-screen z-10 relative"
           >
-            <LoginPage />
+            <Suspense fallback={<PageSkeleton />}>
+              <LoginPage />
+            </Suspense>
           </motion.div>
         ) : (
           <motion.div
@@ -427,48 +436,58 @@ export default function App() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {tab === "home" && (
-                      <Dashboard
-                        user={user!}
-                        activeOrders={orders}
-                        monthlySummaries={monthlySummaries}
-                        customers={customers}
-                        unitPrice={unitPrice}
-                        globalJastipYen={globalJastipYen}
-                        onSeeAllOrders={() => setTab("orders")}
-                        setActiveFeature={(feature) => setTab(feature as any)}
-                        onRecalculateStats={recalculateAllStats}
-                      />
-                    )}
-                    {tab === "orders" && (
-                      <OrdersPage
-                        customers={customers}
-                        unitPrice={unitPrice}
-                        formTrigger={orderFormTrigger}
-                        onFormTriggerConsumed={() => setOrderFormTrigger(0)}
-                      />
-                    )}
-                    {tab === "customers" && <CustomersPage />}
-                    {tab === "cash" && (
-                      <LedgerPage
-                        formTrigger={ledgerFormTrigger}
-                        onFormTriggerConsumed={() => setLedgerFormTrigger(0)}
-                      />
-                    )}
-                    {tab === "menu" && <MenuPage onTabChange={setTab} />}
-                    {tab === "jastipers" && <JastipersPage />}
-                    {tab === "schedules" && (
-                      <SchedulesPage
-                        formTrigger={scheduleFormTrigger}
-                        onFormTriggerConsumed={() => setScheduleFormTrigger(0)}
-                      />
-                    )}
-                    {tab === "preorders" && (
-                      <PreOrdersPage
-                        formTrigger={preorderFormTrigger}
-                        onFormTriggerConsumed={() => setPreorderFormTrigger(0)}
-                      />
-                    )}
+                    <Suspense fallback={<PageSkeleton />}>
+                      {tab === "home" && (
+                        (orders.length === 0 || customers.length === 0) && (customersLoading || ordersLoading) ? (
+                          <DashboardSkeleton />
+                        ) : (
+                          <Dashboard
+                            user={user!}
+                            activeOrders={orders}
+                            monthlySummaries={monthlySummaries}
+                            customers={customers}
+                            unitPrice={unitPrice}
+                            globalJastipYen={globalJastipYen}
+                            onSeeAllOrders={() => setTab("orders")}
+                            setActiveFeature={(feature) => setTab(feature as any)}
+                            onRecalculateStats={recalculateAllStats}
+                          />
+                        )
+                      )}
+                      {tab === "orders" && (
+                        customers.length === 0 && customersLoading ? (
+                          <OrdersSkeleton />
+                        ) : (
+                          <OrdersPage
+                            customers={customers}
+                            unitPrice={unitPrice}
+                            formTrigger={orderFormTrigger}
+                            onFormTriggerConsumed={() => setOrderFormTrigger(0)}
+                          />
+                        )
+                      )}
+                      {tab === "customers" && <CustomersPage />}
+                      {tab === "cash" && (
+                        <LedgerPage
+                          formTrigger={ledgerFormTrigger}
+                          onFormTriggerConsumed={() => setLedgerFormTrigger(0)}
+                        />
+                      )}
+                      {tab === "menu" && <MenuPage onTabChange={setTab} />}
+                      {tab === "jastipers" && <JastipersPage />}
+                      {tab === "schedules" && (
+                        <SchedulesPage
+                          formTrigger={scheduleFormTrigger}
+                          onFormTriggerConsumed={() => setScheduleFormTrigger(0)}
+                        />
+                      )}
+                      {tab === "preorders" && (
+                        <PreOrdersPage
+                          formTrigger={preorderFormTrigger}
+                          onFormTriggerConsumed={() => setPreorderFormTrigger(0)}
+                        />
+                      )}
+                    </Suspense>
 
                   </motion.div>
                 </AnimatePresence>
