@@ -1028,14 +1028,14 @@ export function PreOrderDetailPage({
               {/* Rotate Layout Button */}
               <button
                 onClick={() => setIsRotated(!isRotated)}
-                className={`flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-xl border text-xs font-extrabold transition-all active:scale-95 ${isRotated
+                className={`sm:hidden flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-extrabold transition-all active:scale-95 ${isRotated
                   ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
                   : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                   }`}
                 title="Putar Layar ke Horizontal"
               >
                 <RotateCw size={12} className={isRotated ? "rotate-90 transition-transform duration-300" : "transition-transform duration-300"} />
-                <span className="hidden sm:inline">{isRotated ? "Vertikal" : "Putar Layar"}</span>
+                <span>{isRotated ? "Vertikal" : "Putar Layar"}</span>
               </button>
               {/* Tombol Tambah — tersembunyi di share mode (muncul sebagai FAB di bawah) */}
               {!isShareMode && (
@@ -1459,7 +1459,7 @@ export function PreOrderDetailPage({
                 initial={{ opacity: 0, y: 80 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 80 }}
-                className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center justify-between gap-3 z-[90]"
+                className="fixed bottom-20 sm:bottom-6 left-0 right-0 mx-auto w-[calc(100%-2rem)] max-w-sm bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center justify-between gap-3 z-[90]"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center shrink-0">
