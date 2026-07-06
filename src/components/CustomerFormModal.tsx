@@ -121,7 +121,7 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
 
   return (
     <Modal
-      onClose={submitting ? undefined : onClose}
+      onClose={submitting ? () => {} : onClose}
       title={initial?.id ? "Edit Konsumen" : "Tambah Konsumen"}
     >
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-5 py-2">

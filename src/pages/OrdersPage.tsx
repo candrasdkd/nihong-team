@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSettings } from "../context/settingsContext";
 import { Customer, ExtendedOrder } from "../types";
 import { formatCurrency } from "../utils/format";
 import { FlagID, FlagJP } from "../components/ui/Flags";
@@ -296,15 +297,14 @@ function MiniStatCard({ label, value, sub, icon: Icon, colorClass, index }: Mini
 // ===== MAIN PAGE COMPONENT =====
 export function OrdersPage({
   customers,
-  unitPrice,
   formTrigger = 0,
   onFormTriggerConsumed,
 }: {
   customers: Customer[];
-  unitPrice: number;
   formTrigger?: number;
   onFormTriggerConsumed?: () => void;
 }) {
+  const { unitPrice } = useSettings();
   const {
     q,
     setQ,
@@ -563,7 +563,7 @@ export function OrdersPage({
                       }
                       onChange={(e) =>
                         setSelectedIds(
-                          e.target.checked ? sortedOrders.map((o) => o.id) : [],
+                          e.target.checked ? sortedOrders.map((o) => o.id || "") : [],
                         )
                       }
                     />
@@ -638,30 +638,32 @@ export function OrdersPage({
                 ) : (
                   displayedOrders.map((o) => (
                     <ExpandableRow
-                      key={o.id}
+                      key={o.id || ""}
                       order={o}
                       unitPrice={unitPrice}
-                      isExpanded={expandedRows.has(o.id)}
-                      isSelected={selectedIds.includes(o.id)}
+                      isExpanded={expandedRows.has(o.id || "")}
+                      isSelected={selectedIds.includes(o.id || "")}
                       onToggleExpand={() =>
                         setExpandedRows((prev) => {
                           const n = new Set(prev);
-                          n.has(o.id) ? n.delete(o.id) : n.add(o.id);
+                          const id = o.id || "";
+                          n.has(id) ? n.delete(id) : n.add(id);
                           return n;
                         })
                       }
                       onToggleSelect={() =>
-                        setSelectedIds((prev) =>
-                          prev.includes(o.id)
-                            ? prev.filter((id) => id !== o.id)
-                            : [...prev, o.id],
-                        )
+                        setSelectedIds((prev) => {
+                          const id = o.id || "";
+                          return prev.includes(id)
+                            ? prev.filter((x) => x !== id)
+                            : [...prev, id];
+                        })
                       }
                       onEdit={() => {
                         setEditing(o);
                         setShowForm(true);
                       }}
-                      onDelete={() => handleDelete(o.id)}
+                      onDelete={() => handleDelete(o.id || "")}
                       onPreview={(src: string | string[]) => {
                         const cust = customers.find(c => c.nama === o.namaPelanggan);
                         openPreview(src, cust?.telpon, o.namaPelanggan);
@@ -679,22 +681,23 @@ export function OrdersPage({
         <div className="sm:hidden space-y-4">
           {displayedOrders.map((o) => (
             <MobileCard
-              key={o.id}
+              key={o.id || ""}
               order={o}
               unitPrice={unitPrice}
-              isSelected={selectedIds.includes(o.id)}
+              isSelected={selectedIds.includes(o.id || "")}
               onToggleSelect={() =>
-                setSelectedIds((prev) =>
-                  prev.includes(o.id)
-                    ? prev.filter((id) => id !== o.id)
-                    : [...prev, o.id],
-                )
+                setSelectedIds((prev) => {
+                  const id = o.id || "";
+                  return prev.includes(id)
+                    ? prev.filter((x) => x !== id)
+                    : [...prev, id];
+                })
               }
               onEdit={() => {
                 setEditing(o);
                 setShowForm(true);
               }}
-              onDelete={() => handleDelete(o.id)}
+              onDelete={() => handleDelete(o.id || "")}
               onPreview={(src: string | string[]) => {
                 const cust = customers.find(c => c.nama === o.namaPelanggan);
                 openPreview(src, cust?.telpon, o.namaPelanggan);
@@ -793,7 +796,7 @@ export function OrdersPage({
             setSelectedOrderDetail(null);
           }}
           onDelete={() => {
-            const id = selectedOrderDetail.id;
+            const id = selectedOrderDetail.id || "";
             setSelectedOrderDetail(null);
             handleDelete(id);
           }}
@@ -801,7 +804,7 @@ export function OrdersPage({
             setShowInvoice({
               show: true,
               order: selectedOrderDetail,
-              itemIds: [selectedOrderDetail.id],
+              itemIds: [selectedOrderDetail.id || ""],
             });
             setSelectedOrderDetail(null);
           }}
@@ -916,7 +919,7 @@ function ExpandableRow({
         {/* Kolom Pelanggan */}
         <td className="px-6 py-4 align-middle">
           <div className="flex items-center gap-3">
-            <Avatar name={order.namaPelanggan} />
+            <Avatar name={order.namaPelanggan || ""} />
             <div>
               <div className="font-extrabold text-slate-800 text-xs sm:text-sm">
                 {order.namaPelanggan}
@@ -1255,7 +1258,11 @@ function OrderDetailModal({
   };
 
   const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
-  const images = hasImg ? (Array.isArray(order.imageUrl) ? order.imageUrl : [order.imageUrl]) : [];
+  const images = hasImg 
+    ? (Array.isArray(order.imageUrl) 
+        ? order.imageUrl.filter((x): x is string => !!x) 
+        : [order.imageUrl].filter((x): x is string => !!x)) 
+    : [];
 
   return (
     <AnimatePresence>
@@ -1283,13 +1290,13 @@ function OrderDetailModal({
           {/* Modal Header */}
           <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-start justify-between">
             <div className="flex items-center gap-3.5">
-              <Avatar name={order.namaPelanggan} />
+              <Avatar name={order.namaPelanggan || ""} />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base sm:text-lg font-black text-slate-800 leading-none">
                     {order.namaPelanggan}
                   </h3>
-                  <StatusPill status={order.status} />
+                  <StatusPill status={order.status || "Belum Membayar"} />
                 </div>
                 <div className="text-[10px] text-slate-400 font-extrabold font-mono mt-1.5 uppercase tracking-wider">
                   Order ID: #{order.no}

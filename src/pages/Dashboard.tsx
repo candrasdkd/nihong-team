@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useAuth } from "../context/authContext";
+import { useSettings } from "../context/settingsContext";
 import { motion } from "framer-motion";
 import { Customer, Order, PeriodType } from "../types";
 import { formatCurrency, formatIDR } from "../utils/format";
@@ -672,13 +674,16 @@ function NotificationCard({ user, registerFCM }: { user: any; registerFCM: () =>
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function Dashboard({
-  user, activeOrders, monthlySummaries, customers, unitPrice, globalJastipYen, onSeeAllOrders, setActiveFeature, onRecalculateStats,
+  activeOrders, monthlySummaries, customers, onSeeAllOrders, setActiveFeature, onRecalculateStats,
 }: {
-  user: any; activeOrders: Order[]; monthlySummaries: any[]; customers: Customer[]; unitPrice: number; globalJastipYen: number;
+  activeOrders: Order[]; monthlySummaries: any[]; customers: Customer[];
   onSeeAllOrders: () => void;
   setActiveFeature: (v: string) => void;
   onRecalculateStats: () => Promise<void> | void;
 }) {
+  const { user } = useAuth();
+  const { unitPrice, globalJastipYen } = useSettings();
+
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "granted" && user?.uid) registerFCM();
   }, [user?.uid]);

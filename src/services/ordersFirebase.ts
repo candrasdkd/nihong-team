@@ -16,6 +16,7 @@ import {
   runTransaction,
   increment,
   getDoc,
+  writeBatch,
   type Unsubscribe,
   type QueryConstraint,
 } from "firebase/firestore";
@@ -342,8 +343,8 @@ export function subscribeOrders(
   const qy = query(ORDERS, ...cons);
   return onSnapshot(qy, (snap) => {
     const rows: OrderDoc[] = snap.docs.map((d) => ({
-      id: d.id,
       ...(d.data() as OrderDoc),
+      id: d.id,
     }));
     cb(rows);
   });
@@ -368,8 +369,8 @@ export async function getOrdersPage(pageSize = 25, cursor?: any) {
 
   const snap = await getDocs(q1);
   const rows: OrderDoc[] = snap.docs.map((d) => ({
-    id: d.id,
     ...(d.data() as OrderDoc),
+    id: d.id,
   }));
   const last =
     snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : undefined;
@@ -422,19 +423,24 @@ export function fromExtended(ui: ExtendedOrder): OrderDoc {
  */
 export async function addTipeNominalToAllOrders(tipeNominal: string) {
   const snap = await getDocs(ORDERS);
-  const promises: Promise<void>[] = [];
+  const docs = snap.docs;
+  const BATCH_LIMIT = 500;
 
-  snap.forEach((d) => {
-    const ref = doc(db, "orders", d.id);
-    promises.push(
-      setDoc(ref, {
+  for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    const chunk = docs.slice(i, i + BATCH_LIMIT);
+
+    chunk.forEach((d) => {
+      const ref = doc(db, "orders", d.id);
+      batch.set(ref, {
         tipeNominal,
         updatedAt: serverTimestamp(),
-      }, { merge: true }),
-    );
-  });
+      }, { merge: true });
+    });
 
-  await Promise.all(promises);
+    await batch.commit();
+  }
+
   console.log(`✔ ${snap.size} orders berhasil ditambahkan tipeNominal`);
 }
 
@@ -486,19 +492,38 @@ export async function recalculateAllStats() {
     }
   });
   
-  // 1. Simpan ringkasan akumulasi bulanan ke Firestore
-  const monthlyPromises = Object.entries(monthlyStats).map(async ([month, stats]) => {
+  // Satukan semua operasi tulis ke dalam flat array
+  const ops: Array<{ ref: any; data: any; options?: { merge: boolean } }> = [];
+  
+  // 1. Tambahkan ringkasan bulanan ke operasi batch
+  Object.entries(monthlyStats).forEach(([month, stats]) => {
     const ref = doc(db, "orders_monthly_summaries", month);
-    await setDoc(ref, { ...stats, lastUpdated: Date.now() });
+    ops.push({ ref, data: { ...stats, lastUpdated: Date.now() } });
   });
   
-  // 2. Simpan akumulasi belanja customer ke Firestore
-  const customerPromises = Object.entries(customerStats).map(async ([custId, stats]) => {
+  // 2. Tambahkan belanja customer ke operasi batch
+  Object.entries(customerStats).forEach(([custId, stats]) => {
     const ref = doc(db, "customers", custId);
-    await setDoc(ref, stats, { merge: true });
+    ops.push({ ref, data: stats, options: { merge: true } });
   });
+
+  // Commit batch per 500 operasi sekaligus
+  const BATCH_LIMIT = 500;
+  for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    const chunk = ops.slice(i, i + BATCH_LIMIT);
+    
+    chunk.forEach((op) => {
+      if (op.options) {
+        batch.set(op.ref, op.data, op.options);
+      } else {
+        batch.set(op.ref, op.data);
+      }
+    });
+    
+    await batch.commit();
+  }
   
-  await Promise.all([...monthlyPromises, ...customerPromises]);
   console.log("✔ Statistik Dashboard dan data belanja Pelanggan berhasil disinkronisasi.");
 }
 
@@ -534,8 +559,8 @@ export function subscribeActiveOrders(cb: (rows: OrderDoc[]) => void): Unsubscri
   const qy = query(ORDERS, where("status", "==", "Belum Membayar"));
   return onSnapshot(qy, (snap) => {
     const rows: OrderDoc[] = snap.docs.map((d) => ({
-      id: d.id,
       ...(d.data() as OrderDoc),
+      id: d.id,
     }));
     cb(rows);
   });

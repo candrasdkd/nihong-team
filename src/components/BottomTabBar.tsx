@@ -1,6 +1,7 @@
 import React, { ElementType, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Home, ClipboardList, Wallet, LayoutGrid, Zap, ShoppingBag, Calendar, Coins } from "lucide-react";
+import { Home, ClipboardList, Wallet, LayoutGrid, Zap, ShoppingBag, Calendar } from "lucide-react";
 import { TabId } from "../types";
 
 // ─── Tab configs ─────────────────────────────────────────────────────────────
@@ -16,8 +17,6 @@ const RIGHT_TABS: { id: TabId; label: string; Icon: ElementType }[] = [
 const MENU_CHILD_TABS = new Set(["customers", "jastipers", "schedules", "preorders"]);
 
 interface BottomTabBarProps {
-  current: TabId;
-  setTab: (t: TabId) => void;
   onAddOrder?: () => void;
   onAddBooking?: () => void;
   onAddTransaction?: () => void;
@@ -50,13 +49,13 @@ function TabButton({
 }
 
 export function BottomTabBar({
-  current,
-  setTab,
   onAddOrder,
   onAddBooking,
   onAddTransaction,
   onAddSchedule,
 }: BottomTabBarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [fabOpen, setFabOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(window.innerWidth);
@@ -66,6 +65,14 @@ export function BottomTabBar({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const current = location.pathname === "/"
+    ? "home"
+    : (location.pathname.substring(1).split("/")[0] as TabId);
+
+  const setTab = (t: TabId) => {
+    navigate(t === "home" ? "/" : `/${t}`);
+  };
 
   const C = width / 2;
   const h = 64;
@@ -98,104 +105,103 @@ export function BottomTabBar({
       Icon: Calendar,
       cls: "bg-amber-500 shadow-amber-400/50",
       x: -48,
-      y: -140,
+      y: -80,
       onClick: () => { setFabOpen(false); onAddSchedule?.(); },
     },
     {
       id: "order",
-      label: "Tambah Pesanan",
+      label: "Tambah Order",
       Icon: ClipboardList,
-      cls: "bg-blue-600 shadow-blue-500/50",
+      cls: "bg-blue-500 shadow-blue-400/50",
       x: 48,
-      y: -140,
+      y: -80,
       onClick: () => { setFabOpen(false); onAddOrder?.(); },
     },
     {
-      id: "transaction",
+      id: "cash",
       label: "Tambah Kas",
-      Icon: Coins,
-      cls: "bg-emerald-600 shadow-emerald-500/50",
+      Icon: Wallet,
+      cls: "bg-[#10b981] shadow-[#10b981]/50",
       x: 96,
       y: -80,
       onClick: () => { setFabOpen(false); onAddTransaction?.(); },
     },
   ];
 
+  // Close FAB when clicking outside
   useEffect(() => {
-    if (!fabOpen) return;
-    const h = (e: MouseEvent) => {
-      if (fabRef.current && !fabRef.current.contains(e.target as Node)) setFabOpen(false);
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+        setFabOpen(false);
+      }
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [fabOpen]);
-
-  useEffect(() => {
-    if (!fabOpen) return;
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setFabOpen(false); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
+    if (fabOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [fabOpen]);
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop overlay */}
       <AnimatePresence>
         {fabOpen && (
           <motion.div
-            key="bd"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55]"
+            className="fixed inset-0 bg-[#070c18]/40 backdrop-blur-xs z-40 md:hidden"
             onClick={() => setFabOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Bottom bar */}
-      <footer
-        className="sm:hidden fixed bottom-0 inset-x-0 z-[60] backdrop-blur-md"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        {/* SVG Curved Background with drop shadow */}
-        <svg
-          width={width}
-          height={h + 100}
-          className="absolute left-0 top-0 text-white pointer-events-none z-0"
-          style={{
-            filter: "drop-shadow(0px -4px 10px rgba(0, 0, 0, 0.05))",
-          }}
-        >
-          <path
-            d={pathData}
-            fill="rgba(255, 255, 255, 0.95)"
-          />
-        </svg>
+      <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden shrink-0 pointer-events-none">
+        <nav className="relative h-16 w-full pointer-events-auto">
+          {/* Background SVG shape */}
+          <div className="absolute inset-0 z-10">
+            <svg width={width} height={h + 100} className="drop-shadow-[0_-8px_16px_rgba(15,23,42,0.06)] filter">
+              <path d={pathData} fill="#ffffff" />
+            </svg>
+          </div>
 
-        {/* Fixed-height nav row */}
-        <nav className="relative h-16 max-w-7xl mx-auto px-2 flex items-stretch z-10">
+          {/* Actual items */}
+          <div className="relative z-20 h-full flex items-center justify-between px-3">
+            {/* Left group */}
+            <div className="flex items-center justify-around w-[38%] h-full">
+              {LEFT_TABS.map((t) => (
+                <TabButton
+                  key={t.id}
+                  id={t.id}
+                  label={t.label}
+                  Icon={t.Icon}
+                  current={current}
+                  setTab={setTab}
+                />
+              ))}
+            </div>
 
-          {/* Left 2 tabs */}
-          {LEFT_TABS.map((t) => (
-            <TabButton key={t.id} {...t} current={current} setTab={setTab} />
-          ))}
+            {/* Empty space for FAB */}
+            <div className="w-[20%]" />
 
-          {/* Center spacer — reserved for FAB */}
-          <div className="w-16 flex-shrink-0" />
+            {/* Right group */}
+            <div className="flex items-center justify-around w-[38%] h-full">
+              {RIGHT_TABS.map((t) => (
+                <TabButton
+                  key={t.id}
+                  id={t.id}
+                  label={t.label}
+                  Icon={t.Icon}
+                  current={current}
+                  setTab={setTab}
+                />
+              ))}
+            </div>
+          </div>
 
-          {/* Right 2 tabs */}
-          {RIGHT_TABS.map((t) => (
-            <TabButton key={t.id} {...t} current={current} setTab={setTab} />
-          ))}
-
-          {/* ── FAB (absolutely centered, raised above bar) ── */}
-          <div
-            ref={fabRef}
-            className="absolute left-1/2 -translate-x-1/2 -top-6 z-[62] flex flex-col items-center"
-          >
-            {/* Speed dial options */}
+          {/* Centered Speed Dial FAB */}
+          <div ref={fabRef} className="absolute top-[-22px] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+            {/* Actions group */}
             <AnimatePresence>
               {fabOpen && (
                 <motion.div

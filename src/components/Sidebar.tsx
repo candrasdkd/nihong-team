@@ -1,9 +1,8 @@
 import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User } from "firebase/auth";
+import { useAuth } from "../context/authContext";
 import {
-  Home,
-  PackageSearch,
   Users,
   Wallet,
   ChevronLeft,
@@ -13,16 +12,13 @@ import {
   UserRound,
   Calendar,
   ShoppingBag,
+  PackageSearch,
 } from "lucide-react";
-import { TabId } from "../types";
 import logoLight from "../assets/logo-admin.png";
 
 interface SidebarProps {
-  currentTab: TabId;
-  onTabChange: (tab: TabId) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  user: User;
   onLogout: () => void;
 }
 
@@ -39,20 +35,21 @@ const SUB_MENU_ITEMS = [
   { id: "preorders",  label: "Booking Jadwal",  icon: ShoppingBag },
 ];
 
-// Reusable nav button used for both main and sub menu items
+// Reusable nav link component used for both main and sub menu items
 function NavItem({
-  item, isActive, isCollapsed, onTabChange, layoutId,
+  item, isActive, isCollapsed, layoutId,
 }: {
   item: { id: string; label: string; icon: React.ElementType };
   isActive: boolean;
   isCollapsed: boolean;
-  onTabChange: (tab: TabId) => void;
   layoutId: string;
 }) {
   const Icon = item.icon;
+  const to = item.id === "home" ? "/" : `/${item.id}`;
+
   return (
-    <button
-      onClick={() => onTabChange(item.id as TabId)}
+    <Link
+      to={to}
       title={isCollapsed ? item.label : undefined}
       className={`
         w-full flex items-center gap-3 rounded-xl transition-all duration-200 outline-none relative
@@ -85,18 +82,25 @@ function NavItem({
           </motion.span>
         )}
       </AnimatePresence>
-    </button>
+    </Link>
   );
 }
 
 export function Sidebar({
-  currentTab,
-  onTabChange,
   isCollapsed,
   onToggleCollapse,
-  user,
   onLogout,
 }: SidebarProps) {
+  const location = useLocation();
+  const { user } = useAuth();
+  
+  // Resolve current active route key from pathname
+  const currentTab = location.pathname === "/" 
+    ? "home" 
+    : location.pathname.substring(1).split("/")[0];
+
+  if (!user) return null;
+
   return (
     <motion.aside
       animate={{ width: isCollapsed ? 72 : 248 }}
@@ -119,9 +123,9 @@ export function Sidebar({
       <div className="h-16 flex items-center justify-between px-4 shrink-0 relative"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <button
+        <Link
+          to="/"
           className={`flex items-center gap-3 focus:outline-none overflow-hidden ${isCollapsed ? "justify-center w-full" : ""}`}
-          onClick={() => onTabChange("home")}
         >
           <motion.div
             whileTap={{ scale: 0.92 }}
@@ -148,7 +152,7 @@ export function Sidebar({
               </motion.div>
             )}
           </AnimatePresence>
-        </button>
+        </Link>
 
         {!isCollapsed && (
           <button
@@ -175,7 +179,6 @@ export function Sidebar({
         {/* Main menu items */}
         {MENU_ITEMS.map((item) => {
           const isActive = currentTab === item.id;
-          const Icon = item.icon;
 
           return (
             <NavItem
@@ -183,7 +186,6 @@ export function Sidebar({
               item={item}
               isActive={isActive}
               isCollapsed={isCollapsed}
-              onTabChange={onTabChange}
               layoutId="sidebar-active"
             />
           );
@@ -206,7 +208,6 @@ export function Sidebar({
               item={item}
               isActive={isActive}
               isCollapsed={isCollapsed}
-              onTabChange={onTabChange}
               layoutId="sidebar-active-sub"
             />
           );

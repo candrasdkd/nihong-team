@@ -600,7 +600,7 @@ export function InvoiceModal({
     const pool = orders || [];
     if (itemIds && itemIds.length) {
       const set = new Set(itemIds);
-      return pool.filter((o) => set.has(o.id));
+      return pool.filter((o) => set.has(o.id || ""));
     }
     return pool.filter((o) => o.namaPelanggan === order.namaPelanggan);
   }, [orders, itemIds, order.namaPelanggan]);

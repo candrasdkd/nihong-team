@@ -824,7 +824,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
               to: dateTo,
             }}
             defaults={{ from: defaultFrom, to: defaultTo, categories }}
-            onApply={(p) => {
+            onApply={(p: any) => {
               setTypeFilter(p.type);
               setCategoryFilter(p.category);
               setDateFrom(p.from);
