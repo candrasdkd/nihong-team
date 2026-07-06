@@ -147,7 +147,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // 🔄 Auto-close and convert expired schedules & pre-orders on startup
+  // 🔄 Auto-close and convert expired schedules & pre-orders on startup (protected by distributed lock)
   useEffect(() => {
     if (!user) return;
     checkAndProcessExpiredSchedules()
@@ -160,7 +160,6 @@ export default function App() {
         console.error("[Auto-Close] Gagal menjalankan check kadaluarsa:", err);
       });
   }, [user]);
-
   // 🔔 Check Notification Permission
   useEffect(() => {
     if ("Notification" in window) {

@@ -227,6 +227,28 @@ export async function checkAndProcessExpiredSchedules() {
   const d = new Date();
   const todayYmd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+  // 🔒 Distributed Lock: Pastikan hanya berjalan sekali sehari di seluruh perangkat admin
+  const cronRef = doc(db, "settings", "global");
+  let shouldRun = false;
+
+  await runTransaction(db, async (transaction) => {
+    const cronSnap = await transaction.get(cronRef);
+    const data = cronSnap.exists() ? cronSnap.data() : {};
+
+    if (data.lastCronRunDate !== todayYmd) {
+      shouldRun = true;
+      transaction.set(cronRef, {
+        lastCronRunDate: todayYmd,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    }
+  });
+
+  if (!shouldRun) {
+    console.log("[Auto-Close] Proses kadaluarsa sudah dijalankan hari ini oleh admin lain.");
+    return { closed: 0, converted: 0 };
+  }
+
   // 1. Ambil jadwal yang statusnya Open dan tanggalBerangkat < hari ini
   const schedulesRef = collection(db, "departure_schedules");
   const qSchedules = query(
