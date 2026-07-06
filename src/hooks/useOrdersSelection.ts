@@ -3,11 +3,12 @@ import { ExtendedOrder } from "../types";
 
 interface UseOrdersSelectionProps {
   orders: ExtendedOrder[];
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   showToast: (message: string, type: "success" | "error") => void;
 }
 
-export function useOrdersSelection({ orders, showToast }: UseOrdersSelectionProps) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+export function useOrdersSelection({ orders, selectedIds, setSelectedIds, showToast }: UseOrdersSelectionProps) {
   const [showInvoice, setShowInvoice] = useState<{
     show: boolean;
     order?: ExtendedOrder;

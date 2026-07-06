@@ -14,17 +14,24 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
   // 1. Toast Hook
   const { toasts, setToasts, showToast, removeToast } = useToast();
 
+  // 2. Selection states (shared with selection hook)
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   // Callback to clean up selectedIds when orders are refreshed/filtered
   const handleOrdersUpdated = useCallback((filtered: ExtendedOrder[]) => {
     setSelectedIds((prev) => prev.filter((id) => filtered.some((x) => x.id === id)));
   }, []);
 
-  // 2. Query Hook
+  // 3. Query Hook
   const query = useOrdersQuery({ unitPrice, onOrdersUpdated: handleOrdersUpdated });
 
-  // 3. Selection Hook
-  const selection = useOrdersSelection({ orders: query.orders, showToast });
-  const { selectedIds, setSelectedIds } = selection; // needed for handleOrdersUpdated callback reference
+  // 4. Selection Hook
+  const selection = useOrdersSelection({
+    orders: query.orders,
+    selectedIds,
+    setSelectedIds,
+    showToast,
+  });
 
   // 4. Local UI states
   const [editing, setEditing] = useState<ExtendedOrder | null>(null);
