@@ -14,6 +14,8 @@ import {
 import { useLedger } from "../hooks/useLedger";
 import { LedgerFormModal } from "../components/LedgerFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { useCapitalAdvance } from "../hooks/useCapitalAdvance";
+import { CapitalAdvanceTracker } from "../components/CapitalAdvanceTracker";
 import { formatAndAddYear, MONTH_LABEL_ID } from "../utils/helpers";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import {
@@ -358,6 +360,14 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     defaultTo,
   } = useLedger();
 
+  const {
+    pending,
+    loading: loadingAdvances,
+    confirmModal: advConfirmModal,
+    setConfirmModal: setAdvConfirmModal,
+    handleMarkReturned,
+  } = useCapitalAdvance();
+
   React.useEffect(() => {
     if (formTrigger > 0) {
       setShowForm({ open: true, editing: null });
@@ -416,6 +426,12 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Capital Advance Tracker Panel */}
+        <CapitalAdvanceTracker
+          pending={pending}
+          loading={loadingAdvances}
+          onMarkReturned={handleMarkReturned}
+        />
         {/* Toolbar & Filters */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-end sm:items-center bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-slate-100 shadow-sm">
           <div className="relative w-full sm:w-96">
@@ -463,6 +479,13 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                 </>
               )}
             </Button>
+
+            {pending.length > 0 && (
+              <div className="flex items-center gap-1.5 px-3 h-11 bg-rose-50/80 border border-rose-100/50 rounded-xl text-rose-700 text-xs font-bold select-none shrink-0">
+                <Coins className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                <span>Modal Aktif: {pending.length}</span>
+              </div>
+            )}
 
             <Button
               variant="outline"
@@ -938,6 +961,18 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             message={confirmModal.message}
             confirmText={confirmModal.confirmText}
             type={confirmModal.type}
+          />
+        )}
+
+        {advConfirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={advConfirmModal.isOpen}
+            onClose={() => setAdvConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={advConfirmModal.onConfirm}
+            title={advConfirmModal.title}
+            message={advConfirmModal.message}
+            confirmText={advConfirmModal.confirmText}
+            type={advConfirmModal.type}
           />
         )}
       </AnimatePresence>

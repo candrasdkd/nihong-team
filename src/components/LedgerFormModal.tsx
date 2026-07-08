@@ -45,9 +45,11 @@ export function LedgerFormModal({
 }: {
   initial?: LedgerEntry;
   onClose: () => void;
-  onSubmit: (val: LedgerUpsert) => Promise<void> | void;
+  onSubmit: (val: LedgerUpsert, opts?: { trackAsCapital?: boolean }) => Promise<void> | void;
 }) {
-  const [tanggal, setTanggal] = useState<string>(initial?.tanggal || "");
+  const [tanggal, setTanggal] = useState<string>(
+    initial?.tanggal || new Date().toISOString().slice(0, 10)
+  );
   const [tipe, setTipe] = useState<"Masuk" | "Keluar">(
     initial?.tipe || "Masuk",
   );
@@ -55,10 +57,13 @@ export function LedgerFormModal({
   const [keterangan, setKeterangan] = useState<string>(
     initial?.keterangan || "",
   );
-  const [metode, setMetode] = useState<string>(initial?.metode || "");
+  const [metode, setMetode] = useState<string>(
+    initial ? (initial.metode || "") : "Transfer"
+  );
   const [jumlah, setJumlah] = useState<number>(initial?.jumlah || 0);
   const [catatan, setCatatan] = useState<string>(initial?.catatan || "");
   const [submitting, setSubmitting] = useState(false);
+  const [trackAsCapital, setTrackAsCapital] = useState(false);
 
   // Keuntungan calculator
   const [profitCalcFrom, setProfitCalcFrom] = useState("");
@@ -157,7 +162,7 @@ export function LedgerFormModal({
         catatan: catatan || null,
         createdAt: initial?.createdAt ?? Date.now(),
       };
-      await onSubmit(val);
+      await onSubmit(val, { trackAsCapital });
       onClose();
     } finally {
       setSubmitting(false);
@@ -168,8 +173,8 @@ export function LedgerFormModal({
   const themeBg = isMasuk ? "bg-emerald-50 dark:bg-emerald-950/20" : "bg-rose-50 dark:bg-rose-950/20";
   const themeText = isMasuk ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
   const themeBorderFocus = isMasuk ? "focus:!border-emerald-500 focus:!ring-emerald-500/20" : "focus:!border-rose-500 focus:!ring-rose-500/20";
-  const themePrimaryButton = isMasuk 
-    ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-600/10" 
+  const themePrimaryButton = isMasuk
+    ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-600/10"
     : "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 shadow-rose-600/10";
 
   return (
@@ -179,11 +184,11 @@ export function LedgerFormModal({
       className="fixed inset-0 z-[80] flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden"
     >
       {/* Backdrop */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
+        className={`absolute inset-0 bg-slate-900/40 ${isSmall ? "" : "backdrop-blur-sm"}`}
       />
 
       {/* Modal Container */}
@@ -197,9 +202,8 @@ export function LedgerFormModal({
             ? { type: "tween", ease: "easeOut", duration: 0.25 }
             : { type: "spring", stiffness: 350, damping: 28 }
         }
-        className={`relative w-full md:w-[560px] max-w-full rounded-t-2xl md:rounded-2xl bg-white shadow-2xl h-[88vh] md:h-auto max-h-[88vh] flex flex-col overflow-hidden border-t-4 ${
-          isMasuk ? "border-t-emerald-500" : "border-t-rose-500"
-        } transition-colors duration-300`}
+        className={`relative w-full md:w-[560px] max-w-full rounded-t-2xl md:rounded-2xl bg-white shadow-2xl h-[88vh] md:h-auto max-h-[88vh] flex flex-col overflow-hidden border-t-4 ${isMasuk ? "border-t-emerald-500" : "border-t-rose-500"
+          } transition-colors duration-300`}
       >
         {/* Header */}
         <div className="sticky top-0 z-10 border-b border-slate-100 bg-white px-5 py-4">
@@ -229,13 +233,12 @@ export function LedgerFormModal({
 
         {/* Body */}
         <div className="px-5 py-5 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
-          
+
           {/* KARTU UTAMA: Tipe Transaksi & Nominal */}
-          <div className={`p-4 rounded-2xl border transition-all duration-300 ${
-            isMasuk 
+          <div className={`p-4 rounded-2xl border transition-all duration-300 ${isMasuk
               ? "bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-transparent border-emerald-500/10 focus-within:border-emerald-500/20"
               : "bg-gradient-to-br from-rose-500/5 via-pink-500/5 to-transparent border-rose-500/10 focus-within:border-rose-500/20"
-          }`}>
+            }`}>
             {/* Segmented Control for Tipe */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">
@@ -248,9 +251,8 @@ export function LedgerFormModal({
                     setTipe("Masuk");
                     setKategori("");
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg z-10 transition-all flex items-center justify-center gap-1.5 ${
-                    tipe === "Masuk" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
-                  }`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg z-10 transition-all flex items-center justify-center gap-1.5 ${tipe === "Masuk" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
+                    }`}
                 >
                   <TrendingUp size={13} />
                   Pemasukan
@@ -261,9 +263,8 @@ export function LedgerFormModal({
                     setTipe("Keluar");
                     setKategori("");
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg z-10 transition-all flex items-center justify-center gap-1.5 ${
-                    tipe === "Keluar" ? "text-rose-700" : "text-slate-500 hover:text-slate-700"
-                  }`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg z-10 transition-all flex items-center justify-center gap-1.5 ${tipe === "Keluar" ? "text-rose-700" : "text-slate-500 hover:text-slate-700"
+                    }`}
                 >
                   <TrendingDown size={13} />
                   Pengeluaran
@@ -277,17 +278,16 @@ export function LedgerFormModal({
                   animate={{
                     x: tipe === "Masuk" ? 0 : "100%",
                   }}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  transition={isSmall ? { type: "tween", duration: 0.15 } : { type: "spring", stiffness: 350, damping: 25 }}
                 />
               </div>
             </div>
 
             {/* Wallet-Style Amount Input */}
-            <div className={`p-4 rounded-xl border transition-all duration-300 mt-4 flex flex-col items-center justify-center ${
-              isMasuk 
+            <div className={`p-4 rounded-xl border transition-all duration-300 mt-4 flex flex-col items-center justify-center ${isMasuk
                 ? "bg-emerald-500/5 border-emerald-500/10 focus-within:border-emerald-500/40 focus-within:ring-4 focus-within:ring-emerald-500/5"
                 : "bg-rose-500/5 border-rose-500/10 focus-within:border-rose-500/40 focus-within:ring-4 focus-within:ring-rose-500/5"
-            }`}>
+              }`}>
               <span className={`text-[10px] font-extrabold tracking-widest uppercase mb-1 ${isMasuk ? "text-emerald-600/80" : "text-rose-600/80"}`}>
                 Nominal Transaksi
               </span>
@@ -297,11 +297,10 @@ export function LedgerFormModal({
                   value={jumlah}
                   onChange={setJumlah}
                   disabled={isMonthlyProfitCategory}
-                  className={`w-full text-center text-3xl sm:text-4xl font-extrabold tracking-tight focus:!ring-0 focus:!border-0 !border-0 !bg-transparent !shadow-none py-1 font-mono transition-all ${
-                    isMasuk 
-                      ? "text-emerald-600 placeholder:text-emerald-300/50" 
+                  className={`w-full text-center text-3xl sm:text-4xl font-extrabold tracking-tight focus:!ring-0 focus:!border-0 !border-0 !bg-transparent !shadow-none py-1 font-mono transition-all ${isMasuk
+                      ? "text-emerald-600 placeholder:text-emerald-300/50"
                       : "text-rose-600 placeholder:text-rose-300/50"
-                  } ${isMonthlyProfitCategory ? "cursor-not-allowed opacity-85" : ""}`}
+                    } ${isMonthlyProfitCategory ? "cursor-not-allowed opacity-85" : ""}`}
                 />
               </div>
             </div>
@@ -311,9 +310,10 @@ export function LedgerFormModal({
           <AnimatePresence>
             {isMonthlyProfitCategory && (
               <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                initial={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
+                animate={isSmall ? { opacity: 1 } : { opacity: 1, height: "auto", marginTop: 12 }}
+                exit={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
+                transition={isSmall ? { duration: 0.15 } : undefined}
                 className="overflow-hidden"
               >
                 <div className="p-4 border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/30 rounded-xl space-y-4">
@@ -412,8 +412,9 @@ export function LedgerFormModal({
                   )}
                   {tipe === "Keluar" && (
                     <>
+                      <option value="Belanja">Belanja</option>
                       <option value="Operasional">Operasional</option>
-                      <option value="Investasi">Investasi</option>
+                      <option value="Tiket Pesawat">Tiket Pesawat</option>
                       <option value="Refund">Refund</option>
                       <option value="Lainnya">Lainnya</option>
                     </>
@@ -426,9 +427,10 @@ export function LedgerFormModal({
             <AnimatePresence initial={false}>
               {tipe === "Keluar" && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                  animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  initial={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
+                  animate={isSmall ? { opacity: 1 } : { opacity: 1, height: "auto", marginTop: 16 }}
+                  exit={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
+                  transition={isSmall ? { duration: 0.15 } : undefined}
                   className="overflow-hidden"
                 >
                   <div className="space-y-1 pt-2">
@@ -445,6 +447,18 @@ export function LedgerFormModal({
                       <option value="Transfer">Transfer</option>
                       <option value="E-Wallet">E-Wallet</option>
                     </Select>
+                  </div>
+                  {/* Baru: Checkbox Modal Tracker */}
+                  <div className="mt-3.5 pt-1">
+                    <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={trackAsCapital}
+                        onChange={(e) => setTrackAsCapital(e.target.checked)}
+                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500/20 h-4 w-4 cursor-pointer"
+                      />
+                      <span>Catat sebagai Modal Belanja (perlu ditrack pengembaliannya)</span>
+                    </label>
                   </div>
                 </motion.div>
               )}
@@ -472,9 +486,8 @@ export function LedgerFormModal({
                 onChange={(e) => setKeterangan(e.target.value)}
                 placeholder={isMonthlyProfitCategory ? "Akan diisi otomatis oleh kalkulator" : "Tulis deskripsi transaksi..."}
                 disabled={isMonthlyProfitCategory}
-                className={`w-full h-11 bg-white border-slate-200 focus:bg-white rounded-xl transition-all ${themeBorderFocus} ${
-                  isMonthlyProfitCategory ? "cursor-not-allowed opacity-75 bg-slate-50" : ""
-                }`}
+                className={`w-full h-11 bg-white border-slate-200 focus:bg-white rounded-xl transition-all ${themeBorderFocus} ${isMonthlyProfitCategory ? "cursor-not-allowed opacity-75 bg-slate-50" : ""
+                  }`}
               />
               {isMonthlyProfitCategory && (
                 <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">

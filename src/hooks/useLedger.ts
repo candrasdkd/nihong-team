@@ -250,7 +250,12 @@ export function useLedger() {
           limit: queryLimit,
           order: { field: "tanggal", direction: "desc" },
         });
-        if (!cancelled) setRows(data);
+        const sortedData = [...data].sort((a, b) => {
+          const dateCompare = b.tanggal.localeCompare(a.tanggal);
+          if (dateCompare !== 0) return dateCompare;
+          return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+        });
+        if (!cancelled) setRows(sortedData);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -264,7 +269,12 @@ export function useLedger() {
           order: { field: "tanggal", direction: "desc" },
         },
         (live) => {
-          if (!cancelled) setRows(live);
+          const sortedLive = [...live].sort((a, b) => {
+            const dateCompare = b.tanggal.localeCompare(a.tanggal);
+            if (dateCompare !== 0) return dateCompare;
+            return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+          });
+          if (!cancelled) setRows(sortedLive);
         },
       );
     }
@@ -333,9 +343,9 @@ export function useLedger() {
     });
   }
 
-  async function handleSubmitForm(val: LedgerUpsert) {
+  async function handleSubmitForm(val: LedgerUpsert, opts?: { trackAsCapital?: boolean }) {
     if (showForm.editing?.id) await updateLedgerEntry(showForm.editing.id, val);
-    else await createLedgerEntry(val);
+    else await createLedgerEntry(val, opts);
   }
 
   const filterCount = [

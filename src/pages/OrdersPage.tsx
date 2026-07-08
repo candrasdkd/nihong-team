@@ -369,6 +369,43 @@ export function OrdersPage({
     }
   }, [formTrigger, onFormTriggerConsumed]);
 
+  const handleShareAdminRekap = () => {
+    const unpaidList = sortedOrders.filter((o) => o.status === "Belum Membayar");
+    if (unpaidList.length === 0) {
+      alert("Tidak ada pesanan belum bayar untuk direkap.");
+      return;
+    }
+
+    const todayStr = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    let message = `*REKAP JASTIP BELUM BAYAR* 📦\nTanggal: ${todayStr}\n\n`;
+    let totalUnpaidAmount = 0;
+
+    unpaidList.forEach((o, i) => {
+      const d = compute(o, unitPrice);
+      totalUnpaidAmount += d.totalPembayaran;
+      const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
+      message += `${i + 1}. *${o.namaPelanggan}* (${formatAndAddYear(o.tanggal)}) - ${formattedPrice} (${o.namaBarang})\n`;
+    });
+
+    message += `\n*Total Belum Bayar:* ${formatCurrency(totalUnpaidAmount, "IDR")}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(message).then(() => {
+      showToast("Rekap disalin ke clipboard!", "success");
+    }).catch(() => {
+      showToast("Gagal menyalin rekap", "error");
+    });
+
+    // Open WhatsApp Web/App (without specific phone)
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900 relative">
       {/* Toast Container */}
@@ -468,44 +505,65 @@ export function OrdersPage({
         </div>
 
         {/* ── Toolbar & Filters ── */}
-        <div className="flex flex-col xl:flex-row gap-4 justify-between items-stretch xl:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-slate-200/50 shadow-sm !mt-0 sm:!mt-6">
-          {/* Kotak Cari Premium */}
-          <div className="relative flex-1 max-w-lg">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={16} className="stroke-[2.5]" />
+        <div className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-slate-200/50 shadow-sm space-y-4 !mt-0 sm:!mt-6">
+          
+          {/* Main Search & Status Filters */}
+          <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center">
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4.5 h-4.5 stroke-[2.5]" />
+              <Input
+                placeholder="Cari pelanggan, nomor order, barang..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="pl-10 pr-4 py-2.5 w-full border-0 bg-slate-50 focus:bg-white ring-1 ring-slate-200/60 focus:ring-2 focus:ring-blue-500 focus:shadow-md focus:shadow-blue-50 rounded-xl transition-all font-semibold text-xs sm:text-sm text-slate-800 placeholder-slate-400"
+              />
             </div>
-            <Input
-              placeholder="Cari pelanggan, nomor order, barang..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="pl-10 pr-4 py-2.5 w-full border-0 bg-slate-50 focus:bg-white ring-1 ring-slate-200/60 focus:ring-2 focus:ring-blue-500 focus:shadow-md focus:shadow-blue-50 rounded-xl transition-all font-semibold text-xs sm:text-sm text-slate-800 placeholder-slate-400"
-            />
+
+            {/* Filter Status modern tab melayang */}
+            <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/20 max-w-full overflow-x-auto shrink-0">
+              <button
+                onClick={() => setStatusFilter("")}
+                className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Semua
+              </button>
+              {ORDER_STATUSES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  {s === "Belum Membayar" ? "Belum Bayar" : "Selesai"}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full xl:w-auto">
-            {/* Filter Tanggal Inline */}
-            <div className="flex items-center justify-between w-full sm:w-auto gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shrink-0">
+          {/* Date and Sort row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100/50">
+            {/* Filter Tanggal */}
+            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200/40">
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-[130px] text-center"
+                className="flex-1 px-2 py-1 rounded-lg border-0 !text-[11px] sm:!text-xs font-bold text-slate-600 bg-white shadow-xs focus:ring-2 focus:ring-blue-500 outline-none text-center"
                 title="Dari Tanggal"
               />
-              <span className="text-slate-400 text-[10px] font-extrabold px-1 shrink-0">s/d</span>
+              <span className="text-slate-400 text-[10px] font-extrabold px-1">s/d</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-[130px] text-center"
+                className="flex-1 px-2 py-1 rounded-lg border-0 !text-[11px] sm:!text-xs font-bold text-slate-600 bg-white shadow-xs focus:ring-2 focus:ring-blue-500 outline-none text-center"
                 title="Sampai Tanggal"
               />
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center w-full sm:w-auto gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shrink-0">
-              <ArrowUpDown size={13} className="text-slate-500 stroke-[2.5] shrink-0" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none pr-0.5 shrink-0">Urutkan</span>
+            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200/40">
+              <ArrowUpDown size={13} className="text-slate-400 stroke-[2.5] ml-1.5" />
               <select
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
@@ -513,7 +571,7 @@ export function OrdersPage({
                   setSortBy(field);
                   setSortOrder(order as "asc" | "desc");
                 }}
-                className="flex-1 min-w-0 px-2 py-1 rounded-lg border-0 text-[11px] sm:text-xs font-bold text-slate-600 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                className="flex-1 bg-transparent border-0 !text-[11px] sm:!text-xs font-bold text-slate-600 outline-none cursor-pointer focus:ring-0 py-1"
               >
                 <option value="tanggal-desc">Terbaru (Tanggal ↓)</option>
                 <option value="tanggal-asc">Terlama (Tanggal ↑)</option>
@@ -524,25 +582,6 @@ export function OrdersPage({
                 <option value="totalPembayaran-desc">Tagihan Terbesar</option>
                 <option value="totalPembayaran-asc">Tagihan Terkecil</option>
               </select>
-            </div>
-
-            {/* Filter Status modern tab melayang */}
-            <div className="flex w-full sm:w-auto bg-slate-100/80 p-1 rounded-xl border border-slate-200/20 overflow-x-auto max-w-full">
-              <button
-                onClick={() => setStatusFilter("")}
-                className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                Semua
-              </button>
-              {ORDER_STATUSES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-250 ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                  {s === "Belum Membayar" ? "Belum Bayar" : "Selesai"}
-                </button>
-              ))}
             </div>
           </div>
         </div>
@@ -862,6 +901,22 @@ export function OrdersPage({
       >
         <Plus className="w-6 h-6 stroke-[3]" />
       </button>
+
+      {/* Floating Share Rekap Admin Button */}
+      <AnimatePresence>
+        {statusFilter === "Belum Membayar" && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            onClick={handleShareAdminRekap}
+            className="fixed right-6 z-40 h-14 w-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-emerald-500/50 cursor-pointer bottom-36 sm:bottom-6"
+            title="Share Rekap Admin ke WA"
+          >
+            <MessageCircle className="w-6 h-6 stroke-[2.5]" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Confirmation Modal */}
       <AnimatePresence>

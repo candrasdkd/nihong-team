@@ -47,15 +47,30 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
         valB = String(b.tanggal || "");
       }
 
+      let primaryResult = 0;
       if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
+        primaryResult = sortOrder === "asc"
           ? valA.localeCompare(valB)
           : valB.localeCompare(valA);
       } else {
         const numA = Number(valA || 0);
         const numB = Number(valB || 0);
-        return sortOrder === "asc" ? numA - numB : numB - numA;
+        primaryResult = sortOrder === "asc" ? numA - numB : numB - numA;
       }
+
+      if (primaryResult !== 0) return primaryResult;
+
+      // Secondary sort: createdAt
+      const getTimestamp = (val: any): number => {
+        if (!val) return 0;
+        if (typeof val === "number") return val;
+        if (typeof val.toMillis === "function") return val.toMillis();
+        if (val.seconds !== undefined) return val.seconds * 1000;
+        return 0;
+      };
+      const timeA = getTimestamp(a.createdAt);
+      const timeB = getTimestamp(b.createdAt);
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
     });
     return list;
   }, [orders, sortBy, sortOrder, unitPrice]);

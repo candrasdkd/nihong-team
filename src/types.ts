@@ -24,6 +24,8 @@ export interface Order {
   status?: OrderStatus;
   tipeNominal?: string;
   imageUrl?: string | string[];
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export type Customer = {

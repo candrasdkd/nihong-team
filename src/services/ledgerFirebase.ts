@@ -184,9 +184,13 @@ export function subscribeLedgerSummary(onSummary: (summary: LedgerSummary) => vo
  * Proses ini menjamin penulisan dokumen kas baru dan penambahan saldo global berjalan ATOMIK (bersamaan).
  * Jika salah satu gagal (misal: koneksi terputus di tengah jalan), seluruh operasi dibatalkan untuk menghindari selisih kas.
  */
-export async function createLedgerEntry(payload: LedgerUpsert) {
+export async function createLedgerEntry(
+  payload: LedgerUpsert,
+  opts?: { trackAsCapital?: boolean }
+) {
   const colRef = collection(db, "ledger");
   const summaryRef = doc(db, "metadata", "ledger_summary");
+  const advColRef = collection(db, "capitalAdvances");
   
   await runTransaction(db, async (transaction) => {
     const newDocRef = doc(colRef);
@@ -207,6 +211,21 @@ export async function createLedgerEntry(payload: LedgerUpsert) {
       totalSaldo: increment(isMasuk ? amount : -amount),
       lastUpdated: Date.now(),
     }, { merge: true });
+
+    // 3. Catat sebagai modal advance (hanya untuk Keluar)
+    if (opts?.trackAsCapital && !isMasuk) {
+      const advRef = doc(advColRef);
+      transaction.set(advRef, {
+        ledgerEntryIdKeluar: newDocRef.id,
+        tanggalKeluar: payload.tanggal,
+        jumlah: amount,
+        keterangan: payload.keterangan ?? null,
+        status: "belum_kembali",
+        tanggalKembali: null,
+        ledgerEntryIdMasuk: null,
+        createdAt: Date.now(),
+      });
+    }
   });
 }
 
