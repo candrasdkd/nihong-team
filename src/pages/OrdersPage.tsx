@@ -854,9 +854,8 @@ export function OrdersPage({
         />
       )}
 
-      {/* ── Global Floating Action Bar for Selections (Desktop & Mobile) ── */}
       <AnimatePresence>
-        {selectedIds.length > 0 && (
+        {selectedIds.length > 0 && !showInvoice.show && !showForm && !selectedOrderDetail && !isPreviewOpen && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] w-full max-w-[90vw] flex justify-center pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.95 }}

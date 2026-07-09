@@ -5,7 +5,7 @@ import { Customer, ExtendedOrder } from "../types";
 import { formatCurrency } from "../utils/format";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { FlagID, FlagJP, FlagSG, FlagMY } from "./ui/Flags";
 
 // --- ASSETS ---
@@ -57,7 +57,7 @@ function getFlagComponent(flagEmoji?: string, size = "4.2mm") {
 function parseRoute(routeStr?: string) {
   if (!routeStr) return null;
   const parts = routeStr.split(/\s*(?:-|->|>|TO|—|→)\s*/i);
-  
+
   const getCountryInfo = (name: string) => {
     const norm = name.trim().toUpperCase();
     if (norm.includes("INDO") || norm === "ID") return { label: "Indonesia", code: "IDN", flag: "🇮🇩" };
@@ -78,6 +78,16 @@ function parseRoute(routeStr?: string) {
     single: getCountryInfo(routeStr),
     isSplit: false
   };
+}
+
+// --- TEXT SANITIZER ---
+// Strips control characters (e.g. vertical tab \u000b from pasted WhatsApp/Word text)
+// that are invalid in XML and break html-to-image's SVG serialization,
+// causing the exported <img> to silently fail to decode.
+function sanitizeText(value?: string | null): string {
+  if (!value) return "";
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");
 }
 
 // --- BRAND COLORS ---
@@ -138,7 +148,12 @@ const InvoicePaper = React.forwardRef(
                 display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
               }}>
-                <img src={logoImage} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img
+                  src={logoImage}
+                  alt="Logo"
+                  crossOrigin="anonymous"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
               </div>
               <div>
                 <div style={{ fontSize: "5.5mm", fontWeight: 900, color: "#fff", letterSpacing: "1px", lineHeight: 1 }}>
@@ -212,16 +227,16 @@ const InvoicePaper = React.forwardRef(
                   Ditagihkan Kepada
                 </div>
                 <div style={{ fontSize: "4.5mm", fontWeight: 800, color: NAVY, lineHeight: 1.2 }}>
-                  {order.namaPelanggan}
+                  {sanitizeText(order.namaPelanggan)}
                 </div>
                 {customer?.alamat && (
                   <div style={{ fontSize: "2.8mm", color: "#64748b", marginTop: "1mm", lineHeight: 1.3 }}>
-                    {customer.alamat}
+                    {sanitizeText(customer.alamat)}
                   </div>
                 )}
                 {customer?.telpon && (
                   <div style={{ fontSize: "2.8mm", color: "#64748b", marginTop: "0.8mm" }}>
-                    📱 {customer.telpon}
+                    📱 {sanitizeText(customer.telpon)}
                   </div>
                 )}
               </div>
@@ -324,7 +339,7 @@ const InvoicePaper = React.forwardRef(
                     color: "#64748b",
                   }}>
                     <span style={{ color: GOLD }}>👤</span>
-                    <span>Jastiper: <strong style={{ color: NAVY, fontWeight: 700 }}>{order.namaJastiper}</strong></span>
+                    <span>Jastiper: <strong style={{ color: NAVY, fontWeight: 700 }}>{sanitizeText(order.namaJastiper)}</strong></span>
                   </div>
                 )}
               </div>
@@ -371,7 +386,7 @@ const InvoicePaper = React.forwardRef(
                   >
                     <div style={{ flex: "1", minWidth: 0 }}>
                       <div style={{ fontSize: "3.2mm", fontWeight: 700, color: "#1e293b", wordBreak: "break-word" }}>
-                        {item.namaBarang}
+                        {sanitizeText(item.namaBarang)}
                       </div>
                       {item.catatan && (
                         <div style={{
@@ -383,7 +398,7 @@ const InvoicePaper = React.forwardRef(
                           wordBreak: "break-word",
                           maxWidth: "70mm",
                         }}>
-                          {item.catatan}
+                          {sanitizeText(item.catatan)}
                         </div>
                       )}
                     </div>
@@ -407,7 +422,7 @@ const InvoicePaper = React.forwardRef(
 
           {/* ===== FOOTER SECTION ===== */}
           <div style={{ display: "flex", gap: "10mm", alignItems: "flex-start" }}>
-            
+
             {/* Left: Bank Info */}
             <div style={{ flex: "1" }}>
               <div style={{
@@ -491,7 +506,12 @@ const InvoicePaper = React.forwardRef(
                   zIndex: 2,
                 }}>
                   {stampImage && (
-                    <img src={stampImage} alt="Stamp" style={{ width: "32mm", height: "32mm", objectFit: "contain", transform: "rotate(10deg)" }} />
+                    <img
+                      src={stampImage}
+                      alt="Stamp"
+                      crossOrigin="anonymous"
+                      style={{ width: "32mm", height: "32mm", objectFit: "contain", transform: "rotate(10deg)" }}
+                    />
                   )}
                 </div>
 
@@ -561,6 +581,22 @@ const InvoicePaper = React.forwardRef(
   },
 );
 
+// --- IMAGE-READY HELPER (fixes intermittent toPng "error" events) ---
+async function waitForImages(container: HTMLElement, timeoutMs = 3000) {
+  const imgs = Array.from(container.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map((img) => {
+      if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const done = () => resolve();
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true }); // don't hang the whole export on one broken img
+        setTimeout(done, timeoutMs); // safety net
+      });
+    }),
+  );
+}
+
 // --- MAIN COMPONENT ---
 export function InvoiceModal({
   order,
@@ -625,8 +661,14 @@ export function InvoiceModal({
     if (!hiddenPrintRef.current) return;
     setIsGenerating(true);
     try {
-      await new Promise((r) => setTimeout(r, 100));
       const elementToCapture = hiddenPrintRef.current;
+
+      // Wait for the layout to settle, then make sure every <img>
+      // inside the capture target has actually finished loading
+      // (this is what was throwing the sporadic "error" Event on <img>).
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await waitForImages(elementToCapture);
+
       const imgData = await toPng(elementToCapture, {
         backgroundColor: "#ffffff",
         pixelRatio: 2,
@@ -651,7 +693,7 @@ export function InvoiceModal({
         heightLeft -= pdfHeight;
       }
 
-      const fileName = `Invoice_${(order as any).no || "NJ"}_${order.namaPelanggan.replace(/\s+/g, "_")}.pdf`;
+      const fileName = `Invoice_${(order as any).no || "NJ"}_${(order.namaPelanggan || "Pelanggan").replace(/\s+/g, "_")}.pdf`;
       pdf.save(fileName);
     } catch (err) {
       console.error("PDF Error", err);
@@ -698,17 +740,25 @@ export function InvoiceModal({
       {/* BOTTOM ACTION BAR */}
       <div className="bg-white border-t border-slate-200 p-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] safe-area-bottom">
         <div className="max-w-2xl mx-auto flex gap-3">
-          <Button variant="ghost" onClick={onClose} className="flex-1">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={isGenerating}
+            className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             Tutup
           </Button>
           <Button
             onClick={downloadPDF}
             disabled={isGenerating}
-            className="flex-[2] text-white flex items-center justify-center gap-2 shadow-lg"
+            className="flex-[2] text-white flex items-center justify-center gap-2 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
             style={{ background: NAVY }}
           >
             {isGenerating ? (
-              "Memproses..."
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Memproses...</span>
+              </>
             ) : (
               <>
                 <Download size={18} /> <span>Download PDF</span>
