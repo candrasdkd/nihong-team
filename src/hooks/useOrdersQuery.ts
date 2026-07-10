@@ -172,7 +172,11 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
         }
       } else {
         if (orders.length >= limitValue) {
-          setLimitValue((prev) => prev + 50);
+          setLimitValue((prev) => {
+            const next = prev + 50;
+            setRenderLimit(next);
+            return next;
+          });
         }
       }
     }

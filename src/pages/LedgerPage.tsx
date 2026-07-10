@@ -359,6 +359,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     filterCount,
     defaultFrom,
     defaultTo,
+    isFiltered,
   } = useLedger();
 
   const {
@@ -806,16 +807,20 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           </div>
           
           {/* Load More Fallback Button */}
-          {(q.trim() !== "" ? renderLimit < filtered.length : rows.length >= limitValue) && (
+          {((q.trim() !== "" || isFiltered) ? renderLimit < filtered.length : rows.length >= limitValue) && (
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-center">
               <Button
                 variant="outline"
                 disabled={loading}
                 onClick={() => {
-                  if (q.trim() !== "") {
+                  if (q.trim() !== "" || isFiltered) {
                     setRenderLimit((prev) => prev + 50);
                   } else {
-                    setLimitValue((prev) => prev + 50);
+                    setLimitValue((prev) => {
+                      const next = prev + 50;
+                      setRenderLimit(next);
+                      return next;
+                    });
                   }
                 }}
                 className="w-full sm:w-auto h-10 px-6 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"

@@ -64,10 +64,13 @@ export function useLedger() {
     return filtered.slice(0, renderLimit);
   }, [filtered, renderLimit]);
 
-  // Reset render limit when filters change
+  // Reset limits when filters change
   useEffect(() => {
+    setLimitValue(50);
     setRenderLimit(50);
   }, [q, typeFilter, categoryFilter, dateFrom, dateTo]);
+
+  const isFiltered = typeFilter !== "" || categoryFilter !== "" || dateFrom !== "" || dateTo !== "";
 
   // Auto load more when scrolling near bottom
   useEffect(() => {
@@ -82,20 +85,24 @@ export function useLedger() {
       if (!isNearBottom) return;
 
       const isSearching = q.trim() !== "";
-      if (isSearching) {
+      if (isSearching || isFiltered) {
         if (renderLimit < filtered.length) {
           setRenderLimit((prev) => prev + 50);
         }
       } else {
         if (rows.length >= limitValue) {
-          setLimitValue((prev) => prev + 50);
+          setLimitValue((prev) => {
+            const next = prev + 50;
+            setRenderLimit(next);
+            return next;
+          });
         }
       }
     }
     
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [rows.length, filtered.length, limitValue, renderLimit, loading, q]);
+  }, [rows.length, filtered.length, limitValue, renderLimit, loading, q, isFiltered]);
 
   async function handleRecalculate() {
     setSyncingSummary(true);
@@ -238,10 +245,11 @@ export function useLedger() {
     let cancelled = false;
 
     async function go() {
+      const isSearching = q.trim() !== "";
+      const isFiltered = typeFilter !== "" || categoryFilter !== "" || dateFrom !== "" || dateTo !== "";
       setLoading(true);
       try {
-        const isSearching = q.trim() !== "";
-        const queryLimit = isSearching ? undefined : limitValue;
+        const queryLimit = (isSearching || isFiltered) ? undefined : limitValue;
         const data = await fetchLedger({
           from: dateFrom,
           to: dateTo,
@@ -256,16 +264,19 @@ export function useLedger() {
           return (b.createdAt ?? 0) - (a.createdAt ?? 0);
         });
         if (!cancelled) setRows(sortedData);
+      } catch (err) {
+        console.error("[useLedger] Error in fetchLedger:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
+      
       unsub = subscribeLedger(
         {
           from: dateFrom,
           to: dateTo,
           type: typeFilter || undefined,
           category: categoryFilter || undefined,
-          limit: q.trim() !== "" ? undefined : limitValue,
+          limit: (q.trim() !== "" || isFiltered) ? undefined : limitValue,
           order: { field: "tanggal", direction: "desc" },
         },
         (live) => {
@@ -276,6 +287,9 @@ export function useLedger() {
           });
           if (!cancelled) setRows(sortedLive);
         },
+        (err) => {
+          console.error("[useLedger] Error in subscribeLedger:", err);
+        }
       );
     }
 
@@ -366,6 +380,7 @@ export function useLedger() {
     setDateFrom,
     dateTo,
     setDateTo,
+    isFiltered,
     rows,
     setRows,
     globalSummary,

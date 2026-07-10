@@ -94,10 +94,11 @@ export async function fetchLedger(p: FetchParams): Promise<LedgerEntry[]> {
 export function subscribeLedger(
   p: FetchParams,
   onRows: (rows: LedgerEntry[]) => void,
+  onError?: (err: any) => void,
 ) {
   const col = collection(db, "ledger");
   const qy = query(col, ...buildConstraints(p));
-  const unsub = onSnapshot(qy, (snap) => onRows(snap.docs.map(mapDoc)));
+  const unsub = onSnapshot(qy, (snap) => onRows(snap.docs.map(mapDoc)), onError);
   return unsub;
 }
 

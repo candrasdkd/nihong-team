@@ -687,7 +687,11 @@ export function OrdersPage({
                 if (isSearching || isSortingNonDate) {
                   setRenderLimit((prev) => prev + 50);
                 } else {
-                  setLimitValue((prev) => prev + 50);
+                  setLimitValue((prev) => {
+                    const next = prev + 50;
+                    setRenderLimit(next);
+                    return next;
+                  });
                 }
               }}
               disabled={loading}
