@@ -5,6 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Card } from "../components/ui/Card";
+import { StickyPageHeader } from "../components/ui/StickyPageHeader";
 import { formatIDR } from "../utils/format";
 import {
   type LedgerEntry,
@@ -379,51 +380,41 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
 
   return (
     <div className="min-h-screen bg-surface-base pb-24 font-sans text-slate-800">
-      {/* 1. Header Section (Sticky) */}
-      <div className="bg-surface-card/80 backdrop-blur-md border-b border-surface-border static sm:sticky sm:top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-navy/5 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-brand-navyDark" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent leading-none">
-                    Buku Kas
-                  </h1>
-                  <button
-                    disabled={syncingSummary}
-                    onClick={handleRecalculate}
-                    className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center"
-                    title="Sinkronisasi Saldo"
-                  >
-                    <RotateCw className={`w-3.5 h-3.5 ${syncingSummary ? "animate-spin text-indigo-500" : ""}`} />
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1 font-semibold">Kelola arus kas masuk dan keluar</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
-                className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
-              >
-                <Download className="w-4 h-4 text-emerald-600" />
-                <span>Export Excel</span>
-              </Button>
-              <Button
-                onClick={() => setShowForm({ open: true, editing: null })}
-                className="hidden sm:flex items-center gap-2 bg-brand-navyDark hover:bg-brand-navy text-white shadow-lg shadow-slate-900/10 h-10 text-xs font-semibold"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Transaksi</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StickyPageHeader
+        icon={Activity}
+        title="Buku Kas"
+        subtitle="Kelola arus kas masuk dan keluar"
+        titleClassName="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent"
+        titleExtra={
+          <button
+            disabled={syncingSummary}
+            onClick={handleRecalculate}
+            className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+            title="Sinkronisasi Saldo"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${syncingSummary ? "animate-spin text-indigo-500" : ""}`} />
+          </button>
+        }
+        action={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
+              className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span>Export Excel</span>
+            </Button>
+            <Button
+              onClick={() => setShowForm({ open: true, editing: null })}
+              className="hidden sm:flex items-center gap-2 bg-brand-navyDark hover:bg-brand-navy text-white shadow-lg shadow-slate-900/10 h-10 text-xs font-semibold"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Transaksi</span>
+            </Button>
+          </>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Capital Advance Tracker Panel */}

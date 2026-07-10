@@ -8,6 +8,7 @@ import { JastiperFormModal } from "../components/Jastiper/JastiperFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 
 export function JastipersPage() {
@@ -32,47 +33,17 @@ export function JastipersPage() {
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
 
       <div className="page-container space-y-6">
-        {/* Mobile Header */}
-        <div className="block sm:hidden">
-          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Daftar Jastiper</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Kelola data jastiper, kontak, dan alamat.</p>
-        </div>
-
-        {/* Hero Header Banner */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-orange/5 blur-3xl" />
-            <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-white/5 blur-3xl" />
-          </div>
-
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
-                <UserRound size={12} />
-                <span>Manajemen Jastiper</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Daftar Jastiper</h2>
-              <p className="text-slate-300 mt-2 text-sm max-w-lg leading-relaxed">
-                Kelola data jastiper Anda — nama, kontak, dan alamat. Jastiper terdaftar bisa dipilih saat membuat Jadwal Keberangkatan.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setShowForm(true);
-              }}
-              variant="primary"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Tambah Jastiper
+        <HeroPageHeader
+          badgeIcon={UserRound}
+          badgeLabel="Manajemen Jastiper"
+          title="Daftar Jastiper"
+          description="Kelola data jastiper Anda — nama, kontak, dan alamat. Jastiper terdaftar bisa dipilih saat membuat Jadwal Keberangkatan."
+          action={
+            <Button onClick={() => { setEditing(null); setShowForm(true); }} variant="primary">
+              <Plus className="w-4 h-4 mr-2" /> Tambah Jastiper
             </Button>
-          </div>
-        </motion.div>
+          }
+        />
 
         {/* Stats & Search Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -9,6 +9,7 @@ import SearchableSelect from "./ui/SearchableSelect";
 import { Select } from "./ui/Select";
 import { RupiahInput } from "./ui/RupiahInput";
 import { FlagID, FlagJP } from "./ui/Flags";
+import { CurrencyBadge } from "./ui/CurrencyBadge";
 import { ORDER_STATUSES } from "../utils/constants";
 import {
   ImageIcon,
@@ -386,8 +387,7 @@ export function OrderFormModal({
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              <FlagID />
-              <span>IDR (Rp)</span>
+              <CurrencyBadge currency="IDR" />
             </button>
             <button
               type="button"
@@ -398,8 +398,7 @@ export function OrderFormModal({
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              <FlagJP />
-              <span>JPY (¥)</span>
+              <CurrencyBadge currency="JPY" />
             </button>
           </div>
         </div>

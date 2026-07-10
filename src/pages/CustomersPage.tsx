@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DocumentData, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { UserPlus, Pencil, Trash2, Search, Frown, MapPin } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -16,6 +17,7 @@ import {
 } from "../services/customersFirebase";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { StickyPageHeader } from "../components/ui/StickyPageHeader";
 import { CustomerFormModal } from "../components/CustomerFormModal";
 
 // ─── Konstanta ───────────────────────────────────────────────
@@ -98,9 +100,10 @@ const MobileListSkeleton = () => (
 
 // ─── Halaman Utama ────────────────────────────────────────────
 export function CustomersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [migrating, setMigrating] = useState(false);
@@ -170,6 +173,15 @@ export function CustomersPage() {
     [customers, q],
   );
 
+  // Sync search query to URL
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      q ? next.set("q", q) : next.delete("q");
+      return next;
+    }, { replace: true });
+  }, [q, setSearchParams]);
+
   // CRM Analytics Metrics
   const metrics = useMemo(() => {
     const total = customers.length;
@@ -211,38 +223,29 @@ export function CustomersPage() {
 
   return (
     <div className="min-h-screen bg-surface-base pb-24 font-sans text-slate-800">
-      {/* Header (Sticky) */}
-      <div className="bg-surface-card/80 backdrop-blur-md border-b border-surface-border static sm:sticky sm:top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 tracking-tight">
-                Database Pelanggan
-              </h1>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 hidden sm:block">
-                Manajemen data jastip & kontak whatsapp
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleMigrate}
-                disabled={migrating}
-                variant="secondary"
-                className="text-xs"
-              >
-                {migrating ? "Memproses..." : "Migrasi Kapital"}
-              </Button>
-              <Button
-                onClick={openAddForm}
-                className="hidden sm:flex"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Tambah Pelanggan</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StickyPageHeader
+        title="Database Pelanggan"
+        subtitle="Manajemen data jastip & kontak whatsapp"
+        action={
+          <>
+            <Button
+              onClick={handleMigrate}
+              disabled={migrating}
+              variant="secondary"
+              className="text-xs"
+            >
+              {migrating ? "Memproses..." : "Migrasi Kapital"}
+            </Button>
+            <Button
+              onClick={openAddForm}
+              className="hidden sm:flex"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Tambah Pelanggan</span>
+            </Button>
+          </>
+        }
+      />
 
       <div className="page-container">
         

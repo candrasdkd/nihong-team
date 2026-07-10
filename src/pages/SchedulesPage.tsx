@@ -6,6 +6,7 @@ import { useSchedules } from "../hooks/useSchedules";
 import { ScheduleFormModal } from "../components/Schedule/ScheduleFormModal";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import { FlagID, FlagJP } from "../components/ui/Flags";
@@ -99,45 +100,17 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
 
       <div className="page-container space-y-6">
-        {/* Mobile Header */}
-        <div className="block sm:hidden">
-          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Jadwal Keberangkatan</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Kelola jadwal perjalanan jastiper dan kapasitas berat.</p>
-        </div>
-
-        {/* Hero Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/5 blur-3xl" />
-            <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-white/5 blur-3xl" />
-          </div>
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
-                <Calendar size={12} />
-                <span>Manajemen Jadwal</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Jadwal Keberangkatan</h2>
-              <p className="text-slate-300 mt-1.5 text-sm max-w-lg">
-                Buat dan kelola jadwal perjalanan jastiper. Pantau kapasitas berat dan batas titip barang dari konsumen.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setShowForm(true);
-              }}
-              variant="primary"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Buat Jadwal
+        <HeroPageHeader
+          badgeIcon={Calendar}
+          badgeLabel="Manajemen Jadwal"
+          title="Jadwal Keberangkatan"
+          description="Buat dan kelola jadwal perjalanan jastiper. Pantau kapasitas berat dan batas titip barang dari konsumen."
+          action={
+            <Button onClick={() => { setEditing(null); setShowForm(true); }} variant="primary">
+              <Plus className="w-4 h-4 mr-2" /> Buat Jadwal
             </Button>
-          </div>
-        </motion.div>
+          }
+        />
 
         {/* Stats + Filters */}
         <div className="flex flex-wrap items-center gap-3">

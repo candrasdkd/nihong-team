@@ -3,6 +3,7 @@ import { useSettings } from "../context/settingsContext";
 import { Customer, ExtendedOrder } from "../types";
 import { formatCurrency, CurrencyCode } from "../utils/format";
 import { PriceDisplay } from "../components/ui/PriceDisplay";
+import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import { FlagID, FlagJP } from "../components/ui/Flags";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -372,53 +373,22 @@ export function OrdersPage({
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800 relative">
       <div className="page-container space-y-6">
         
-        {/* ── Hero Header ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/5 blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-white/5 blur-3xl" />
-          </div>
-
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
-                <Box size={12} />
-                <span>Modul Manajemen Administrasi</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-none">
-                Manajemen Pesanan
-              </h2>
-              <p className="text-slate-300 mt-2 text-xs sm:text-sm max-w-xl leading-relaxed">
-                Pantau pesanan pelanggan, verifikasi status pembayaran, hitung berat muatan kargo, dan cetak invoice jastip secara otomatis.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 self-start md:self-auto shrink-0">
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  setShowForm(true);
-                }}
-                variant="primary"
-                className="shadow-lg font-bold"
-              >
+        <HeroPageHeader
+          badgeIcon={Box}
+          badgeLabel="Modul Manajemen Administrasi"
+          title="Manajemen Pesanan"
+          description="Pantau pesanan pelanggan, verifikasi status pembayaran, hitung berat muatan kargo, dan cetak invoice jastip secara otomatis."
+          action={
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => { setEditing(null); setShowForm(true); }} variant="primary" className="shadow-lg font-bold">
                 <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Buat Pesanan
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)}
-                className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5"
-              >
+              <Button variant="outline" onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)} className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5">
                 <Download className="w-4 h-4 mr-2" /> Export Excel
               </Button>
             </div>
-          </div>
-        </motion.div>
+          }
+        />
 
         {/* ── Mini Stats Grid ── */}
         <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">

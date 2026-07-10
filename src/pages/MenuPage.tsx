@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import {
   UserRound, Calendar, ShoppingBag, Users, Plane,
   ArrowRight,
@@ -61,29 +62,13 @@ export function MenuPage({ onTabChange }: MenuPageProps) {
     <div className="min-h-screen bg-transparent pb-28 font-sans">
       <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-card bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark px-6 py-8 shadow-xl border border-white/5"
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/10 blur-3xl" />
-            <div className="absolute top-8 left-8 w-32 h-32 rounded-full bg-brand-navyLight/20 blur-2xl" />
-          </div>
-          <div className="relative">
-            <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 px-3 py-1 rounded-full text-xs font-bold text-white/70 mb-3">
-              <Plane size={12} />
-              <span>Nihong Jastip Admin</span>
-            </div>
-            <h2 className="text-2xl font-extrabold text-white tracking-tight mb-1">
-              Menu Fitur 🗂️
-            </h2>
-            <p className="text-slate-400 text-sm">
-              Akses cepat ke semua fitur manajemen jastip Anda.
-            </p>
-          </div>
-        </motion.div>
+        <HeroPageHeader
+          variant="gradient"
+          badgeIcon={Plane}
+          badgeLabel="Nihong Jastip Admin"
+          title="Menu Fitur 🗂️"
+          description="Akses cepat ke semua fitur manajemen jastip Anda."
+        />
 
         {/* Menu Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
