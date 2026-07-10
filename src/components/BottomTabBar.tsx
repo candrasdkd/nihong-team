@@ -96,7 +96,7 @@ export function BottomTabBar({
       cls: "bg-brand-orange shadow-orange-400/50",
       x: -96,
       y: -80,
-      onClick: () => { setFabOpen(false); onAddBooking?.(); },
+      onClick: () => { setFabOpen(false); navigate("/preorders"); onAddBooking?.(); },
     },
     {
       id: "schedule",
@@ -105,7 +105,7 @@ export function BottomTabBar({
       cls: "bg-amber-500 shadow-amber-400/50",
       x: -48,
       y: -80,
-      onClick: () => { setFabOpen(false); onAddSchedule?.(); },
+      onClick: () => { setFabOpen(false); navigate("/schedules"); onAddSchedule?.(); },
     },
     {
       id: "order",
@@ -114,7 +114,7 @@ export function BottomTabBar({
       cls: "bg-brand-navy shadow-brand-navy/50",
       x: 48,
       y: -80,
-      onClick: () => { setFabOpen(false); onAddOrder?.(); },
+      onClick: () => { setFabOpen(false); navigate("/orders"); onAddOrder?.(); },
     },
     {
       id: "cash",
@@ -123,7 +123,7 @@ export function BottomTabBar({
       cls: "bg-emerald-500 shadow-emerald-500/50",
       x: 96,
       y: -80,
-      onClick: () => { setFabOpen(false); onAddTransaction?.(); },
+      onClick: () => { setFabOpen(false); navigate("/cash"); onAddTransaction?.(); },
     },
   ];
 
