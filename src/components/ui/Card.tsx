@@ -1,15 +1,21 @@
-// Card.tsx
 import React from "react";
-export function Card({
-  children,
-  className = "",
-}: {
+
+interface CardProps {
   children: React.ReactNode;
   className?: string;
-}) {
+  padding?: boolean;
+  hover?: boolean;
+}
+
+export function Card({ children, className = "", padding = true, hover = false }: CardProps) {
   return (
     <div
-      className={`rounded-2xl shadow-md bg-white dark:bg-neutral-900 border border-[#0a2342]/10 dark:border-[#0a2342]/30 ${className}`}
+      className={`
+        bg-surface-card border border-surface-border rounded-card shadow-card
+        ${padding ? 'p-5' : ''}
+        ${hover ? 'hover:shadow-card-hover hover:border-slate-200 transition-all duration-200' : ''}
+        ${className}
+      `}
     >
       {children}
     </div>

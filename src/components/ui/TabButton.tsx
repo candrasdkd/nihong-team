@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 interface TabButtonProps {
   current: string;
   setTab: (t: string) => void;
-  id: "home" | "orders" | "customers" | "cash";
+  id: string;
   children: ReactNode;
 }
 
@@ -12,10 +12,10 @@ export function TabButton({ current, setTab, id, children }: TabButtonProps) {
   return (
     <button
       onClick={() => setTab(id)}
-      className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${
+      className={`px-4 py-2.5 rounded-input text-sm font-semibold border transition min-h-[44px] ${
         active
-          ? "bg-[#0a2342] text-white border-[#0a2342]"
-          : "bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-[#0a2342]/20 dark:border-[#0a2342]/30 hover:bg-[#0a2342]/5 dark:hover:bg-neutral-800"
+          ? "bg-brand-navy text-white border-brand-navy shadow-sm"
+          : "bg-surface-card text-slate-600 border-surface-border hover:bg-slate-50"
       }`}
     >
       {children}

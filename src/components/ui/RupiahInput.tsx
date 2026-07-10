@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 import { Input } from "./Input";
-import { formatIDR } from "../../utils/format";
 
-/** * Helper internal untuk memformat JPY
- */
 const formatJPY = (n: number) => {
   return new Intl.NumberFormat("ja-JP", {
     style: "currency",
     currency: "JPY",
     minimumFractionDigits: 0,
+  }).format(Math.max(0, Math.floor(n || 0)));
+};
+
+const formatIDR = (n: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
   }).format(Math.max(0, Math.floor(n || 0)));
 };
 
@@ -18,7 +23,7 @@ export function RupiahInput({
   onChange,
   disabled,
   className,
-  currency = "IDR", // Default ke IDR jika tidak dikirim
+  currency = "IDR",
   placeholder,
 }: {
   label: string;
@@ -29,22 +34,19 @@ export function RupiahInput({
   currency?: "IDR" | "JPY";
   placeholder?: string;
 }) {
-  // Fungsi formatter dinamis berdasarkan currency
   const fmt = (n: number) => {
     if (currency === "JPY") return formatJPY(n);
-    return formatIDR(Math.max(0, Math.floor(n || 0)));
+    return formatIDR(n);
   };
 
   const [text, setText] = useState<string>(value ? fmt(value) : "");
 
-  // Sinkronisasi ketika prop value ATAU currency berubah
   useEffect(() => {
     setText(value ? fmt(value) : "");
   }, [value, currency]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value ?? "";
-    // Hanya ambil angka
     const digits = raw.replace(/[^\d]/g, "");
 
     if (!digits) {
@@ -58,9 +60,7 @@ export function RupiahInput({
     onChange(n);
   };
 
-  // Tentukan placeholder dinamis jika tidak ada prop placeholder
-  const activePlaceholder =
-    placeholder || (currency === "JPY" ? "¥ 0" : "Rp 0");
+  const activePlaceholder = placeholder || (currency === "JPY" ? "¥ 0" : "Rp 0");
 
   return (
     <Input

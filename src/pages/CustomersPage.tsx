@@ -210,13 +210,13 @@ export function CustomersPage() {
     `Halo ${nama || ""}, saya ingin konfirmasi pesanan.`;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-900">
+    <div className="min-h-screen bg-surface-base pb-24 font-sans text-slate-800">
       {/* Header (Sticky) */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 static sm:sticky sm:top-0 z-20">
+      <div className="bg-surface-card/80 backdrop-blur-md border-b border-surface-border static sm:sticky sm:top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-black bg-gradient-to-r from-slate-950 via-slate-800 to-slate-700 bg-clip-text text-transparent tracking-tight">
+              <h1 className="text-lg font-bold text-slate-800 tracking-tight">
                 Database Pelanggan
               </h1>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 hidden sm:block">
@@ -227,13 +227,14 @@ export function CustomersPage() {
               <Button
                 onClick={handleMigrate}
                 disabled={migrating}
-                className="bg-amber-600 hover:bg-amber-700 text-white shadow-md active:scale-95 transition-all px-3 sm:px-4 rounded-xl h-10 font-bold text-xs gap-1.5 flex items-center justify-center"
+                variant="secondary"
+                className="text-xs"
               >
                 {migrating ? "Memproses..." : "Migrasi Kapital"}
               </Button>
               <Button
                 onClick={openAddForm}
-                className="hidden sm:flex bg-slate-950 hover:bg-slate-850 text-white shadow-lg shadow-slate-950/10 hover:shadow-slate-950/15 active:scale-95 transition-all px-4 rounded-xl h-10 font-bold text-xs gap-1.5"
+                className="hidden sm:flex"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Tambah Pelanggan</span>
@@ -243,35 +244,27 @@ export function CustomersPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8 py-8">
+      <div className="page-container">
         
-        {/* CRM Metric Dashboard Section */}
+        {/* CRM Metric Cards */}
         <div className="hidden sm:grid grid-cols-3 gap-4">
-          {/* Card 1: Total Pelanggan */}
-          <div className="bg-slate-950 text-white rounded-2xl p-5 shadow-lg shadow-slate-950/10 border border-slate-900 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300">
-              <UserPlus className="w-32 h-32" />
-            </div>
+          <Card className="!p-5">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pelanggan</p>
-            <h3 className="text-3xl font-black mt-2 tracking-tight">
+            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-800">
               {loading ? (
-                <span className="inline-block h-8 w-16 bg-slate-800 rounded animate-pulse" />
+                <span className="inline-block h-8 w-16 bg-slate-200 rounded animate-pulse" />
               ) : (
                 metrics.total
               )}
             </h3>
             <p className="text-[10px] text-slate-500 mt-2 font-medium">Terdaftar di database Firestore</p>
-          </div>
+          </Card>
 
-          {/* Card 2: WhatsApp Aktif */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300 text-emerald-600">
-              <IconWhatsApp className="w-32 h-32" />
-            </div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">WhatsApp Aktif</p>
-            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
+          <Card className="!p-5">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Aktif</p>
+            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-800">
               {loading ? (
-                <span className="inline-block h-8 w-16 bg-slate-200/85 rounded animate-pulse" />
+                <span className="inline-block h-8 w-16 bg-slate-200 rounded animate-pulse" />
               ) : (
                 metrics.wa
               )}
@@ -280,27 +273,23 @@ export function CustomersPage() {
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
               Kontak siap dihubungi cepat
             </p>
-          </div>
+          </Card>
 
-          {/* Card 3: Profil Lengkap */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-300 text-indigo-600">
-              <MapPin className="w-32 h-32" />
-            </div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Profil Lengkap</p>
-            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-900">
+          <Card className="!p-5">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Profil Lengkap</p>
+            <h3 className="text-3xl font-black mt-2 tracking-tight text-slate-800">
               {loading ? (
-                <span className="inline-block h-8 w-16 bg-slate-200/85 rounded animate-pulse" />
+                <span className="inline-block h-8 w-16 bg-slate-200 rounded animate-pulse" />
               ) : (
                 metrics.complete
               )}
             </h3>
             <p className="text-[10px] text-slate-500 mt-2 font-medium">Memiliki Telepon & Alamat terisi</p>
-          </div>
+          </Card>
         </div>
 
-        {/* Search Panel with Glassmorphism & Glow */}
-        <div className="bg-white/70 backdrop-blur-md shadow-xs border border-slate-200/80 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500/80 transition-all duration-300 !mt-0 sm:!mt-6">
+        {/* Search Panel */}
+        <div className="bg-surface-card border border-surface-border rounded-card p-1.5 focus-within:ring-2 focus-within:ring-brand-navy/20 focus-within:border-brand-navy transition-all duration-300 shadow-card">
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 h-5 w-5 text-slate-400" />
             <input
@@ -314,10 +303,10 @@ export function CustomersPage() {
         </div>
 
         {/* Tabel Desktop */}
-        <div className="bg-white shadow-xl shadow-slate-200/20 border border-slate-200/60 rounded-2xl overflow-hidden hidden sm:block">
+        <div className="bg-surface-card border border-surface-border rounded-card overflow-hidden hidden sm:block shadow-card">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100">
+              <thead className="bg-slate-50 border-b border-surface-border">
                 <tr className="text-slate-500 text-left">
                   <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] w-[60px]" />
                   <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Nama & Alamat</th>
@@ -325,7 +314,7 @@ export function CustomersPage() {
                   <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-surface-border">
                 {loading && <TableSkeleton />}
 
                 {!loading && filtered.length === 0 && (
@@ -404,12 +393,12 @@ export function CustomersPage() {
           </div>
         </div>
 
-        {/* List Mobile Sederhana */}
+        {/* List Mobile */}
         <div className="sm:hidden">
           {loading && <MobileListSkeleton />}
 
           {!loading && filtered.length === 0 && (
-            <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center bg-white rounded-2xl border border-slate-200/60 shadow-xs">
+            <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center bg-surface-card rounded-card border border-surface-border shadow-card">
               <Frown className="w-12 h-12 mb-3 text-slate-300" />
               <p className="text-slate-700 font-bold text-sm">Tidak ada pelanggan ditemukan</p>
               <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau tambah baru.</p>
@@ -417,7 +406,7 @@ export function CustomersPage() {
           )}
 
           {!loading && filtered.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/60 divide-y divide-slate-100 overflow-hidden shadow-xs">
+            <div className="bg-surface-card rounded-card border border-surface-border divide-y divide-surface-border overflow-hidden shadow-card">
               {filtered.map((c) => (
                 <div
                   key={c.id}

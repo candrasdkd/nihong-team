@@ -218,19 +218,16 @@ function AppShell() {
       />
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-slate-50 relative">
-        {/* Header toolbar for collapsible trigger */}
-        <header className="h-16 flex items-center justify-between px-6 bg-white border-b border-slate-100 shrink-0 md:hidden relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg overflow-hidden border border-slate-100 p-0.5">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-surface-base relative">
+        {/* Header toolbar for mobile */}
+        <header className="h-14 flex items-center justify-between px-4 bg-surface-card border-b border-surface-border shrink-0 md:hidden relative z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg overflow-hidden border border-surface-border p-0.5">
               <img src={logoLight} alt="Logo" className="h-full w-full object-cover rounded-md" />
             </div>
-            <span className="text-xs font-bold text-slate-800 tracking-wide">Nihong Jastip</span>
+            <span className="text-xs font-bold text-brand-navy tracking-wide">Nihong Jastip</span>
           </div>
-
         </header>
-
-
 
         <main className="flex-1 pb-16 md:pb-0">
           <AnimatePresence mode="wait">

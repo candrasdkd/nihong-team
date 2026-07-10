@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-// ===================== SearchableSelect =====================
+import { Search, Plus, Check } from "lucide-react";
+
 type Option = { label: string; value: string; sublabel?: string };
 
-function useOnClickOutside(
-  ref: React.RefObject<HTMLElement>,
-  handler: () => void,
-) {
+function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void) {
   useEffect(() => {
     const listener = (e: MouseEvent) => {
       if (!ref.current || ref.current.contains(e.target as Node)) return;
@@ -48,191 +46,119 @@ export default function SearchableSelect({
     return options.some((o) => o.label.toLowerCase() === q);
   }, [options, query]);
 
-  const hasAddOption = !!onAddOption && (query.trim() === "" || !exactMatch);
+  useOnClickOutside(wrapRef, () => { setOpen(false); setQuery(""); });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const arr = q
-      ? options.filter((o) => o.label.toLowerCase().includes(q))
-      : options;
-    // sync highlight ketika filter berubah
-    const totalCount = arr.length + (hasAddOption ? 1 : 0);
-    if (highlight >= totalCount) setHighlight(0);
-    return arr;
-  }, [options, query, hasAddOption, highlight]); // eslint-disable-line
+    if (!q) return options;
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        (o.sublabel && o.sublabel.toLowerCase().includes(q)),
+    );
+  }, [options, query]);
 
-  useOnClickOutside(wrapRef, () => setOpen(false));
+  const selected = options.find((o) => o.value === value);
 
   useEffect(() => {
-    if (open) {
-      setQuery("");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
+    if (open) inputRef.current?.focus();
   }, [open]);
 
-  const selectedLabel = useMemo(
-    () => options.find((o) => o.value === value)?.label,
-    [options, value],
-  );
+  useEffect(() => {
+    if (!open) setHighlight(0);
+  }, [open]);
 
-  function commitSelection(idx: number) {
-    if (hasAddOption && idx === 0) {
-      onAddOption(query.trim());
+  const keyNavigate = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlight((h) => Math.min(h + 1, filtered.length - 1)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)); }
+    if (e.key === "Enter" && filtered[highlight]) {
+      e.preventDefault();
+      onChange(filtered[highlight].value);
       setOpen(false);
-      return;
+      setQuery("");
     }
-    if (!filtered.length) return;
-    const filteredIdx = hasAddOption ? idx - 1 : idx;
-    if (filteredIdx < 0 || filteredIdx >= filtered.length) return;
-    const picked = filtered[filteredIdx];
-    onChange(picked.value);
-    setOpen(false);
-  }
+    if (e.key === "Escape") { setOpen(false); setQuery(""); }
+  };
 
   return (
-    <div ref={wrapRef} className={`relative ${className}`}>
+    <div className={`relative ${className}`} ref={wrapRef}>
       {label && (
-        <label className="block mb-1 text-sm text-neutral-600">{label}</label>
+        <span className="block mb-1.5 text-sm font-semibold text-slate-700">{label}</span>
       )}
-
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setOpen(true);
-          }
-          if (e.key === "Enter" && !open) {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-        title={disabled ? "Terkunci" : ""}
-        className={`w-full px-3 py-2.5 rounded-xl border border-[#0a2342]/20 bg-white text-left text-sm transition
-          focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500
-          ${disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
-          flex items-center justify-between gap-2 ${buttonClassName}`}
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between rounded-input border border-surface-border bg-surface-card px-3.5 py-2.5 text-sm text-left transition-all hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy disabled:opacity-60 disabled:cursor-not-allowed min-h-[44px] ${buttonClassName}`}
       >
-        <span
-          className={`truncate ${selectedLabel ? "text-neutral-900" : "text-neutral-400"}`}
-        >
-          {selectedLabel || placeholder}
+        <span className={selected ? "text-slate-800 font-medium" : "text-slate-400"}>
+          {selected ? selected.label : placeholder}
         </span>
         <svg
-          width="18"
-          height="18"
-          viewBox="0 0 20 20"
-          aria-hidden
-          className="shrink-0"
+          className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
         >
-          <path
-            d="M5.5 7.5l4.5 4.5 4.5-4.5"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            fill="none"
-            strokeLinecap="round"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 mt-1 z-50 rounded-xl border border-[#0a2342]/20 bg-white shadow-lg">
-          <div className="p-2 border-b border-neutral-200">
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setHighlight(0);
-              }}
-              onKeyDown={(e) => {
-                const totalCount = filtered.length + (hasAddOption ? 1 : 0);
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setHighlight((h) => Math.min(h + 1, totalCount - 1));
-                }
-                if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setHighlight((h) => Math.max(h - 1, 0));
-                }
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitSelection(highlight);
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setOpen(false);
-                }
-              }}
-              placeholder="Cari pelanggan…"
-              className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            />
+        <div className="absolute z-50 mt-1 w-full bg-surface-card border border-surface-border rounded-card shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-surface-border">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={inputRef}
+                value={query}
+                onKeyDown={keyNavigate}
+                onChange={(e) => { setQuery(e.target.value); setHighlight(0); }}
+                placeholder="Cari…"
+                className="w-full pl-8 pr-3 py-2 text-sm border border-surface-border rounded-input outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy"
+              />
+            </div>
           </div>
 
-          <ul className="max-h-64 overflow-y-auto py-1">
-            {hasAddOption && (
-              <li
-                onMouseEnter={() => setHighlight(0)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => commitSelection(0)}
-                className={`px-3 py-2.5 text-xs cursor-pointer font-bold text-orange-600 bg-orange-50/50 hover:bg-orange-55 border-b border-neutral-100 flex items-center gap-1.5 transition-all
-                  ${highlight === 0 ? "bg-orange-100/70 text-orange-700" : ""}`}
-              >
-                <span>
-                  {query.trim() === ""
-                    ? "➕ Tambah pelanggan baru"
-                    : `➕ Tambah "${query.trim().toUpperCase()}" sebagai pelanggan baru`}
-                </span>
-              </li>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && (
+              <div className="px-3 py-6 text-center text-sm text-slate-400">
+                {query.trim() && !exactMatch && onAddOption ? (
+                  <button
+                    onClick={() => onAddOption(query.trim())}
+                    className="inline-flex items-center gap-1.5 text-brand-navy font-semibold hover:underline"
+                  >
+                    <Plus size={14} /> Tambah "{query.trim()}"
+                  </button>
+                ) : (
+                  "Tidak ada hasil"
+                )}
+              </div>
             )}
 
-            {filtered.length === 0 && (!onAddOption || query.trim() === "") && (
-              <li className="px-3 py-2 text-sm text-neutral-500">
-                Tidak ada hasil
-              </li>
-            )}
-
-            {filtered.map((o, idx) => {
-              const offsetIdx = hasAddOption ? idx + 1 : idx;
-              const active = offsetIdx === highlight;
-              const selected = o.value === value;
+            {filtered.map((opt, i) => {
+              const active = value === opt.value;
+              const highlighted = i === highlight;
               return (
-                <li
-                  key={o.value}
-                  onMouseEnter={() => setHighlight(offsetIdx)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => commitSelection(offsetIdx)}
-                  className={`px-3 py-2 text-sm cursor-pointer flex flex-col items-start
-                    ${active ? "bg-orange-50" : ""} ${selected ? "font-semibold text-[#0a2342]" : "text-neutral-800"}`}
+                <button
+                  key={opt.value}
+                  type="button"
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => { onChange(opt.value); setOpen(false); setQuery(""); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left transition-colors min-h-[44px]
+                    ${active ? "bg-brand-navy/5 text-brand-navy font-semibold" : "text-slate-700"}
+                    ${highlighted ? "bg-slate-50" : ""}
+                    hover:bg-slate-50`}
                 >
-                  <div className="flex justify-between items-center w-full">
-                    <span>{o.label}</span>
-                    {selected && (
-                      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden className="shrink-0 text-orange-600">
-                        <path
-                          d="M5 10.5l3 3 7-7"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          fill="none"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    )}
+                  {active && <Check size={14} className="shrink-0 text-brand-navy" />}
+                  <div className={active ? "" : "ml-[22px]"}>
+                    <span>{opt.label}</span>
+                    {opt.sublabel && <span className="ml-2 text-[11px] text-slate-400">{opt.sublabel}</span>}
                   </div>
-                  {o.sublabel && (
-                    <span className="text-[10px] text-slate-400 mt-0.5 leading-tight block font-normal">
-                      {o.sublabel}
-                    </span>
-                  )}
-                </li>
+                </button>
               );
             })}
-          </ul>
+          </div>
         </div>
       )}
     </div>
   );
 }
-// =================== end SearchableSelect ===================

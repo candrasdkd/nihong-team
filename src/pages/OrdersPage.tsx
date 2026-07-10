@@ -407,42 +407,33 @@ export function OrdersPage({
   };
 
   return (
-    <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900 relative">
-      {/* Toast Container */}
+    <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800 relative">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="page-container space-y-6">
         
         {/* ── Hero Header ── */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
         >
-          {/* Background decoration */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-purple-500/10 blur-3xl" />
-            <div
-              className="absolute inset-0 opacity-[0.03]"
-              style={{
-                backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
-                backgroundSize: "32px 32px",
-              }}
-            />
+            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/5 blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-white/5 blur-3xl" />
           </div>
 
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-400/25 px-3 py-1 rounded-full text-xs font-bold text-blue-400 mb-3 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
                 <Box size={12} />
                 <span>Modul Manajemen Administrasi</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-none">
-                Manajemen Pesanan 📦
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-none">
+                Manajemen Pesanan
               </h2>
-              <p className="text-slate-400 mt-2 text-xs sm:text-sm max-w-xl leading-relaxed">
+              <p className="text-slate-300 mt-2 text-xs sm:text-sm max-w-xl leading-relaxed">
                 Pantau pesanan pelanggan, verifikasi status pembayaran, hitung berat muatan kargo, dan cetak invoice jastip secara otomatis.
               </p>
             </div>
@@ -453,14 +444,15 @@ export function OrdersPage({
                   setEditing(null);
                   setShowForm(true);
                 }}
-                className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 font-bold px-5 py-2.5 rounded-xl transition-all border border-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
+                variant="primary"
+                className="shadow-lg font-bold"
               >
                 <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Buat Pesanan
               </Button>
               <Button
                 variant="outline"
                 onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)}
-                className="border-white/15 hover:bg-white/10 text-white font-bold bg-white/5 px-5 py-2.5 rounded-xl transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
+                className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5"
               >
                 <Download className="w-4 h-4 mr-2" /> Export Excel
               </Button>
@@ -468,14 +460,14 @@ export function OrdersPage({
           </div>
         </motion.div>
 
-        {/* ── Mini Stats Grid Terpadu ── */}
-        <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4 !mt-0 sm:!mt-6">
+        {/* ── Mini Stats Grid ── */}
+        <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MiniStatCard
             label="Total Pesanan"
             value={metrics.totalOrders}
             sub="Pesanan terfilter"
             icon={ShoppingBag}
-            colorClass="text-blue-600 bg-blue-50/70 border border-blue-100/50"
+            colorClass="text-brand-navy bg-brand-navy/5"
             index={0}
           />
           <MiniStatCard
@@ -483,7 +475,7 @@ export function OrdersPage({
             value={`${metrics.totalKg} Kg`}
             sub="Total kargo terisi"
             icon={Scale}
-            colorClass="text-purple-600 bg-purple-50/70 border border-purple-100/50"
+            colorClass="text-purple-600 bg-purple-50"
             index={1}
           />
           <MiniStatCard
@@ -491,7 +483,7 @@ export function OrdersPage({
             value={metrics.unpaidCount}
             sub={`${metrics.unpaidPercent}% dari total`}
             icon={AlertCircle}
-            colorClass="text-amber-600 bg-amber-50/70 border border-amber-100/50"
+            colorClass="text-amber-600 bg-amber-50"
             index={2}
           />
           <MiniStatCard
@@ -499,13 +491,13 @@ export function OrdersPage({
             value={metrics.paidCount}
             sub={`${metrics.paidPercent}% lunas total`}
             icon={CheckCircle2}
-            colorClass="text-emerald-600 bg-emerald-50/70 border border-emerald-100/50"
+            colorClass="text-emerald-600 bg-emerald-50"
             index={3}
           />
         </div>
 
         {/* ── Toolbar & Filters ── */}
-        <div className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-slate-200/50 shadow-sm space-y-4 !mt-0 sm:!mt-6">
+        <div       className="bg-surface-card/80 backdrop-blur-md p-4 rounded-card border border-surface-border shadow-card space-y-4">
           
           {/* Main Search & Status Filters */}
           <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center">
@@ -516,15 +508,15 @@ export function OrdersPage({
                 placeholder="Cari pelanggan, nomor order, barang..."
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                className="pl-10 pr-4 py-2.5 w-full border-0 bg-slate-50 focus:bg-white ring-1 ring-slate-200/60 focus:ring-2 focus:ring-blue-500 focus:shadow-md focus:shadow-blue-50 rounded-xl transition-all font-semibold text-xs sm:text-sm text-slate-800 placeholder-slate-400"
+                className="pl-10 pr-4 py-2.5 w-full border-0 bg-slate-50 focus:bg-white ring-1 ring-surface-border focus:ring-2 focus:ring-brand-navy/20 focus:shadow-md rounded-input transition-all font-semibold text-xs sm:text-sm text-slate-800 placeholder-slate-400"
               />
             </div>
 
-            {/* Filter Status modern tab melayang */}
-            <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/20 max-w-full overflow-x-auto shrink-0">
+            {/* Filter Status */}
+            <div className="flex bg-slate-100 p-0.5 rounded-input border border-surface-border max-w-full overflow-x-auto shrink-0">
               <button
                 onClick={() => setStatusFilter("")}
-                className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-input text-xs font-bold whitespace-nowrap transition-all duration-200 min-h-[36px] ${statusFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
               >
                 Semua
               </button>
@@ -532,7 +524,7 @@ export function OrdersPage({
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
-                  className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-input text-xs font-bold whitespace-nowrap transition-all duration-200 min-h-[36px] ${statusFilter === s ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   {s === "Belum Membayar" ? "Belum Bayar" : "Selesai"}
                 </button>
@@ -541,7 +533,7 @@ export function OrdersPage({
           </div>
 
           {/* Date and Sort row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100/50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-surface-border">
             {/* Filter Tanggal */}
             <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200/40">
               <input
@@ -587,10 +579,10 @@ export function OrdersPage({
         </div>
 
         {/* ── Desktop Table View ── */}
-        <div className="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/50 shadow-sm overflow-hidden hidden sm:block">
+        <div className="bg-surface-card/80 backdrop-blur rounded-card border border-surface-border shadow-card overflow-hidden hidden sm:block">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50/70 border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[9px] font-extrabold">
+              <thead className="bg-slate-50 border-b border-surface-border text-slate-400 uppercase tracking-widest text-[9px] font-extrabold">
                 <tr>
                   <th className="px-6 py-4 w-4">
                     <input

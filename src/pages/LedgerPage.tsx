@@ -129,7 +129,7 @@ function StatCard({
 }) {
   if (type === "balance") {
     return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0a2342] via-[#103056] to-[#0f172a] p-5 text-white shadow-lg border border-[#0d2a4e] flex flex-col justify-between h-[130px] hover:shadow-xl transition-all duration-300 group">
+      <div className="relative overflow-hidden rounded-card bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark p-5 text-white shadow-lg border border-brand-navyDark/80 flex flex-col justify-between h-[130px] hover:shadow-xl transition-all duration-300 group">
         {/* Grid Decor */}
         <div 
           className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity pointer-events-none"
@@ -378,14 +378,14 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
 
 
   return (
-    <div className="min-h-screen bg-transparent pb-24 font-sans text-slate-900">
+    <div className="min-h-screen bg-surface-base pb-24 font-sans text-slate-800">
       {/* 1. Header Section (Sticky) */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-100 static sm:sticky sm:top-0 z-20">
+      <div className="bg-surface-card/80 backdrop-blur-md border-b border-surface-border static sm:sticky sm:top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0a2342]/5 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-[#0a2342]" />
+              <div className="w-10 h-10 rounded-xl bg-brand-navy/5 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-brand-navyDark" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -415,7 +415,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
               </Button>
               <Button
                 onClick={() => setShowForm({ open: true, editing: null })}
-                className="hidden sm:flex items-center gap-2 bg-[#0a2342] hover:bg-[#07182d] text-white shadow-lg shadow-slate-900/10 h-10 text-xs font-semibold"
+                className="hidden sm:flex items-center gap-2 bg-brand-navyDark hover:bg-brand-navy text-white shadow-lg shadow-slate-900/10 h-10 text-xs font-semibold"
               >
                 <Plus className="w-4 h-4" />
                 <span>Tambah Transaksi</span>

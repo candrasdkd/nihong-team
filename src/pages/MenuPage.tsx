@@ -65,11 +65,11 @@ export function MenuPage({ onTabChange }: MenuPageProps) {
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] px-6 py-8 shadow-xl border border-white/5"
+          className="relative overflow-hidden rounded-card bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark px-6 py-8 shadow-xl border border-white/5"
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl" />
-            <div className="absolute top-8 left-8 w-32 h-32 rounded-full bg-purple-500/10 blur-2xl" />
+            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/10 blur-3xl" />
+            <div className="absolute top-8 left-8 w-32 h-32 rounded-full bg-brand-navyLight/20 blur-2xl" />
           </div>
           <div className="relative">
             <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 px-3 py-1 rounded-full text-xs font-bold text-white/70 mb-3">

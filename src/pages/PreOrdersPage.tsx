@@ -81,12 +81,12 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
   // ─── List View ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
+    <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
       <AnimatePresence>
         <PreOrderToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
       </AnimatePresence>
 
-      <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+      <div className="page-container space-y-6">
 
         {/* ── Top Bar ── */}
         <motion.div
@@ -95,9 +95,8 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
           transition={{ duration: 0.35 }}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
-          {/* Title + Stats */}
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-400/30 shrink-0">
+            <div className="w-10 h-10 rounded-card bg-brand-orange flex items-center justify-center shadow-sm shrink-0">
               <ShoppingBag size={18} className="text-white" />
             </div>
             <div>

@@ -3,50 +3,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { login } from "../services/authFirebase";
 import logo from "../assets/nihong.png";
 
-// ============================================================
-// Floating Orb – dekoratif background blur circle
-// ============================================================
-function FloatingOrb({
-  size,
-  color,
-  x,
-  y,
-  duration,
-}: {
-  size: number;
-  color: string;
-  x: string;
-  y: string;
-  duration: number;
-}) {
+function FloatingOrb({ size, color, x, y, duration }: { size: number; color: string; x: string; y: string; duration: number }) {
   return (
     <motion.div
       className="absolute rounded-full pointer-events-none blur-3xl"
-      style={{
-        width: size,
-        height: size,
-        background: color,
-        left: x,
-        top: y,
-      }}
-      animate={{
-        scale: [1, 1.15, 1],
-        opacity: [0.35, 0.55, 0.35],
-        x: [0, 20, -10, 0],
-        y: [0, -15, 10, 0],
-      }}
-      transition={{
-        duration,
-        repeat: Infinity,
-        ease: "easeInOut",
-      }}
+      style={{ width: size, height: size, background: color, left: x, top: y }}
+      animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.55, 0.35], x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
+      transition={{ duration, repeat: Infinity, ease: "easeInOut" }}
     />
   );
 }
 
-// ============================================================
-// Input Field – bersih & modern
-// ============================================================
 interface InputFieldProps {
   id: string;
   label: string;
@@ -57,36 +24,22 @@ interface InputFieldProps {
   rightElement?: React.ReactNode;
 }
 
-function InputField({
-  id,
-  label,
-  type,
-  value,
-  onChange,
-  icon,
-  rightElement,
-}: InputFieldProps) {
+function InputField({ id, label, type, value, onChange, icon, rightElement }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
   const hasValue = value.length > 0;
   const isFloating = focused || hasValue;
 
   return (
     <div className="relative">
-      {/* Icon kiri */}
-      <div
-        className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
-          focused ? "text-[#f5a623]" : "text-slate-400"
-        }`}
-      >
+      <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focused ? "text-brand-orange" : "text-slate-400"}`}>
         {icon}
       </div>
 
-      {/* Label floating */}
       <label
         htmlFor={id}
         className={`absolute left-12 transition-all duration-200 pointer-events-none font-medium ${
           isFloating
-            ? "top-2 text-[10px] tracking-widest uppercase text-[#f5a623]"
+            ? "top-2 text-[10px] tracking-widest uppercase text-brand-orange"
             : "top-1/2 -translate-y-1/2 text-sm text-slate-400"
         }`}
       >
@@ -102,15 +55,14 @@ function InputField({
         onBlur={() => setFocused(false)}
         required
         autoComplete={type === "email" ? "email" : "current-password"}
-        className={`w-full bg-white/5 rounded-xl border px-4 pt-6 pb-3 pl-12 text-white outline-none transition-all duration-200 text-sm font-medium placeholder-transparent ${
+        className={`w-full bg-white/5 rounded-input border px-4 pt-6 pb-3 pl-12 text-white outline-none transition-all duration-200 text-sm font-medium placeholder-transparent ${
           focused
-            ? "border-[#f5a623]/70 bg-white/8 shadow-[0_0_0_3px_rgba(245,166,35,0.1)]"
+            ? "border-brand-orange/70 bg-white/8 shadow-[0_0_0_3px_rgba(247,147,30,0.1)]"
             : "border-white/10 hover:border-white/20"
         } ${rightElement ? "pr-12" : "pr-4"}`}
         placeholder={label}
       />
 
-      {/* Element kanan (toggle password) */}
       {rightElement && (
         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
           {rightElement}
@@ -120,9 +72,6 @@ function InputField({
   );
 }
 
-// ============================================================
-// Main LoginPage
-// ============================================================
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -131,7 +80,6 @@ export function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [successAnim, setSuccessAnim] = useState(false);
 
-  // Keyboard shortcut Enter
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -151,33 +99,31 @@ export function LoginPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0d1b2e] flex items-center justify-center overflow-hidden relative select-none">
-      {/* ── Background gradient & orbs ── */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0d1b2e] via-[#112240] to-[#0a1628]" />
+    <div className="min-h-screen bg-brand-navyDark flex items-center justify-center overflow-hidden relative select-none">
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark" />
 
       <FloatingOrb
         size={500}
-        color="radial-gradient(circle, rgba(245,166,35,0.15) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(247,147,30,0.15) 0%, transparent 70%)"
         x="-10%"
         y="-20%"
         duration={8}
       />
       <FloatingOrb
         size={400}
-        color="radial-gradient(circle, rgba(30,60,120,0.4) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(1,46,108,0.4) 0%, transparent 70%)"
         x="60%"
         y="50%"
         duration={10}
       />
       <FloatingOrb
         size={300}
-        color="radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(247,147,30,0.08) 0%, transparent 70%)"
         x="80%"
         y="-10%"
         duration={12}
       />
 
-      {/* ── Grid overlay ── */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{
@@ -187,27 +133,22 @@ export function LoginPage() {
         }}
       />
 
-      {/* ── Split layout ── */}
-      <div className="relative z-10 w-full max-w-[960px] mx-4 grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.6)] border border-white/[0.06]">
-
-        {/* LEFT PANEL – Branding */}
+      <div className="relative z-10 w-full max-w-[960px] mx-4 grid md:grid-cols-2 gap-0 rounded-card overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.6)] border border-white/[0.06]">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-[#1a3a6e]/80 to-[#0d2550]/90 backdrop-blur-sm relative overflow-hidden"
+          className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-brand-navyLight/80 to-brand-navyDark/90 backdrop-blur-sm relative overflow-hidden"
         >
-          {/* Decorative circles */}
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-[#f5a623]/10 blur-2xl pointer-events-none" />
-          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[#f5a623]/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-brand-orange/10 blur-2xl pointer-events-none" />
+          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-brand-orange/5 blur-2xl pointer-events-none" />
 
-          {/* Top: Logo & Brand */}
           <div>
             <div className="flex items-center gap-3 mb-10">
               <img src={logo} alt="Nihong Jastip" className="h-10 w-10 object-contain rounded-lg" />
               <div>
                 <h2 className="text-white font-bold text-lg leading-none">Nihong</h2>
-                <p className="text-[#f5a623] text-xs font-semibold tracking-widest uppercase">Jastip</p>
+                <p className="text-brand-orange text-xs font-semibold tracking-widest uppercase">Jastip</p>
               </div>
             </div>
 
@@ -219,13 +160,12 @@ export function LoginPage() {
             </p>
           </div>
 
-          {/* Bottom: Feature list */}
           <div className="space-y-3">
             {[
-              { icon: "📦", text: "Manajemen pesanan real-time" },
-              { icon: "👥", text: "Database pelanggan terpusat" },
-              { icon: "💰", text: "Laporan keuangan otomatis" },
-              { icon: "🗓️", text: "Jadwal & notifikasi cerdas" },
+              { icon: "\uD83D\uDCE6", text: "Manajemen pesanan real-time" },
+              { icon: "\uD83D\uDC65", text: "Database pelanggan terpusat" },
+              { icon: "\uD83D\uDCB0", text: "Laporan keuangan otomatis" },
+              { icon: "\uD83D\uDCD3", text: "Jadwal & notifikasi cerdas" },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-3 text-slate-300 text-sm">
                 <span className="text-base">{item.icon}</span>
@@ -234,7 +174,6 @@ export function LoginPage() {
             ))}
           </div>
 
-          {/* Bottom label */}
           <div className="mt-8 flex items-center gap-2">
             <div className="h-[1px] flex-1 bg-white/10" />
             <span className="text-white/20 text-xs font-mono tracking-wider">AUTHORIZED ACCESS ONLY</span>
@@ -242,24 +181,22 @@ export function LoginPage() {
           </div>
         </motion.div>
 
-        {/* RIGHT PANEL – Form */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col justify-center p-10 md:p-12 bg-[#0f2040]/70 backdrop-blur-2xl"
+          className="flex flex-col justify-center p-10 md:p-12 bg-brand-navy/70 backdrop-blur-2xl"
         >
-          {/* Mobile logo (hidden on md+) */}
           <div className="flex md:hidden items-center gap-3 mb-8">
             <img src={logo} alt="Nihong Jastip" className="h-9 w-9 object-contain rounded-lg" />
             <div>
               <h2 className="text-white font-bold text-base leading-none">Nihong Jastip</h2>
-              <p className="text-[#f5a623] text-[10px] font-semibold tracking-widest uppercase">Admin Panel</p>
+              <p className="text-brand-orange text-[10px] font-semibold tracking-widest uppercase">Admin Panel</p>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-1">Selamat Datang 👋</h2>
+            <h2 className="text-2xl font-bold text-white mb-1">Selamat Datang</h2>
             <p className="text-slate-400 text-sm">Masuk dengan akun admin Anda.</p>
           </div>
 
@@ -308,7 +245,6 @@ export function LoginPage() {
               }
             />
 
-            {/* Error Message */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -327,17 +263,16 @@ export function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* Submit Button */}
             <motion.button
               type="submit"
               disabled={loading || !email || !password}
               whileHover={{ scale: loading ? 1 : 1.01 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
-              className="relative w-full py-3.5 rounded-xl font-bold text-sm tracking-wider overflow-hidden transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="relative w-full py-3.5 rounded-input font-bold text-sm tracking-wider overflow-hidden transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               style={{
-                background: "linear-gradient(135deg, #f5a623 0%, #e8891a 100%)",
-                boxShadow: loading ? "none" : "0 8px 32px rgba(245,166,35,0.3)",
-                color: "#0d1b2e",
+                background: "linear-gradient(135deg, #F7931E 0%, #e07d0c 100%)",
+                boxShadow: loading ? "none" : "0 8px 32px rgba(247,147,30,0.3)",
+                color: "#fff",
               }}
             >
               <AnimatePresence mode="wait">
@@ -385,9 +320,8 @@ export function LoginPage() {
             </motion.button>
           </form>
 
-          {/* Footer */}
           <p className="mt-8 text-center text-[11px] text-slate-600 tracking-wide">
-            © {new Date().getFullYear()} Nihong Jastip · Admin Only
+            &copy; {new Date().getFullYear()} Nihong Jastip &middot Admin Only
           </p>
         </motion.div>
       </div>

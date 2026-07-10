@@ -5,6 +5,7 @@ import { useSchedules } from "../hooks/useSchedules";
 import { ScheduleToastContainer } from "../components/Schedule/ScheduleToastContainer";
 import { ScheduleFormModal } from "../components/Schedule/ScheduleFormModal";
 import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import { FlagID, FlagJP } from "../components/ui/Flags";
@@ -96,15 +97,15 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
   }, [formTrigger, onFormTriggerConsumed]);
 
   return (
-    <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
+    <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
       <AnimatePresence>
         <ScheduleToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
       </AnimatePresence>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="page-container space-y-6">
         {/* Mobile Header */}
         <div className="block sm:hidden">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight">Jadwal Keberangkatan ✈️</h2>
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Jadwal Keberangkatan</h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">Kelola jadwal perjalanan jastiper dan kapasitas berat.</p>
         </div>
 
@@ -112,20 +113,20 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c2a4a] via-[#1a3f6f] to-[#0c2a4a] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-blue-400/15 blur-3xl" />
-            <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-sky-400/10 blur-3xl" />
+            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-brand-orange/5 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-white/5 blur-3xl" />
           </div>
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-bold text-blue-300 mb-3">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
                 <Calendar size={12} />
                 <span>Manajemen Jadwal</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Jadwal Keberangkatan ✈️</h2>
-              <p className="text-slate-400 mt-1.5 text-sm max-w-lg">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Jadwal Keberangkatan</h2>
+              <p className="text-slate-300 mt-1.5 text-sm max-w-lg">
                 Buat dan kelola jadwal perjalanan jastiper. Pantau kapasitas berat dan batas titip barang dari konsumen.
               </p>
             </div>
@@ -134,9 +135,9 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                 setEditing(null);
                 setShowForm(true);
               }}
-              className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/40 font-bold px-5 py-2.5 rounded-xl border border-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 self-start md:self-auto"
+              variant="primary"
             >
-              <Plus className="w-4 h-4 mr-2 stroke-[3]" />
+              <Plus className="w-4 h-4 mr-2" />
               Buat Jadwal
             </Button>
           </div>
@@ -144,17 +145,17 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
         {/* Stats + Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
-            <Calendar size={16} className="text-blue-500" />
+          <Card className="flex items-center gap-2 !p-3 !rounded-input">
+            <Calendar size={16} className="text-brand-navy" />
             <span className="text-sm font-bold text-slate-700">{filtered.length} Total Jadwal</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 shadow-sm">
+          </Card>
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-input px-4 py-2.5 shadow-sm">
             <CheckCircle2 size={16} className="text-emerald-600" />
             <span className="text-sm font-bold text-emerald-700">{openCount} Open</span>
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-100 rounded-xl p-1 ml-auto">
+          <div className="flex items-center gap-0.5 bg-slate-100 border border-surface-border rounded-input p-0.5 ml-auto">
             {[
               { value: "", label: "Semua" },
               { value: "Open", label: "Open" },
@@ -163,8 +164,8 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
               <button
                 key={s.value}
                 onClick={() => setStatusFilter(s.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  statusFilter === s.value ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                className={`px-3 py-1.5 rounded-input text-xs font-bold transition-all min-h-[36px] ${
+                  statusFilter === s.value ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 {s.label}

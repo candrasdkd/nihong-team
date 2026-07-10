@@ -1,13 +1,12 @@
-// Select.tsx
 import React from "react";
 
-type Props = React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string };
+type Props = React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string; error?: string };
 
-export function Select({ label, children, className = "", ...props }: Props) {
+export function Select({ label, error, children, className = "", ...props }: Props) {
   return (
     <label className="block">
       {label && (
-        <span className="block mb-1 text-sm text-neutral-600 dark:text-neutral-300">
+        <span className="block mb-1.5 text-sm font-semibold text-slate-700">
           {label}
         </span>
       )}
@@ -16,26 +15,21 @@ export function Select({ label, children, className = "", ...props }: Props) {
         <select
           {...props}
           className={[
-            // ukuran & spacing (stabil di Safari)
-            "block w-full rounded-xl pl-3 pr-10 py-2.5 text-base",
-            // border & bg (dark mode OK)
-            "border border-neutral-300 dark:border-neutral-700",
-            "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100",
-            // hilangkan UI native Safari (arrow, inner-shadow)
+            "block w-full rounded-input pl-3.5 pr-10 py-2.5 text-sm",
+            "border border-surface-border",
+            "bg-surface-card text-slate-800",
             "appearance-none [-webkit-appearance:none] [-moz-appearance:none] shadow-none bg-clip-padding",
-            // fokus & aksesibilitas
-            "outline-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500",
+            "outline-none focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy",
             "disabled:opacity-60 disabled:cursor-not-allowed",
+            error ? "border-red-300 focus:ring-red-500/20 focus:border-red-500" : "",
             "transition",
             className,
           ].join(" ")}
-          // Fallback jika Tailwind arbitrary disabled oleh config
           style={
             {
               WebkitAppearance: "none",
               backgroundImage: "none",
               WebkitTapHighlightColor: "transparent",
-              // bantu sistem tentukan palet highlight yang benar di dark mode
               colorScheme: "light dark",
             } as React.CSSProperties
           }
@@ -43,10 +37,9 @@ export function Select({ label, children, className = "", ...props }: Props) {
           {children}
         </select>
 
-        {/* Ikon caret custom (tidak menghalangi klik) */}
         <svg
           aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500 dark:text-neutral-400"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -57,6 +50,7 @@ export function Select({ label, children, className = "", ...props }: Props) {
           />
         </svg>
       </div>
+      {error && <p className="mt-1 text-xs font-medium text-red-500">{error}</p>}
     </label>
   );
 }

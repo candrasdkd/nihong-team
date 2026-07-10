@@ -7,6 +7,7 @@ import { JastiperCard } from "../components/Jastiper/JastiperCard";
 import { JastiperFormModal } from "../components/Jastiper/JastiperFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 
 export function JastipersPage() {
@@ -29,39 +30,38 @@ export function JastipersPage() {
   } = useJastipers();
 
   return (
-    <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
+    <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
       <AnimatePresence>
         <JastiperToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
       </AnimatePresence>
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="page-container space-y-6">
         {/* Mobile Header */}
         <div className="block sm:hidden">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight">Daftar Jastiper 🧳</h2>
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Daftar Jastiper</h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">Kelola data jastiper, kontak, dan alamat.</p>
         </div>
 
-        {/* Hero Header Banner (Premium Redesign) */}
+        {/* Hero Header Banner */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="hidden sm:block relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2d1b69] via-[#3b2784] to-[#1e1152] px-6 py-8 shadow-xl border border-white/5"
+          className="hidden sm:block relative overflow-hidden rounded-card bg-brand-navy px-6 py-7 shadow-sm"
         >
-          {/* Decorative Background Elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-violet-500/20 blur-3xl" />
-            <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-purple-500/15 blur-3xl" />
+            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-orange/5 blur-3xl" />
+            <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-white/5 blur-3xl" />
           </div>
 
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-violet-500/20 border border-violet-400/30 px-3 py-1 rounded-full text-xs font-bold text-violet-300 mb-3 shadow-inner">
-                <UserRound size={12} className="stroke-[2.5]" />
+              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1 rounded-full text-xs font-bold text-brand-orange mb-3">
+                <UserRound size={12} />
                 <span>Manajemen Jastiper</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Daftar Jastiper 🧳</h2>
-              <p className="text-slate-400 mt-2 text-sm max-w-lg leading-relaxed">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Daftar Jastiper</h2>
+              <p className="text-slate-300 mt-2 text-sm max-w-lg leading-relaxed">
                 Kelola data jastiper Anda — nama, kontak, dan alamat. Jastiper terdaftar bisa dipilih saat membuat Jadwal Keberangkatan.
               </p>
             </div>
@@ -70,9 +70,9 @@ export function JastipersPage() {
                 setEditing(null);
                 setShowForm(true);
               }}
-              className="bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/40 font-bold px-5 py-2.5 rounded-xl border border-violet-500/50 hover:-translate-y-0.5 active:translate-y-0 self-start md:self-auto transition-all"
+              variant="primary"
             >
-              <Plus className="w-4 h-4 mr-2 stroke-[3]" />
+              <Plus className="w-4 h-4 mr-2" />
               Tambah Jastiper
             </Button>
           </div>
@@ -80,23 +80,21 @@ export function JastipersPage() {
 
         {/* Stats & Search Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Search bar */}
           <div className="relative w-full sm:max-w-md">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 stroke-[2.5]" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Cari nama, nomor HP, atau alamat..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 backdrop-blur focus:ring-2 focus:ring-violet-500 outline-none text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border bg-surface-card focus:ring-2 focus:ring-brand-navy/20 outline-none text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm transition-all"
             />
           </div>
 
-          {/* Stats Bar */}
           <div className="hidden sm:flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
-              <Users size={16} className="text-violet-500" />
+            <Card className="flex items-center gap-2 !p-3 !rounded-input">
+              <Users size={16} className="text-brand-navy" />
               <span className="text-sm font-bold text-slate-700">{filtered.length} Jastiper Terdaftar</span>
-            </div>
+            </Card>
           </div>
         </div>
 

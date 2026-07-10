@@ -91,7 +91,7 @@ export function SharedPreOrderPage({ scheduleId }: { scheduleId: string }) {
   // ── Loading State ──
   if (loadingSchedule) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+      <div className="min-h-screen bg-surface-base flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -109,7 +109,7 @@ export function SharedPreOrderPage({ scheduleId }: { scheduleId: string }) {
   // ── Not Found State ──
   if (notFound || !schedule) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-surface-base flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -139,7 +139,7 @@ export function SharedPreOrderPage({ scheduleId }: { scheduleId: string }) {
 
   // ── Main View ──
   return (
-    <div className="min-h-screen bg-[#f8fafc] relative overflow-hidden">
+    <div className="min-h-screen bg-surface-base relative overflow-hidden">
       {/* Background static clean gradient */}
       <div className="fixed inset-0 z-[-1] pointer-events-none bg-gradient-to-tr from-slate-50 via-slate-50/80 to-rose-50/20" />
 

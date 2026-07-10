@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Home, ClipboardList, Wallet, LayoutGrid, Zap, ShoppingBag, Calendar } from "lucide-react";
 import { TabId } from "../types";
 
-// ─── Tab configs ─────────────────────────────────────────────────────────────
 const LEFT_TABS:  { id: TabId; label: string; Icon: ElementType }[] = [
   { id: "home",   label: "Dashboard", Icon: Home },
   { id: "orders", label: "Pesanan",   Icon: ClipboardList },
@@ -35,12 +34,12 @@ function TabButton({
       onClick={() => setTab(id)}
       aria-current={active ? "page" : undefined}
       title={label}
-      className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all active:scale-95
-        ${active ? "text-[#0a2342]" : "text-neutral-400 hover:text-neutral-600"}`}
+      className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all active:scale-95 min-h-[44px]
+        ${active ? "text-brand-navy" : "text-slate-400 hover:text-slate-600"}`}
     >
       <Icon
         className="h-5 w-5"
-        fill={active ? "rgba(10, 35, 66, 0.15)" : "none"}
+        fill={active ? "rgba(1, 46, 108, 0.12)" : "none"}
         strokeWidth={active ? 2.4 : 1.8}
       />
       <span className="text-[10px] leading-none font-bold">{label}</span>
@@ -92,16 +91,16 @@ export function BottomTabBar({
   const actions = [
     {
       id: "booking",
-      label: "Booking Jadwal",
+      label: "Booking",
       Icon: ShoppingBag,
-      cls: "bg-rose-500 shadow-rose-400/50",
+      cls: "bg-brand-orange shadow-orange-400/50",
       x: -96,
       y: -80,
       onClick: () => { setFabOpen(false); onAddBooking?.(); },
     },
     {
       id: "schedule",
-      label: "Tambah Jadwal",
+      label: "Jadwal",
       Icon: Calendar,
       cls: "bg-amber-500 shadow-amber-400/50",
       x: -48,
@@ -110,25 +109,24 @@ export function BottomTabBar({
     },
     {
       id: "order",
-      label: "Tambah Order",
+      label: "Order",
       Icon: ClipboardList,
-      cls: "bg-blue-500 shadow-blue-400/50",
+      cls: "bg-brand-navy shadow-brand-navy/50",
       x: 48,
       y: -80,
       onClick: () => { setFabOpen(false); onAddOrder?.(); },
     },
     {
       id: "cash",
-      label: "Tambah Kas",
+      label: "Kas",
       Icon: Wallet,
-      cls: "bg-[#10b981] shadow-[#10b981]/50",
+      cls: "bg-emerald-500 shadow-emerald-500/50",
       x: 96,
       y: -80,
       onClick: () => { setFabOpen(false); onAddTransaction?.(); },
     },
   ];
 
-  // Close FAB when clicking outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
@@ -143,14 +141,13 @@ export function BottomTabBar({
 
   return (
     <>
-      {/* Backdrop overlay */}
       <AnimatePresence>
         {fabOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#070c18]/40 backdrop-blur-xs z-40 md:hidden"
+            className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 md:hidden"
             onClick={() => setFabOpen(false)}
           />
         )}
@@ -158,16 +155,13 @@ export function BottomTabBar({
 
       <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden shrink-0 pointer-events-none">
         <nav className="relative h-16 w-full pointer-events-auto">
-          {/* Background SVG shape */}
           <div className="absolute inset-0 z-10">
-            <svg width={width} height={h + 100} className="drop-shadow-[0_-8px_16px_rgba(15,23,42,0.06)] filter">
+            <svg width={width} height={h + 100} className="drop-shadow-[0_-4px_12px_rgba(0,0,0,0.04)] filter">
               <path d={pathData} fill="#ffffff" />
             </svg>
           </div>
 
-          {/* Actual items */}
           <div className="relative z-20 h-full flex items-center justify-between px-3">
-            {/* Left group */}
             <div className="flex items-center justify-around w-[38%] h-full">
               {LEFT_TABS.map((t) => (
                 <TabButton
@@ -181,10 +175,8 @@ export function BottomTabBar({
               ))}
             </div>
 
-            {/* Empty space for FAB */}
             <div className="w-[20%]" />
 
-            {/* Right group */}
             <div className="flex items-center justify-around w-[38%] h-full">
               {RIGHT_TABS.map((t) => (
                 <TabButton
@@ -199,9 +191,7 @@ export function BottomTabBar({
             </div>
           </div>
 
-          {/* Centered Speed Dial FAB */}
           <div ref={fabRef} className="absolute top-[-22px] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
-            {/* Actions group */}
             <AnimatePresence>
               {fabOpen && (
                 <motion.div
@@ -211,7 +201,7 @@ export function BottomTabBar({
                   exit="hidden"
                   className="absolute inset-0 z-[-1] pointer-events-none mb-4"
                 >
-                  {actions.map((action, i) => (
+                  {actions.map((action) => (
                     <motion.div
                       key={action.id}
                       variants={{
@@ -225,8 +215,7 @@ export function BottomTabBar({
                             type: "spring",
                             stiffness: 300,
                             damping: 20,
-                            delay: i * 0.05
-                          }
+                          },
                         },
                       }}
                       className="absolute left-1/2 top-1/2 pointer-events-auto flex flex-col items-center"
@@ -242,7 +231,7 @@ export function BottomTabBar({
                       >
                         <action.Icon size={19} />
                       </button>
-                      <span className="bg-white text-[#0a2342] text-[8.5px] font-black px-2.5 py-1 rounded-full shadow-lg border border-slate-50 select-none text-center whitespace-nowrap mt-1.5 leading-none">
+                      <span className="bg-white text-brand-navy text-[8.5px] font-black px-2.5 py-1 rounded-full shadow-lg border border-slate-100 select-none text-center whitespace-nowrap mt-1.5 leading-none">
                         {action.label}
                       </span>
                     </motion.div>
@@ -251,14 +240,13 @@ export function BottomTabBar({
               )}
             </AnimatePresence>
 
-            {/* Main FAB */}
             <motion.button
               onClick={() => setFabOpen((p) => !p)}
               whileTap={{ scale: 0.87 }}
               className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-colors duration-200
                 ${fabOpen
                   ? "bg-slate-800 shadow-slate-800/50"
-                  : "bg-gradient-to-br from-orange-500 to-amber-500 shadow-orange-500/50"
+                  : "bg-brand-orange shadow-brand-orange/50"
                 }`}
             >
               <motion.div
