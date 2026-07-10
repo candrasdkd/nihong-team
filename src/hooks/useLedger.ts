@@ -14,16 +14,18 @@ import {
 import { MONTH_LABEL_ID } from "../utils/helpers";
 
 export function useLedger() {
+  const params = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
+
   // ===== Filters =====
   const [q, setQ] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"" | "Masuk" | "Keluar">("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<"" | "Masuk" | "Keluar">((params.get("type") as any) || "");
+  const [categoryFilter, setCategoryFilter] = useState<string>(params.get("category") || "");
 
   const defaultFrom = "";
   const defaultTo = "";
 
-  const [dateFrom, setDateFrom] = useState<string>(defaultFrom);
-  const [dateTo, setDateTo] = useState<string>(defaultTo);
+  const [dateFrom, setDateFrom] = useState<string>(params.get("from") || defaultFrom);
+  const [dateTo, setDateTo] = useState<string>(params.get("to") || defaultTo);
 
   // ===== Data =====
   const [rows, setRows] = useState<LedgerEntry[]>([]);

@@ -21,6 +21,7 @@ const JastipersPage = React.lazy(() => import("./pages/JastipersPage").then(m =>
 const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
 const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
+const SharedLedgerPage = React.lazy(() => import("./pages/SharedLedgerPage").then(m => ({ default: m.SharedLedgerPage })));
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -402,11 +403,22 @@ const router = createBrowserRouter([
 
 export default function App() {
   // 🔗 Detect share link — render standalone page without auth
-  const shareScheduleId = new URLSearchParams(window.location.search).get("share");
+  const searchParams = new URLSearchParams(window.location.search);
+  const shareScheduleId = searchParams.get("share");
+  const shareLedger = searchParams.get("share_ledger");
+
   if (shareScheduleId) {
     return (
       <Suspense fallback={<PageSkeleton />}>
         <SharedPreOrderPage scheduleId={shareScheduleId} />
+      </Suspense>
+    );
+  }
+
+  if (shareLedger) {
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <SharedLedgerPage />
       </Suspense>
     );
   }

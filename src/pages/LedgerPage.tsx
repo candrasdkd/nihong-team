@@ -23,7 +23,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Search, Filter,
   Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft,
   X, FileText, Download, Check, Coins, CreditCard, Landmark, CircleDollarSign,
-  Activity, BarChart3, Eye, EyeOff, RotateCw
+  Activity, BarChart3, Eye, EyeOff, RotateCw, Share2
 } from "lucide-react";
 import { exportLedgerToExcel } from "../utils/exportExcel";
 import {
@@ -362,6 +362,20 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     isFiltered,
   } = useLedger();
 
+  const handleShareReport = () => {
+    const params = new URLSearchParams();
+    params.set("share_ledger", "true");
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    if (typeFilter) params.set("type", typeFilter);
+    if (categoryFilter) params.set("category", categoryFilter);
+
+    const shareUrl = `${window.location.origin}/?${params.toString()}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert("Link laporan kas berhasil disalin!");
+    });
+  };
+
   const {
     pending,
     loading: loadingAdvances,
@@ -398,6 +412,14 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
         }
         action={
           <>
+            <Button
+              variant="outline"
+              onClick={handleShareReport}
+              className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
+            >
+              <Share2 className="w-4 h-4 text-indigo-600" />
+              <span>Bagikan Laporan</span>
+            </Button>
             <Button
               variant="outline"
               onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
@@ -872,6 +894,17 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           />
         )}
       </AnimatePresence>
+
+      {/* Mobile Share Report Button */}
+      {filtered.length > 0 && (
+        <button
+          onClick={handleShareReport}
+          className="sm:hidden fixed bottom-52 right-6 z-35 h-12 w-12 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all animate-in slide-in-from-bottom-5 duration-200"
+          title="Bagikan Laporan"
+        >
+          <Share2 className="w-5 h-5 text-indigo-600" />
+        </button>
+      )}
 
       {/* Mobile Export Excel Button */}
       {filtered.length > 0 && (
