@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Customer, ExtendedOrder } from "../types";
 import { createOrder, deleteOrder, fromExtended, updateOrder } from "../services/ordersFirebase";
-import { useToast } from "./useToast";
+import { useToastManager } from "../components/ui/Toast";
 import { useOrdersQuery } from "./useOrdersQuery";
 import { useOrdersSelection } from "./useOrdersSelection";
 
@@ -12,7 +12,7 @@ interface UseOrdersProps {
 
 export function useOrders({ customers, unitPrice }: UseOrdersProps) {
   // 1. Toast Hook
-  const { toasts, setToasts, showToast, removeToast } = useToast();
+  const { toasts, showToast, removeToast } = useToastManager();
 
   // 2. Selection states (shared with selection hook)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -129,7 +129,6 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
 
     // Toast states
     toasts,
-    setToasts,
     showToast,
     removeToast,
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from "react";
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "../../hooks/useReducedMotion";
 
 export type ToastType = {
   message: string;
@@ -37,13 +38,14 @@ const positionClasses = {
 
 function ToastItem({ toast, onRemove }: { toast: ToastType; onRemove: () => void }) {
   const Icon = icons[toast.type];
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+      initial={shouldReduceMotion ? {} : { opacity: 0, y: -10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
+      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.95 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
       className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-card shadow-lg border ${styles[toast.type]} min-w-[300px] max-w-[420px]`}
     >
       <Icon size={18} className="shrink-0" />

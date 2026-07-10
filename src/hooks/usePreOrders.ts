@@ -16,11 +16,9 @@ import { listenSchedules } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
 import { formatDate, formatIDR } from "../utils/format";
 
-export type ToastMsg = { id: number; message: string; type: "success" | "error" };
-
 const COL = "pre_orders";
 
-export function usePreOrders() {
+export function usePreOrders(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
   const [pendingPreOrders, setPendingPreOrders] = useState<PreOrder[]>([]);
   const [selesaiPreOrders, setSelesaiPreOrders] = useState<PreOrder[]>([]);
   const [schedules, setSchedules] = useState<DepartureSchedule[]>([]);
@@ -37,7 +35,6 @@ export function usePreOrders() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PreOrder | null>(null);
   const [convertTarget, setConvertTarget] = useState<PreOrder | null>(null);
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -186,19 +183,17 @@ export function usePreOrders() {
     return list;
   }, [schedules, filtered, q, statusFilter]);
 
-  function addToast(message: string, type: "success" | "error") {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }
+  const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
+    showToast?.(message, type);
+  };
 
   async function handleSubmit(data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) {
     if (editing) {
       await updatePreOrder(editing.id, data);
-      addToast("Booking berhasil diperbarui", "success");
+      toast("Booking berhasil diperbarui");
     } else {
       await addPreOrder(data);
-      addToast("Booking berhasil dibuat", "success");
+      toast("Booking berhasil dibuat");
     }
   }
 
@@ -210,9 +205,9 @@ export function usePreOrders() {
       onConfirm: async () => {
         try {
           await deletePreOrder(po.id);
-          addToast("Booking berhasil dihapus", "success");
+          toast("Booking berhasil dihapus");
         } catch {
-          addToast("Gagal menghapus pre order", "error");
+          toast("Gagal menghapus pre order", "error");
         }
       },
     });
@@ -224,9 +219,9 @@ export function usePreOrders() {
         idx === itemIdx ? { ...item, checked: !item.checked } : item
       );
       await updatePreOrder(po.id, { items: updatedItems });
-      addToast("Status check barang berhasil diubah", "success");
+      toast("Status check barang berhasil diubah");
     } catch (err: any) {
-      addToast(err.message || "Gagal mengubah status barang", "error");
+      toast(err.message || "Gagal mengubah status barang", "error");
     }
   }
 
@@ -313,8 +308,6 @@ export function usePreOrders() {
     setEditing,
     convertTarget,
     setConvertTarget,
-    toasts,
-    setToasts,
     selectedIds,
     setSelectedIds,
     confirmModal,
@@ -323,7 +316,6 @@ export function usePreOrders() {
     groupedBySchedule,
     hasMoreSelesai,
     loadMoreSelesai,
-    addToast,
     handleSubmit,
     handleDelete,
     handleToggleItemCheck,

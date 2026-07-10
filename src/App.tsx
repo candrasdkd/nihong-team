@@ -1,9 +1,14 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { RouterProvider, createBrowserRouter, Outlet, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "./hooks/useReducedMotion";
 
 // Skeletons
 import { PageSkeleton, DashboardSkeleton, OrdersSkeleton } from "./components/Skeletons";
+
+// Global UI
+import { ToastContainer, useToastManager } from "./components/ui/Toast";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 // Pages (Dynamically imported)
 const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -130,11 +135,13 @@ function AppShell() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { unitPrice, setUnitPrice } = useSettings();
+  const shouldReduceMotion = useReducedMotion();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  const { toasts, showToast, removeToast } = useToastManager();
 
   // SpeedDialFAB form triggers — increment to auto-open the create form
   const [orderFormTrigger, setOrderFormTrigger] = useState(0);
@@ -229,33 +236,37 @@ function AppShell() {
           </div>
         </header>
 
-        <main className="flex-1 pb-16 md:pb-0">
-          <AnimatePresence mode="wait">
+        <main className="flex-1 pb-16 md:pb-0 relative">
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
+              initial={shouldReduceMotion ? {} : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={shouldReduceMotion ? {} : { opacity: 0, y: -10 }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
+              className="absolute inset-0"
             >
               <Suspense fallback={<PageSkeleton />}>
-                <Outlet
-                  context={{
-                    orders,
-                    customers,
-                    monthlySummaries,
-                    customersLoading,
-                    ordersLoading,
-                    orderFormTrigger,
-                    setOrderFormTrigger,
-                    preorderFormTrigger,
-                    setPreorderFormTrigger,
-                    ledgerFormTrigger,
-                    setLedgerFormTrigger,
-                    scheduleFormTrigger,
-                    setScheduleFormTrigger
-                  }}
-                />
+                <ErrorBoundary>
+                  <Outlet
+                    context={{
+                      orders,
+                      customers,
+                      monthlySummaries,
+                      customersLoading,
+                      ordersLoading,
+                      orderFormTrigger,
+                      setOrderFormTrigger,
+                      preorderFormTrigger,
+                      setPreorderFormTrigger,
+                      ledgerFormTrigger,
+                      setLedgerFormTrigger,
+                      scheduleFormTrigger,
+                      setScheduleFormTrigger,
+                      showToast,
+                    }}
+                  />
+                </ErrorBoundary>
               </Suspense>
             </motion.div>
           </AnimatePresence>
@@ -296,6 +307,8 @@ function AppShell() {
       <InstallPrompt />
 
       <UpdatePrompt />
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </motion.div>
   );
 }

@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Jastiper } from "../types";
 import { listenJastipers, addJastiper, updateJastiper, deleteJastiper } from "../services/jastipersFirebase";
 
-export type ToastMsg = { id: number; message: string; type: "success" | "error" };
-
-export function useJastipers() {
+export function useJastipers(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
   const [jastipers, setJastipers] = useState<Jastiper[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Jastiper | null>(null);
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -42,19 +39,17 @@ export function useJastipers() {
     );
   }, [jastipers, q]);
 
-  function addToast(message: string, type: "success" | "error") {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }
+  const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
+    showToast?.(message, type);
+  };
 
   async function handleSubmit(data: Omit<Jastiper, "id" | "createdAt" | "updatedAt">) {
     if (editing) {
       await updateJastiper(editing.id, data);
-      addToast("Jastiper berhasil diperbarui", "success");
+      toast("Jastiper berhasil diperbarui");
     } else {
       await addJastiper(data);
-      addToast("Jastiper berhasil ditambahkan", "success");
+      toast("Jastiper berhasil ditambahkan");
     }
   }
 
@@ -66,9 +61,9 @@ export function useJastipers() {
       onConfirm: async () => {
         try {
           await deleteJastiper(j.id);
-          addToast("Jastiper berhasil dihapus", "success");
+          toast("Jastiper berhasil dihapus");
         } catch {
-          addToast("Gagal menghapus jastiper", "error");
+          toast("Gagal menghapus jastiper", "error");
         }
       },
     });
@@ -83,12 +78,9 @@ export function useJastipers() {
     setShowForm,
     editing,
     setEditing,
-    toasts,
-    setToasts,
     confirmModal,
     setConfirmModal,
     filtered,
-    addToast,
     handleSubmit,
     handleDelete,
   };

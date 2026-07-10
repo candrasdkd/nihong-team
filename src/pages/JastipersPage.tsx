@@ -1,8 +1,8 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserRound, Plus, Search, Users } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 import { useJastipers } from "../hooks/useJastipers";
-import { JastiperToastContainer } from "../components/Jastiper/JastiperToastContainer";
 import { JastiperCard } from "../components/Jastiper/JastiperCard";
 import { JastiperFormModal } from "../components/Jastiper/JastiperFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -11,6 +11,7 @@ import { Card } from "../components/ui/Card";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 
 export function JastipersPage() {
+  const { showToast } = useOutletContext<{ showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void }>();
   const {
     jastipers,
     loading,
@@ -20,20 +21,15 @@ export function JastipersPage() {
     setShowForm,
     editing,
     setEditing,
-    toasts,
-    setToasts,
     confirmModal,
     setConfirmModal,
     filtered,
     handleSubmit,
     handleDelete,
-  } = useJastipers();
+  } = useJastipers(showToast);
 
   return (
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
-      <AnimatePresence>
-        <JastiperToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
-      </AnimatePresence>
 
       <div className="page-container space-y-6">
         {/* Mobile Header */}

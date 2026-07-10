@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "../context/authContext";
 import { useSettings } from "../context/settingsContext";
 import { motion } from "framer-motion";
@@ -17,8 +17,6 @@ import {
 } from "recharts";
 import { DONE_SET } from "../utils/constants";
 import {
-  TrendingUp,
-  TrendingDown,
   Users,
   ShoppingBag,
   Wallet,
@@ -38,6 +36,7 @@ import { collection, query, orderBy, limit as qLimit, getDocs } from "firebase/f
 import { db } from "../lib/firebase";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { StatCard } from "../components/ui/StatCard";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -54,47 +53,6 @@ function formatDate() {
     month: "long",
     year: "numeric",
   });
-}
-
-interface KpiCardProps {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ElementType;
-  trend?: number;
-  index: number;
-}
-
-function KpiCard({ label, value, sub, icon: Icon, trend, index }: KpiCardProps) {
-  const pos = trend === undefined || trend >= 0;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08 }}
-    >
-      <Card hover className="relative h-full">
-        <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-brand-navy/5 flex items-center justify-center shrink-0">
-            <Icon size={18} className="text-brand-navy" />
-          </div>
-          {trend !== undefined && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              pos ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
-            }`}>
-              {pos ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-              {Math.abs(trend).toFixed(1)}%
-            </div>
-          )}
-        </div>
-        <div className="mt-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-          <p className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 leading-tight break-words" title={String(value)}>{value}</p>
-          {sub && <p className="text-xs font-medium text-slate-400 mt-1">{sub}</p>}
-        </div>
-      </Card>
-    </motion.div>
-  );
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -272,34 +230,30 @@ function DashboardView({
     { label: "1T",  value: "12m" },
   ];
 
-  const KPI_CARDS: KpiCardProps[] = [
+  const KPI_CARDS = [
     {
       label: "Total Transaksi",
       value: kpi.revIdr > 0 || kpi.revJpy === 0 ? formatIDR(kpi.revIdr) : `¥${kpi.revJpy.toLocaleString("id-ID")}`,
       sub: kpi.revIdr > 0 && kpi.revJpy > 0 ? `+ ¥${kpi.revJpy.toLocaleString("id-ID")}` : undefined,
       icon: Wallet,
-      index: 0,
     },
     {
       label: "Total Profit",
       value: kpi.profIdr > 0 || kpi.profJpy === 0 ? formatIDR(kpi.profIdr) : `¥${kpi.profJpy.toLocaleString("id-ID")}`,
       sub: kpi.profIdr > 0 && kpi.profJpy > 0 ? `+ ¥${kpi.profJpy.toLocaleString("id-ID")}` : undefined,
       icon: CircleDollarSign,
-      index: 1,
     },
     {
       label: "Pesanan Aktif",
       value: kpi.activeOrders,
       sub: "Perlu tindakan",
       icon: Activity,
-      index: 2,
     },
     {
       label: "Total Pelanggan",
       value: customers.length,
       sub: `${kpi.totalOrders} total transaksi`,
       icon: Users,
-      index: 3,
     },
   ];
 
@@ -399,8 +353,15 @@ function DashboardView({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {KPI_CARDS.map((card) => (
-          <KpiCard key={card.label} {...card} />
+        {KPI_CARDS.map((card, index) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.08 }}
+          >
+            <StatCard {...card} />
+          </motion.div>
         ))}
       </div>
 

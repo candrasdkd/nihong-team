@@ -1,8 +1,8 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Plus, Search, CheckCircle2, Pencil, Trash2, Plane, User } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 import { useSchedules } from "../hooks/useSchedules";
-import { ScheduleToastContainer } from "../components/Schedule/ScheduleToastContainer";
 import { ScheduleFormModal } from "../components/Schedule/ScheduleFormModal";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -64,6 +64,7 @@ const TableSkeleton = () => (
 );
 
 export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
+  const { showToast } = useOutletContext<{ showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void }>();
   const {
     jastipers,
     loading,
@@ -75,8 +76,6 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     setShowForm,
     editing,
     setEditing,
-    toasts,
-    setToasts,
     confirmModal,
     setConfirmModal,
     visibleCount,
@@ -86,7 +85,7 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     openCount,
     handleSubmit,
     handleDelete,
-  } = useSchedules();
+  } = useSchedules(showToast);
 
   React.useEffect(() => {
     if (formTrigger > 0) {
@@ -98,9 +97,6 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
   return (
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
-      <AnimatePresence>
-        <ScheduleToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
-      </AnimatePresence>
 
       <div className="page-container space-y-6">
         {/* Mobile Header */}

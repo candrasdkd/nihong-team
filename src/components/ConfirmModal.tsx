@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Trash2, Info } from "lucide-react";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -47,21 +48,22 @@ export function ConfirmModal({
 
   const config = typeConfig[type] || typeConfig.danger;
   const Icon = config.icon;
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0 }}
+        initial={shouldReduceMotion ? {} : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        exit={shouldReduceMotion ? {} : { opacity: 0 }}
         onClick={isLoading ? undefined : onClose}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
       />
 
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+        initial={shouldReduceMotion ? {} : { scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        exit={shouldReduceMotion ? {} : { scale: 0.95, opacity: 0, y: 10 }}
         className="relative w-full max-w-sm bg-surface-card rounded-card p-6 shadow-lg border border-surface-border z-10"
       >
         <div className="flex flex-col items-center text-center">

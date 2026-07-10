@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { DepartureSchedule, PreOrder, Customer } from "../types";
 import { listenPreOrdersBySchedule, updatePreOrder, deletePreOrder } from "../services/preOrdersFirebase";
 import { formatDate, formatIDR } from "../utils/format";
-import { ToastMsg } from "./usePreOrders";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -27,13 +26,13 @@ export function usePreOrderDetail(
   setShowForm: (v: boolean) => void,
   setEditing: (v: PreOrder | null) => void,
   setConvertTarget: (v: PreOrder | null) => void,
-  handleSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>
+  handleSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>,
+  showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void
 ) {
   const [pos, setPOs] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [savingCell, setSavingCell] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>({
     isOpen: false,
@@ -53,12 +52,10 @@ export function usePreOrderDetail(
     return () => unsub();
   }, [schedule.id]);
 
-  // ─── Toasts ───────────────────────────────────────────────────────────────
-  function addToast(message: string, type: "success" | "error") {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
-  }
+  // ─── Toast helper ─────────────────────────────────────────────────────────
+  const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
+    showToast?.(message, type);
+  };
 
   // ─── Inline Cell Save ─────────────────────────────────────────────────────
   const handleCellSave = useCallback(
@@ -78,9 +75,9 @@ export function usePreOrderDetail(
       setSavingCell(poId + field);
       try {
         await updatePreOrder(poId, { [field]: newVal });
-        addToast("Berhasil diperbarui", "success");
+        toast("Berhasil diperbarui");
       } catch (err: any) {
-        addToast(err.message || "Gagal menyimpan", "error");
+        toast(err.message || "Gagal menyimpan", "error");
       } finally {
         setSavingCell(null);
       }
@@ -111,9 +108,9 @@ export function usePreOrderDetail(
       onConfirm: async () => {
         try {
           await deletePreOrder(po.id);
-          addToast("Booking berhasil dihapus", "success");
+          toast("Booking berhasil dihapus");
         } catch {
-          addToast("Gagal menghapus pre order", "error");
+          toast("Gagal menghapus pre order", "error");
         }
       },
     });
@@ -188,9 +185,9 @@ export function usePreOrderDetail(
           namaPelanggan: customer.nama || "",
           noTelponPelanggan: customer.telpon || "",
         });
-        addToast(`Pelanggan diubah ke ${customer.nama}`, "success");
+        toast(`Pelanggan diubah ke ${customer.nama}`);
       } catch (err: any) {
-        addToast(err.message || "Gagal menyimpan", "error");
+        toast(err.message || "Gagal menyimpan", "error");
       } finally {
         setSavingCell(null);
       }
@@ -208,8 +205,6 @@ export function usePreOrderDetail(
     editingCell,
     setEditingCell,
     savingCell,
-    toasts,
-    setToasts,
     selectedIds,
     setSelectedIds,
     confirmModal,

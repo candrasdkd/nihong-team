@@ -19,7 +19,6 @@ import {
 import { DepartureSchedule, PreOrder, Customer, PreOrderItem } from "../types";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
 import { ConvertPreOrderModal } from "../components/PreOrder/ConvertPreOrderModal";
-import { PreOrderToastContainer } from "../components/PreOrder/PreOrderToastContainer";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { usePreOrderDetail, EditingCell } from "../hooks/usePreOrderDetail";
 import { updatePreOrder } from "../services/preOrdersFirebase";
@@ -791,6 +790,7 @@ interface Props {
   convertTarget: PreOrder | null;
   setConvertTarget: (v: PreOrder | null) => void;
   handleSubmit: (data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void;
   /** Jika true, halaman diakses via share link (tanpa login) */
   isShareMode?: boolean;
   isRotated?: boolean;
@@ -813,6 +813,7 @@ export function PreOrderDetailPage({
   convertTarget,
   setConvertTarget,
   handleSubmit,
+  showToast,
   isShareMode = false,
   isRotated: propIsRotated,
   onToggleRotate,
@@ -923,8 +924,6 @@ export function PreOrderDetailPage({
     editingCell,
     setEditingCell,
     savingCell,
-    toasts,
-    setToasts,
     selectedIds,
     setSelectedIds,
     confirmModal,
@@ -946,18 +945,12 @@ export function PreOrderDetailPage({
     setShowForm,
     setEditing,
     setConvertTarget,
-    handleSubmit
+    handleSubmit,
+    showToast
   );
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
-      <AnimatePresence>
-        <PreOrderToastContainer
-          toasts={toasts}
-          remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))}
-        />
-      </AnimatePresence>
-
       <div className="max-w-[1600px] mx-auto px-3 sm:px-5 lg:px-8 py-4 space-y-4">
 
         {/* ── Top Bar ── */}

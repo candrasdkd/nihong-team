@@ -3,9 +3,7 @@ import { DepartureSchedule, Jastiper } from "../types";
 import { listenSchedules, addSchedule, updateSchedule, deleteSchedule } from "../services/schedulesFirebase";
 import { listenJastipers } from "../services/jastipersFirebase";
 
-export type ToastMsg = { id: number; message: string; type: "success" | "error" };
-
-export function useSchedules() {
+export function useSchedules(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
   const [schedules, setSchedules] = useState<DepartureSchedule[]>([]);
   const [jastipers, setJastipers] = useState<Jastiper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +11,6 @@ export function useSchedules() {
   const [statusFilter, setStatusFilter] = useState<string>("Open");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DepartureSchedule | null>(null);
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -70,19 +67,17 @@ export function useSchedules() {
     return filtered.slice(0, visibleCount);
   }, [filtered, visibleCount]);
 
-  function addToast(message: string, type: "success" | "error") {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }
+  const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
+    showToast?.(message, type);
+  };
 
   async function handleSubmit(data: Omit<DepartureSchedule, "id" | "createdAt" | "updatedAt" | "beratTerpakai">) {
     if (editing) {
       await updateSchedule(editing.id, data);
-      addToast("Jadwal berhasil diperbarui", "success");
+      toast("Jadwal berhasil diperbarui");
     } else {
       await addSchedule(data);
-      addToast("Jadwal keberangkatan berhasil dibuat", "success");
+      toast("Jadwal keberangkatan berhasil dibuat");
     }
   }
 
@@ -94,9 +89,9 @@ export function useSchedules() {
       onConfirm: async () => {
         try {
           await deleteSchedule(s.id);
-          addToast("Jadwal berhasil dihapus", "success");
+          toast("Jadwal berhasil dihapus");
         } catch {
-          addToast("Gagal menghapus jadwal", "error");
+          toast("Gagal menghapus jadwal", "error");
         }
       },
     });
@@ -116,8 +111,6 @@ export function useSchedules() {
     setShowForm,
     editing,
     setEditing,
-    toasts,
-    setToasts,
     confirmModal,
     setConfirmModal,
     visibleCount,
@@ -125,7 +118,6 @@ export function useSchedules() {
     filtered,
     visibleSchedules,
     openCount,
-    addToast,
     handleSubmit,
     handleDelete,
   };

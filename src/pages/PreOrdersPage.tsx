@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag, Plus, Search, Plane, Package, Weight, CalendarDays, User, ChevronRight,
 } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 import { usePreOrders } from "../hooks/usePreOrders";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
-import { PreOrderToastContainer } from "../components/PreOrder/PreOrderToastContainer";
 import { Button } from "../components/ui/Button";
 import { FAB_COLOR_CLASS } from "../utils/constants";
 import { formatDate } from "../utils/format";
@@ -13,6 +13,7 @@ import { DepartureSchedule, PreOrder } from "../types";
 import { PreOrderDetailPage } from "./PreOrderDetailPage";
 
 export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
+  const { showToast } = useOutletContext<{ showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void }>();
   const {
     preOrders,
     schedules,
@@ -28,8 +29,6 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     setEditing,
     convertTarget,
     setConvertTarget,
-    toasts,
-    setToasts,
     counts,
     groupedBySchedule,
     hasMoreSelesai,
@@ -37,7 +36,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     handleSubmit,
     handleDelete,
     handleToggleItemCheck,
-  } = usePreOrders();
+  } = usePreOrders(showToast);
 
   const STATUS_FILTERS = ["", "Pending", "Selesai"];
   const totalPO = (counts.pending || 0) + (counts.selesai || 0);
@@ -75,6 +74,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
         convertTarget={convertTarget}
         setConvertTarget={setConvertTarget}
         handleSubmit={handleSubmit}
+        showToast={showToast}
       />
     );
   }
@@ -82,9 +82,6 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
   // ─── List View ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800">
-      <AnimatePresence>
-        <PreOrderToastContainer toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
-      </AnimatePresence>
 
       <div className="page-container space-y-6">
 

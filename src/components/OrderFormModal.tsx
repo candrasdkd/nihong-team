@@ -492,7 +492,7 @@ export function OrderFormModal({
               {/* SECTION 2: DETAIL PELANGGAN & DISTRIBUSI */}
               <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
-                  <div className="p-1.5 bg-[#0a2342]/10 text-[#0a2342] rounded-lg">
+                  <div className="p-1.5 bg-brand-navyDark/10 text-brand-navyDark rounded-lg">
                     <User size={18} />
                   </div>
                   <div>
@@ -781,7 +781,7 @@ export function OrderFormModal({
               {/* CATATAN */}
               <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
-                  <div className="p-1.5 bg-[#0a2342]/10 text-[#0a2342] rounded-lg">
+                  <div className="p-1.5 bg-brand-navyDark/10 text-brand-navyDark rounded-lg">
                     <FileText size={18} />
                   </div>
                   <div>

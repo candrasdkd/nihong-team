@@ -26,8 +26,6 @@ import {
   Bookmark
 } from "lucide-react";
 
-const NAVY = "#0a2342";
-
 function formatReadableDate(dateString: string): string {
   if (!dateString) return "";
   const date = new Date(dateString + "T00:00:00");

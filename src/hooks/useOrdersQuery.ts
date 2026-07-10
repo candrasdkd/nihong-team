@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ExtendedOrder } from "../types";
 import { subscribeOrders, toExtended } from "../services/ordersFirebase";
 import { compute } from "../utils/helpers";
@@ -9,9 +10,10 @@ interface UseOrdersQueryProps {
 }
 
 export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryProps) {
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<string>("tanggal");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") ?? "");
+  const [sortBy, setSortBy] = useState<string>(searchParams.get("sortBy") ?? "tanggal");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
@@ -19,8 +21,21 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
   const [renderLimit, setRenderLimit] = useState(50);
   const [loading, setLoading] = useState(false);
 
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(searchParams.get("from") ?? "");
+  const [dateTo, setDateTo] = useState<string>(searchParams.get("to") ?? "");
+
+  // Sync filters to URL search params
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      q ? next.set("q", q) : next.delete("q");
+      statusFilter ? next.set("status", statusFilter) : next.delete("status");
+      sortBy !== "tanggal" ? next.set("sortBy", sortBy) : next.delete("sortBy");
+      dateFrom ? next.set("from", dateFrom) : next.delete("from");
+      dateTo ? next.set("to", dateTo) : next.delete("to");
+      return next;
+    }, { replace: true });
+  }, [q, statusFilter, sortBy, dateFrom, dateTo, setSearchParams]);
 
   // Client-side sorting based on active filters
   const sortedOrders = useMemo(() => {

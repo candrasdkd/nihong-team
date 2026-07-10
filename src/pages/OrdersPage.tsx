@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../context/settingsContext";
 import { Customer, ExtendedOrder } from "../types";
-import { formatCurrency } from "../utils/format";
+import { formatCurrency, CurrencyCode } from "../utils/format";
+import { PriceDisplay } from "../components/ui/PriceDisplay";
 import { FlagID, FlagJP } from "../components/ui/Flags";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -219,44 +220,6 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-// ===== TOAST COMPONENT =====
-type ToastType = { message: string; type: "success" | "error"; id: number };
-
-function ToastContainer({
-  toasts,
-  removeToast,
-}: {
-  toasts: ToastType[];
-  removeToast: (id: number) => void;
-}) {
-  return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`
-            pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border animate-in slide-in-from-right-10 duration-300
-            ${toast.type === "error" ? "bg-white border-red-200 text-red-700" : "bg-slate-900 text-white border-slate-800"}
-          `}
-        >
-          {toast.type === "error" ? (
-            <AlertCircle className="w-5 h-5 shrink-0" />
-          ) : (
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-          )}
-          <span className="text-sm font-semibold">{toast.message}</span>
-          <button
-            onClick={() => removeToast(toast.id)}
-            className={`ml-4 p-1 rounded-full hover:bg-black/10 transition-colors`}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ===== INLINE STAT CARD COMPONENT =====
 interface MiniStatCardProps {
   label: string;
@@ -347,7 +310,6 @@ export function OrdersPage({
     expandedRows,
     setExpandedRows,
     toasts,
-    setToasts,
     selectedOrders,
     sortedOrders,
     displayedOrders,
@@ -408,8 +370,6 @@ export function OrdersPage({
 
   return (
     <div className="min-h-screen bg-surface-base pb-28 font-sans text-slate-800 relative">
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-
       <div className="page-container space-y-6">
         
         {/* ── Hero Header ── */}
@@ -998,11 +958,8 @@ function ExpandableRow({
         </td>
         
         {/* Tagihan */}
-        <td className="px-6 py-4 align-middle text-right font-black text-slate-800 text-xs sm:text-sm">
-          <div className="flex items-center justify-end gap-1.5">
-            {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
-            <span>{formatCurrency(d.totalPembayaran, d.currency)}</span>
-          </div>
+        <td className="px-6 py-4 align-middle text-right text-xs sm:text-sm">
+          <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
         </td>
         
         {/* Profit */}
@@ -1221,11 +1178,8 @@ function MobileCard({
         <StatusPill status={order.status} />
 
         <div className="my-1 text-right">
-          <div className="text-xs font-black text-slate-800 flex items-center gap-1.5 justify-end">
-            {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
-            <span>{formatCurrency(d.totalPembayaran, d.currency)}</span>
-          </div>
-          <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 justify-end">
+          <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
+          <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 justify-end mt-0.5">
             <span>Profit:</span>
             <span>{formatCurrency(d.totalKeuntungan, d.currency)}</span>
           </div>
