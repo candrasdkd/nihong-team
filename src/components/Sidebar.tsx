@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   PackageSearch,
 } from "lucide-react";
-import logoLight from "../assets/logo-admin.png";
+import logo from "../assets/nihong.png";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -50,18 +50,18 @@ function NavItem({
       to={to}
       title={isCollapsed ? item.label : undefined}
       className={`
-        w-full flex items-center gap-3 rounded-input transition-all duration-200 outline-none relative group
+        w-full flex items-center gap-3 rounded-input transition-all duration-200 outline-none relative group min-h-[46px]
         ${isCollapsed ? "justify-center px-0 py-3" : "px-3.5 py-2.5"}
         ${isActive
-          ? "text-white bg-brand-navyLight/30 font-semibold"
-          : "text-slate-400 hover:text-white hover:bg-white/5"
+          ? "text-brand-navyDark bg-white font-bold shadow-[0_10px_28px_rgba(0,0,0,0.14)]"
+          : "text-slate-400 hover:text-white hover:bg-white/[0.07]"
         }
       `}
     >
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand-orange rounded-r-full" />
+        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-brand-orange rounded-full" />
       )}
-      <Icon size={18} className={`shrink-0 relative z-10 ${isActive ? "text-brand-orange" : ""}`} />
+      <Icon size={18} strokeWidth={isActive ? 2.4 : 1.9} className={`shrink-0 relative z-10 ${isActive ? "text-brand-orange" : ""}`} />
       <AnimatePresence>
         {!isCollapsed && (
           <motion.span
@@ -95,25 +95,29 @@ export function Sidebar({
 
   return (
     <motion.aside
-      animate={{ width: isCollapsed ? 72 : 256 }}
+      animate={{ width: isCollapsed ? 80 : 272 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-      className="hidden md:flex flex-col h-screen shrink-0 z-40 relative overflow-hidden"
-      style={{ background: "linear-gradient(180deg, #011D47 0%, #012E6C 100%)" }}
+      className="hidden md:flex flex-col h-screen shrink-0 z-40 relative overflow-hidden app-grid shadow-sidebar"
+      style={{ background: "linear-gradient(165deg, #071B33 0%, #0B2545 58%, #123A63 100%)" }}
     >
       <div
-        className="absolute top-0 left-0 w-48 h-48 pointer-events-none"
+        className="absolute -top-24 -left-16 w-72 h-72 pointer-events-none"
         style={{
-          background: "radial-gradient(circle at 0% 0%, rgba(247,147,30,0.08) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(242,101,34,0.16) 0%, transparent 66%)",
         }}
       />
+      <div
+        className="absolute -bottom-28 -right-24 w-72 h-72 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 68%)" }}
+      />
 
-      <div className="h-16 flex items-center justify-between px-4 shrink-0 relative border-b border-white/5">
+      <div className="h-20 flex items-center justify-between px-4 shrink-0 relative border-b border-white/[0.07]">
         <Link
           to="/"
           className={`flex items-center gap-3 focus:outline-none overflow-hidden ${isCollapsed ? "justify-center w-full" : ""}`}
         >
-          <div className="h-9 w-9 shrink-0 rounded-xl overflow-hidden shadow-lg ring-2 ring-white/10">
-            <img src={logoLight} alt="Logo" className="h-full w-full object-cover" />
+          <div className="h-10 w-10 shrink-0 rounded-[15px] overflow-hidden shadow-lg ring-1 ring-white/15">
+            <img src={logo} alt="Nihong Jastip" className="h-full w-full object-cover" />
           </div>
 
           <AnimatePresence>
@@ -125,11 +129,11 @@ export function Sidebar({
                 transition={{ duration: 0.2 }}
                 className="text-left whitespace-nowrap overflow-hidden"
               >
-                <h1 className="text-sm font-bold leading-none text-white tracking-tight">
-                  Nihong Jastip
+                <h1 className="text-[15px] font-extrabold leading-none text-white tracking-tight">
+                  Nihong
                 </h1>
-                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
-                  Admin Panel
+                <p className="text-[9px] text-brand-orangeLight font-extrabold uppercase tracking-[0.2em] mt-1">
+                  Jastip workspace
                 </p>
               </motion.div>
             )}
@@ -139,7 +143,8 @@ export function Sidebar({
         {!isCollapsed && (
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+            aria-label="Ciutkan navigasi"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
           >
             <ChevronLeft size={16} />
           </button>
@@ -149,13 +154,17 @@ export function Sidebar({
       {isCollapsed && (
         <button
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-[72px] bg-brand-navy border border-white/10 rounded-full p-1 text-slate-400 hover:text-white shadow-lg z-50 transition-colors"
+          aria-label="Perluas navigasi"
+          className="absolute right-3 top-[88px] bg-white/10 border border-white/10 rounded-xl p-1.5 text-slate-400 hover:text-white hover:bg-white/15 shadow-lg z-50 transition-colors"
         >
           <ChevronRight size={13} />
         </button>
       )}
 
-      <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar">
+      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 custom-scrollbar relative">
+        {!isCollapsed && (
+          <p className="text-[9px] font-extrabold text-slate-500 uppercase tracking-[0.2em] px-3 pb-2">Utama</p>
+        )}
         {MENU_ITEMS.map((item) => {
           const isActive = currentTab === item.id;
           return (
@@ -169,8 +178,8 @@ export function Sidebar({
         })}
 
         {!isCollapsed && (
-          <div className="pt-4 pb-1">
-            <p className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest px-3">Lainnya</p>
+          <div className="pt-5 pb-1">
+            <p className="text-[9px] font-extrabold text-slate-500 uppercase tracking-[0.2em] px-3">Operasional</p>
           </div>
         )}
         {isCollapsed && <div className="my-2 mx-3 border-t border-white/10" />}
@@ -188,9 +197,9 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="shrink-0 p-3 border-t border-white/5">
-        <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
-          <div className="h-9 w-9 shrink-0 rounded-xl bg-brand-orange grid place-items-center text-white text-sm font-bold shadow-lg ring-2 ring-white/10">
+      <div className="shrink-0 p-3 border-t border-white/[0.07] relative">
+        <div className={`flex items-center gap-3 rounded-2xl bg-white/[0.06] border border-white/[0.07] p-2.5 ${isCollapsed ? "justify-center" : ""}`}>
+          <div className="h-10 w-10 shrink-0 rounded-[14px] bg-brand-orange grid place-items-center text-white text-sm font-extrabold shadow-lg shadow-orange-950/20">
             {user.email?.[0].toUpperCase() || "A"}
           </div>
 
@@ -203,10 +212,10 @@ export function Sidebar({
                 transition={{ duration: 0.15 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-semibold text-white truncate leading-none">
+                <p className="text-sm font-bold text-white truncate leading-none">
                   {user.displayName || "Admin"}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate mt-0.5">{user.email}</p>
+                <p className="text-[10px] text-slate-400 truncate mt-1">{user.email}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -219,7 +228,8 @@ export function Sidebar({
                 exit={{ opacity: 0 }}
                 onClick={onLogout}
                 title="Keluar"
-                className="p-2 shrink-0 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                aria-label="Keluar dari akun"
+                className="p-2 shrink-0 rounded-xl text-slate-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut size={16} />
               </motion.button>
@@ -231,7 +241,8 @@ export function Sidebar({
           <button
             onClick={onLogout}
             title="Keluar"
-            className="mt-3 w-full flex justify-center p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            aria-label="Keluar dari akun"
+            className="mt-3 w-full flex justify-center p-2 rounded-xl text-slate-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
           >
             <LogOut size={17} />
           </button>

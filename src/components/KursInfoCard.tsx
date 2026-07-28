@@ -38,25 +38,28 @@ export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: num
   const converted = rate ? Math.round(yenVal * rate) : 0;
 
   return (
-    <Card className="flex flex-col gap-4">
+    <Card className="flex flex-col gap-4 overflow-hidden">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-brand-navy/5 text-brand-navy flex items-center justify-center">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-brand-cream text-brand-orange">
             <Calculator size={14} />
           </div>
-          <h3 className="text-sm font-bold text-slate-800">Kurs & Harga Jastip</h3>
+          <div>
+            <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Kalkulator</p>
+            <h3 className="text-sm font-extrabold text-brand-navyDark">Kurs & Harga Jastip</h3>
+          </div>
         </div>
         {loading && <RefreshCw size={14} className="text-slate-400 animate-spin" />}
       </div>
 
-      <div className="bg-slate-50 border border-surface-border rounded-xl p-3 flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-2xl border border-brand-mist bg-brand-mist/60 p-3">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-surface-border shadow-sm">
+          <div className="flex items-center gap-1.5 rounded-xl border border-white bg-white px-2.5 py-1 shadow-sm">
             <FlagJP />
             <span className="text-xs font-bold text-slate-700">1 JPY</span>
           </div>
           <ArrowRightLeft size={12} className="text-slate-400 shrink-0" />
-          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-surface-border shadow-sm">
+          <div className="flex items-center gap-1.5 rounded-xl border border-white bg-white px-2.5 py-1 shadow-sm">
             <FlagID />
             <span className="text-xs font-bold text-slate-700">IDR</span>
           </div>
@@ -85,13 +88,13 @@ export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: num
               type="number"
               value={yenInput}
               onChange={handleYenChange}
-              className="w-full bg-white border border-surface-border rounded-input py-2 pl-8 pr-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy/20 transition-shadow"
+              className="w-full rounded-input border border-surface-border bg-white py-2.5 pl-8 pr-3 text-sm font-bold text-brand-navyDark transition-shadow focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/10"
               placeholder="Contoh: 1000"
             />
           </div>
         </div>
 
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex flex-col justify-center items-center gap-1">
+        <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-3">
           <span className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest">Estimasi Rupiah</span>
           {loading ? (
             <div className="w-24 h-6 bg-emerald-200/50 animate-pulse rounded mt-1" />

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Check } from "lucide-react";
 import { login } from "../services/authFirebase";
 import logo from "../assets/nihong.png";
 
@@ -37,10 +38,10 @@ function InputField({ id, label, type, value, onChange, icon, rightElement }: In
 
       <label
         htmlFor={id}
-        className={`absolute left-12 transition-all duration-200 pointer-events-none font-medium ${
+        className={`pointer-events-none absolute left-12 font-bold transition-all duration-200 ${
           isFloating
-            ? "top-2 text-[10px] tracking-widest uppercase text-brand-orange"
-            : "top-1/2 -translate-y-1/2 text-sm text-slate-400"
+            ? "top-2 text-[9px] uppercase tracking-[0.14em] text-brand-orange"
+            : "top-1/2 -translate-y-1/2 text-sm text-slate-500"
         }`}
       >
         {label}
@@ -55,10 +56,10 @@ function InputField({ id, label, type, value, onChange, icon, rightElement }: In
         onBlur={() => setFocused(false)}
         required
         autoComplete={type === "email" ? "email" : "current-password"}
-        className={`w-full bg-white/5 rounded-input border px-4 pt-6 pb-3 pl-12 text-white outline-none transition-all duration-200 text-sm font-medium placeholder-transparent ${
+        className={`w-full rounded-input border bg-slate-50 px-4 pb-3 pl-12 pt-6 text-sm font-semibold text-brand-navyDark outline-none transition-all duration-200 placeholder-transparent ${
           focused
-            ? "border-brand-orange/70 bg-white/8 shadow-[0_0_0_3px_rgba(247,147,30,0.1)]"
-            : "border-white/10 hover:border-white/20"
+            ? "border-brand-orange bg-white shadow-[0_0_0_4px_rgba(242,101,34,0.1)]"
+            : "border-surface-border hover:border-slate-300"
         } ${rightElement ? "pr-12" : "pr-4"}`}
         placeholder={label}
       />
@@ -99,85 +100,88 @@ export function LoginPage() {
   );
 
   return (
-    <div className="min-h-screen bg-brand-navyDark flex items-center justify-center overflow-hidden relative select-none">
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark" />
+    <div className="relative flex min-h-screen select-none items-center justify-center overflow-hidden bg-surface-base px-4 py-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(242,101,34,0.10),transparent_30%),radial-gradient(circle_at_90%_90%,rgba(21,69,116,0.10),transparent_34%)]" />
 
       <FloatingOrb
         size={500}
-        color="radial-gradient(circle, rgba(247,147,30,0.15) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(242,101,34,0.12) 0%, transparent 70%)"
         x="-10%"
         y="-20%"
         duration={8}
       />
       <FloatingOrb
         size={400}
-        color="radial-gradient(circle, rgba(1,46,108,0.4) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(21,69,116,0.12) 0%, transparent 70%)"
         x="60%"
         y="50%"
         duration={10}
       />
       <FloatingOrb
         size={300}
-        color="radial-gradient(circle, rgba(247,147,30,0.08) 0%, transparent 70%)"
+        color="radial-gradient(circle, rgba(242,101,34,0.06) 0%, transparent 70%)"
         x="80%"
         y="-10%"
         duration={12}
       />
 
       <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
+            "linear-gradient(rgba(11,37,69,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(11,37,69,0.5) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
       />
 
-      <div className="relative z-10 w-full max-w-[960px] mx-4 grid md:grid-cols-2 gap-0 rounded-card overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.6)] border border-white/[0.06]">
+      <div className="relative z-10 grid w-full max-w-[1080px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_38px_110px_rgba(7,27,51,0.18)] md:min-h-[650px] md:grid-cols-[1.12fr_0.88fr]">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-brand-navyLight/80 to-brand-navyDark/90 backdrop-blur-sm relative overflow-hidden"
+          className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyLight p-14 md:flex"
         >
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-brand-orange/10 blur-2xl pointer-events-none" />
-          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-brand-orange/5 blur-2xl pointer-events-none" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-brand-orange/20 blur-3xl" />
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full border-[36px] border-white/[0.04]" />
+          <div className="pointer-events-none absolute inset-0 app-grid opacity-70" />
 
-          <div>
-            <div className="flex items-center gap-3 mb-10">
-              <img src={logo} alt="Nihong Jastip" className="h-10 w-10 object-contain rounded-lg" />
+          <div className="relative">
+            <div className="mb-16 flex items-center gap-3">
+              <img src={logo} alt="Nihong Jastip" className="h-11 w-11 rounded-[15px] object-cover shadow-lg ring-1 ring-white/15" />
               <div>
-                <h2 className="text-white font-bold text-lg leading-none">Nihong</h2>
-                <p className="text-brand-orange text-xs font-semibold tracking-widest uppercase">Jastip</p>
+                <h2 className="text-lg font-extrabold leading-none text-white">Nihong</h2>
+                <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.22em] text-brand-orangeLight">Jastip workspace</p>
               </div>
             </div>
 
-            <h1 className="text-white text-4xl font-bold leading-tight mb-4">
-              Admin Panel
+            <p className="eyebrow mb-4 text-brand-orangeLight">Control center</p>
+            <h1 className="mb-5 max-w-md text-4xl font-extrabold leading-[1.08] tracking-tight text-white lg:text-5xl">
+              Operasional jastip, lebih tertata.
             </h1>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-[260px]">
-              Kelola pesanan, pelanggan, dan keuangan bisnis jastip Anda dari satu tempat.
+            <p className="max-w-md text-sm leading-relaxed text-slate-300">
+              Satu workspace untuk mengelola pesanan, pelanggan, jadwal, dan arus kas Nihong secara real-time.
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="relative grid grid-cols-2 gap-3">
             {[
-              { icon: "\uD83D\uDCE6", text: "Manajemen pesanan real-time" },
-              { icon: "\uD83D\uDC65", text: "Database pelanggan terpusat" },
-              { icon: "\uD83D\uDCB0", text: "Laporan keuangan otomatis" },
-              { icon: "\uD83D\uDCD3", text: "Jadwal & notifikasi cerdas" },
+              "Pesanan real-time",
+              "Data pelanggan",
+              "Laporan keuangan",
+              "Jadwal terintegrasi",
             ].map((item) => (
-              <div key={item.text} className="flex items-center gap-3 text-slate-300 text-sm">
-                <span className="text-base">{item.icon}</span>
-                <span>{item.text}</span>
+              <div key={item} className="flex items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.06] px-3 py-3 text-xs font-semibold text-slate-200 backdrop-blur-sm">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-brand-orange/20 text-brand-orangeLight">
+                  <Check size={13} strokeWidth={3} />
+                </span>
+                <span>{item}</span>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 flex items-center gap-2">
-            <div className="h-[1px] flex-1 bg-white/10" />
-            <span className="text-white/20 text-xs font-mono tracking-wider">AUTHORIZED ACCESS ONLY</span>
-            <div className="h-[1px] flex-1 bg-white/10" />
+          <div className="relative mt-8 flex items-center gap-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Sistem aktif dan tersinkronisasi</span>
           </div>
         </motion.div>
 
@@ -185,19 +189,20 @@ export function LoginPage() {
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col justify-center p-10 md:p-12 bg-brand-navy/70 backdrop-blur-2xl"
+          className="flex flex-col justify-center bg-white p-7 sm:p-10 md:p-12"
         >
           <div className="flex md:hidden items-center gap-3 mb-8">
-            <img src={logo} alt="Nihong Jastip" className="h-9 w-9 object-contain rounded-lg" />
+            <img src={logo} alt="Nihong Jastip" className="h-10 w-10 rounded-[14px] object-cover shadow-sm" />
             <div>
-              <h2 className="text-white font-bold text-base leading-none">Nihong Jastip</h2>
-              <p className="text-brand-orange text-[10px] font-semibold tracking-widest uppercase">Admin Panel</p>
+              <h2 className="text-base font-extrabold leading-none text-brand-navyDark">Nihong</h2>
+              <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.18em] text-brand-orange">Jastip workspace</p>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-1">Selamat Datang</h2>
-            <p className="text-slate-400 text-sm">Masuk dengan akun admin Anda.</p>
+            <p className="eyebrow mb-3 text-brand-orange">Akses admin</p>
+            <h2 className="mb-2 text-3xl font-extrabold tracking-tight text-brand-navyDark">Selamat datang</h2>
+            <p className="text-sm leading-relaxed text-slate-500">Masuk untuk melanjutkan pekerjaan Anda di Nihong.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -229,7 +234,8 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass((v) => !v)}
-                  className="text-slate-400 hover:text-slate-200 transition-colors"
+                  aria-label={showPass ? "Sembunyikan password" : "Tampilkan password"}
+                  className="text-slate-400 transition-colors hover:text-brand-navy"
                   tabIndex={-1}
                 >
                   {showPass ? (
@@ -253,7 +259,7 @@ export function LoginPage() {
                   exit={{ opacity: 0, y: -8, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm">
+                  <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                       <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
@@ -268,11 +274,10 @@ export function LoginPage() {
               disabled={loading || !email || !password}
               whileHover={{ scale: loading ? 1 : 1.01 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
-              className="relative w-full py-3.5 rounded-input font-bold text-sm tracking-wider overflow-hidden transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="relative mt-2 w-full overflow-hidden rounded-input py-3.5 text-sm font-extrabold tracking-wide text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: "linear-gradient(135deg, #F7931E 0%, #e07d0c 100%)",
-                boxShadow: loading ? "none" : "0 8px 32px rgba(247,147,30,0.3)",
-                color: "#fff",
+                background: "linear-gradient(135deg, #F26522 0%, #D95216 100%)",
+                boxShadow: loading ? "none" : "0 12px 30px rgba(242,101,34,0.28)",
               }}
             >
               <AnimatePresence mode="wait">
@@ -312,16 +317,18 @@ export function LoginPage() {
                     key="default"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
+                    className="flex items-center justify-center gap-2"
                   >
                     Masuk ke Dashboard
+                    <ArrowRight size={16} />
                   </motion.span>
                 )}
               </AnimatePresence>
             </motion.button>
           </form>
 
-          <p className="mt-8 text-center text-[11px] text-slate-600 tracking-wide">
-            &copy; {new Date().getFullYear()} Nihong Jastip &middot Admin Only
+          <p className="mt-8 text-center text-[10px] font-semibold tracking-wide text-slate-400">
+            &copy; {new Date().getFullYear()} Nihong Jastip · Akses terbatas untuk tim
           </p>
         </motion.div>
       </div>

@@ -16,58 +16,54 @@ const MENU_ITEMS = [
     label: "Pelanggan",
     description: "Kelola data dan info kontak pelanggan",
     icon: Users,
-    gradient: "from-indigo-500 to-blue-600",
-    glow: "shadow-indigo-500/20",
-    bg: "bg-indigo-50",
-    iconColor: "text-indigo-600",
-    accent: "border-indigo-200",
+    gradient: "from-brand-navy to-brand-navyLight",
+    bg: "bg-brand-mist",
+    iconColor: "text-brand-navy",
+    accent: "ring-brand-navy/10",
   },
   {
     id: "jastipers" as TabId,
     label: "Jastiper",
     description: "Daftar jastiper beserta kontak & alamat",
     icon: UserRound,
-    gradient: "from-violet-500 to-purple-600",
-    glow: "shadow-violet-500/20",
+    gradient: "from-violet-500 to-violet-700",
     bg: "bg-violet-50",
     iconColor: "text-violet-600",
-    accent: "border-violet-200",
+    accent: "ring-violet-200/70",
   },
   {
     id: "schedules" as TabId,
     label: "Jadwal Keberangkatan",
     description: "Buat & pantau jadwal perjalanan jastiper",
     icon: Calendar,
-    gradient: "from-sky-500 to-blue-600",
-    glow: "shadow-sky-500/20",
-    bg: "bg-sky-50",
-    iconColor: "text-sky-600",
-    accent: "border-sky-200",
+    gradient: "from-amber-500 to-orange-600",
+    bg: "bg-amber-50",
+    iconColor: "text-amber-700",
+    accent: "ring-amber-200/70",
   },
   {
     id: "preorders" as TabId,
     label: "Booking Jadwal",
     description: "Catat booking konsumen & konversi ke pesanan",
     icon: ShoppingBag,
-    gradient: "from-rose-500 to-pink-600",
-    glow: "shadow-rose-500/20",
-    bg: "bg-rose-50",
-    iconColor: "text-rose-600",
-    accent: "border-rose-200",
+    gradient: "from-brand-orange to-orange-600",
+    bg: "bg-brand-cream",
+    iconColor: "text-brand-orange",
+    accent: "ring-brand-orange/15",
   },
 ];
 
 export function MenuPage({ onTabChange }: MenuPageProps) {
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans">
-      <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="mx-auto max-w-[960px] space-y-6 px-4 py-6 sm:px-6 sm:py-8">
 
         <HeroPageHeader
           variant="gradient"
           badgeIcon={Plane}
           badgeLabel="Nihong Jastip Admin"
-          title="Menu Fitur 🗂️"
-          description="Akses cepat ke semua fitur manajemen jastip Anda."
+          title="Pusat Operasional"
+          description="Akses seluruh data pendukung bisnis jastip Anda dari satu tempat."
         />
 
         {/* Menu Grid */}
@@ -81,20 +77,21 @@ export function MenuPage({ onTabChange }: MenuPageProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: idx * 0.07 }}
                 onClick={() => onTabChange(item.id)}
-                className={`group relative bg-white rounded-2xl border ${item.accent} shadow-sm hover:shadow-lg hover:-translate-y-1 active:translate-y-0 active:scale-[0.99] transition-all duration-300 p-5 text-left overflow-hidden`}
+                className={`group relative overflow-hidden rounded-card border border-white bg-surface-card p-5 text-left shadow-card ring-1 ${item.accent} transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover active:translate-y-0 active:scale-[0.99]`}
               >
                 {/* Background glow on hover */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.gradient}`} />
+                <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-[0.035]`} />
 
                 <div className="relative flex items-start gap-4">
                   {/* Icon */}
-                  <div className={`w-14 h-14 rounded-2xl ${item.bg} border ${item.accent} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-300`}>
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] ${item.bg} ring-1 ${item.accent} transition-transform duration-300 group-hover:scale-105`}>
                     <Icon size={26} className={item.iconColor} strokeWidth={2} />
                   </div>
 
                   {/* Text */}
                   <div className="flex-1 min-w-0 pt-0.5">
-                    <h3 className="font-extrabold text-slate-800 text-sm tracking-tight mb-1 group-hover:text-slate-900 transition-colors">
+                    <h3 className="mb-1 text-sm font-extrabold tracking-tight text-brand-navyDark transition-colors">
                       {item.label}
                     </h3>
                     <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2">
@@ -103,7 +100,7 @@ export function MenuPage({ onTabChange }: MenuPageProps) {
                   </div>
 
                   {/* Arrow */}
-                  <div className={`w-8 h-8 rounded-xl ${item.bg} border ${item.accent} flex items-center justify-center shrink-0 mt-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300`}>
+                  <div className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${item.bg} ring-1 ${item.accent} opacity-60 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100`}>
                     <ArrowRight size={14} className={item.iconColor} />
                   </div>
                 </div>
@@ -120,7 +117,7 @@ export function MenuPage({ onTabChange }: MenuPageProps) {
           className="text-center py-4"
         >
           <p className="text-xs text-slate-400 font-semibold">
-            Nihong Jastip Admin Panel • Semua data tersinkronisasi secara real-time
+            Nihong Jastip · Semua data tersinkronisasi secara real-time
           </p>
         </motion.div>
       </div>

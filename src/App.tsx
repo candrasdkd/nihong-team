@@ -49,7 +49,7 @@ import { checkAndProcessExpiredSchedules } from "./services/preOrdersFirebase";
 
 
 // Assets
-import logoLight from "./assets/logo-admin.png";
+import logo from "./assets/nihong.png";
 
 // Route wrapper components
 function DashboardRoute() {
@@ -216,7 +216,7 @@ function AppShell() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="flex h-screen overflow-hidden w-full z-10 relative"
+      className="relative z-10 flex h-screen w-full overflow-hidden"
     >
       {/* SIDEBAR */}
       <Sidebar
@@ -226,18 +226,27 @@ function AppShell() {
       />
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-surface-base relative">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-transparent">
         {/* Header toolbar for mobile */}
-        <header className="h-14 flex items-center justify-between px-4 bg-surface-card border-b border-surface-border shrink-0 md:hidden relative z-10">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-lg overflow-hidden border border-surface-border p-0.5">
-              <img src={logoLight} alt="Logo" className="h-full w-full object-cover rounded-md" />
+        <header className="relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-white/80 bg-surface-card/90 px-4 backdrop-blur-xl md:hidden">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 overflow-hidden rounded-[13px] shadow-sm ring-1 ring-surface-border">
+              <img src={logo} alt="Nihong Jastip" className="h-full w-full object-cover" />
             </div>
-            <span className="text-xs font-bold text-brand-navy tracking-wide">Nihong Jastip</span>
+            <div>
+              <span className="block text-sm font-extrabold leading-none tracking-tight text-brand-navyDark">Nihong</span>
+              <span className="mt-1 block text-[8px] font-extrabold uppercase tracking-[0.2em] text-brand-orange">
+                Jastip workspace
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Live
           </div>
         </header>
 
-        <main className="flex-1 pb-16 md:pb-0 relative">
+        <main className="relative flex-1 pb-24 md:pb-0">
           <AnimatePresence mode="popLayout">
             <motion.div
               key={location.pathname}
@@ -320,51 +329,30 @@ function RootLayout() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface-base p-4">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-brand-orange/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-brand-navy/10 blur-3xl" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center gap-6 max-w-sm w-full text-center"
+          className="relative flex w-full max-w-sm flex-col items-center gap-6 text-center"
         >
-          {/* Spinner Animation */}
-          <div className="relative w-20 h-20">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="spinner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#10b981" />
-                </linearGradient>
-              </defs>
-              <circle
-                cx="50"
-                cy="50"
-                r="44"
-                stroke="rgba(99, 102, 241, 0.04)"
-                strokeWidth="3.5"
-                fill="none"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="44"
-                stroke="url(#spinner-grad)"
-                strokeWidth="3.5"
-                fill="none"
-                strokeDasharray="276"
-                strokeDashoffset="100"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 m-auto h-12 w-12 rounded-full bg-white border border-neutral-100 shadow-xl grid place-items-center overflow-hidden p-0.5">
-              <img src={logoLight} alt="Logo" className="h-full w-full object-cover rounded-full" />
+          <div className="relative grid h-20 w-20 place-items-center rounded-[26px] bg-white shadow-[0_20px_50px_rgba(7,27,51,0.14)] ring-1 ring-surface-border">
+            <motion.div
+              className="absolute -inset-1 rounded-[28px] border-2 border-brand-orange border-r-transparent"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.15, repeat: Infinity, ease: "linear" }}
+            />
+            <div className="h-14 w-14 overflow-hidden rounded-[18px]">
+              <img src={logo} alt="Nihong Jastip" className="h-full w-full object-cover" />
             </div>
           </div>
           <div className="space-y-1">
-            <h1 className="text-sm font-black tracking-widest text-slate-400 uppercase">
-              Memuat Aplikasi
+            <h1 className="text-sm font-black uppercase tracking-[0.18em] text-brand-navyDark">
+              Menyiapkan workspace
             </h1>
-            <p className="text-[10px] font-bold text-slate-500 max-w-[220px] leading-relaxed">
-              Menghubungkan ke sesi aman Firebase...
+            <p className="max-w-[240px] text-xs font-medium leading-relaxed text-slate-500">
+              Menghubungkan data operasional Nihong secara aman…
             </p>
           </div>
         </motion.div>

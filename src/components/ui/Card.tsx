@@ -11,9 +11,9 @@ export function Card({ children, className = "", padding = true, hover = false }
   return (
     <div
       className={`
-        bg-surface-card border border-surface-border rounded-card shadow-card
+        bg-surface-card border border-white/90 ring-1 ring-surface-border/80 rounded-card shadow-card
         ${padding ? 'p-5' : ''}
-        ${hover ? 'hover:shadow-card-hover hover:border-slate-200 transition-all duration-200' : ''}
+        ${hover ? 'hover:-translate-y-0.5 hover:shadow-card-hover hover:ring-slate-300/80 transition-all duration-200' : ''}
         ${className}
       `}
     >

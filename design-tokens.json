@@ -1,19 +1,21 @@
 {
   "$schema": "https://schemas.example.org/design-tokens-v1",
   "description": "Nihong Jastip Admin — Design Tokens for cross-platform visual consistency (React → Flutter migration reference)",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "colors": {
     "brand": {
-      "navy": "#012E6C",
-      "navyLight": "#0A4A9E",
-      "navyDark": "#011D47",
-      "orange": "#F7931E",
-      "orangeLight": "#FFB35C"
+      "navy": "#0B2545",
+      "navyLight": "#154574",
+      "navyDark": "#071B33",
+      "orange": "#F26522",
+      "orangeLight": "#FF8A4C",
+      "cream": "#FFF4E8",
+      "mist": "#EAF0F6"
     },
     "surface": {
-      "base": "#F8FAFC",
-      "card": "#FFFFFF",
-      "border": "#E2E8F0"
+      "base": "#F4F6F8",
+      "card": "#FFFEFC",
+      "border": "#DDE3EA"
     },
     "text": {
       "primary": "#1E293B",
@@ -35,9 +37,9 @@
   "borderRadius": {
     "none": "0px",
     "sm": "8px",
-    "card": "20px",
-    "input": "12px",
-    "button": "12px",
+    "card": "24px",
+    "input": "14px",
+    "button": "14px",
     "full": "9999px"
   },
   "spacing": {
@@ -67,8 +69,8 @@
     }
   },
   "shadow": {
-    "card": "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)",
-    "cardHover": "0 4px 12px 0 rgba(0,0,0,0.06), 0 1px 3px 0 rgba(0,0,0,0.04)",
+    "card": "0 1px 2px rgba(7,27,51,0.04), 0 10px 30px rgba(7,27,51,0.035)",
+    "cardHover": "0 16px 38px rgba(7,27,51,0.09), 0 2px 6px rgba(7,27,51,0.05)",
     "modal": "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)"
   },
   "breakpoints": {

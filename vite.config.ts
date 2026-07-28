@@ -1,10 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { sites } from "./build/sites-vite-plugin";
 
 export default defineConfig({
   plugins: [
     react(),
+    sites(),
     VitePWA({
       registerType: "prompt",
       workbox: {
@@ -12,11 +14,11 @@ export default defineConfig({
       },
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "mask-icon.svg"],
       manifest: {
-        name: "Nihong Jastip Admin",
-        short_name: "NJ Admin",
-        description: "Admin panel for Nihong Jastip",
-        theme_color: "#4c1d95",
-        background_color: "#ffffff",
+        name: "Nihong Jastip Workspace",
+        short_name: "Nihong",
+        description: "Workspace operasional Nihong Jastip",
+        theme_color: "#071B33",
+        background_color: "#F4F6F8",
         display: "standalone",
         start_url: "/",
         icons: [
@@ -40,4 +42,7 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    outDir: "dist/client",
+  },
 });

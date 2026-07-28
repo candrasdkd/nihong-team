@@ -14,12 +14,12 @@ function cn(...classes: (string | undefined | null | false)[]) {
 }
 
 const BASE =
-  "inline-flex items-center justify-center rounded-input font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] min-h-[44px]";
+  "inline-flex items-center justify-center gap-2 rounded-input font-bold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] min-h-[44px]";
 
 const VARIANTS: Record<Variant, string> = {
-  primary:   "bg-brand-orange text-white hover:bg-brand-orangeLight focus:ring-brand-orange shadow-sm",
-  secondary: "bg-brand-navy text-white hover:bg-brand-navyLight focus:ring-brand-navy shadow-sm",
-  outline:   "border border-surface-border bg-transparent text-slate-700 hover:bg-slate-50 focus:ring-slate-300",
+  primary:   "bg-brand-orange text-white hover:bg-[#DC571A] focus:ring-brand-orange shadow-[0_8px_20px_rgba(242,101,34,0.22)]",
+  secondary: "bg-brand-navy text-white hover:bg-brand-navyLight focus:ring-brand-navy shadow-[0_8px_20px_rgba(11,37,69,0.16)]",
+  outline:   "border border-surface-border bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus:ring-slate-300",
   ghost:     "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-300",
   danger:    "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm",
   success:   "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm",

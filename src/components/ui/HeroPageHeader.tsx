@@ -26,23 +26,24 @@ export function HeroPageHeader({
   return (
     <>
       <div className="block sm:hidden">
-        <h2 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h2>
-        <p className="text-xs text-slate-500 mt-1 font-medium">{mobileSubtitle ?? description}</p>
+        <p className="eyebrow mb-2 text-brand-orange">{badgeLabel}</p>
+        <h2 className="text-xl font-extrabold text-brand-navyDark tracking-tight">{title}</h2>
+        <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">{mobileSubtitle ?? description}</p>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`hidden sm:block relative overflow-hidden rounded-card px-6 py-7 shadow-sm ${
+        className={`hidden sm:block relative overflow-hidden rounded-card px-7 py-8 shadow-[0_16px_45px_rgba(7,27,51,0.14)] ${
           isGradient
-            ? "bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyDark border border-white/5"
-            : "bg-brand-navy"
+            ? "bg-gradient-to-br from-brand-navyDark via-brand-navy to-brand-navyLight border border-white/10"
+            : "bg-brand-navy border border-brand-navyLight/40"
         }`}
       >
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-orange/5 blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-white/5 blur-3xl" />
+          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-orange/15 blur-3xl" />
+          <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-white/10 blur-3xl" />
         </div>
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -54,7 +55,7 @@ export function HeroPageHeader({
               <Icon size={12} />
               <span>{badgeLabel}</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{title}</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{title}</h2>
             <p className={`mt-2 text-sm max-w-lg leading-relaxed ${
               isGradient ? "text-slate-400" : "text-slate-300"
             }`}>{description}</p>

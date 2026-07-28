@@ -1,16 +1,25 @@
-import React, { ElementType, useEffect, useRef, useState } from "react";
+import { ElementType, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Home, ClipboardList, Wallet, LayoutGrid, Zap, ShoppingBag, Calendar } from "lucide-react";
+import {
+  Calendar,
+  ClipboardList,
+  Home,
+  LayoutGrid,
+  Plus,
+  ShoppingBag,
+  Wallet,
+} from "lucide-react";
 import { TabId } from "../types";
 
-const LEFT_TABS:  { id: TabId; label: string; Icon: ElementType }[] = [
-  { id: "home",   label: "Dashboard", Icon: Home },
-  { id: "orders", label: "Pesanan",   Icon: ClipboardList },
+const LEFT_TABS: { id: TabId; label: string; Icon: ElementType }[] = [
+  { id: "home", label: "Beranda", Icon: Home },
+  { id: "orders", label: "Pesanan", Icon: ClipboardList },
 ];
+
 const RIGHT_TABS: { id: TabId; label: string; Icon: ElementType }[] = [
   { id: "menu", label: "Menu", Icon: LayoutGrid },
-  { id: "cash", label: "Kas",  Icon: Wallet },
+  { id: "cash", label: "Kas", Icon: Wallet },
 ];
 
 const MENU_CHILD_TABS = new Set(["customers", "jastipers", "schedules", "preorders"]);
@@ -23,26 +32,42 @@ interface BottomTabBarProps {
 }
 
 function TabButton({
-  id, label, Icon, current, setTab,
-}: { id: TabId; label: string; Icon: ElementType; current: TabId; setTab: (t: TabId) => void }) {
-  const active = id === "menu"
-    ? (current === "menu" || MENU_CHILD_TABS.has(current))
-    : current === id;
+  id,
+  label,
+  Icon,
+  current,
+  setTab,
+}: {
+  id: TabId;
+  label: string;
+  Icon: ElementType;
+  current: TabId;
+  setTab: (tab: TabId) => void;
+}) {
+  const active =
+    id === "menu" ? current === "menu" || MENU_CHILD_TABS.has(current) : current === id;
 
   return (
     <button
       onClick={() => setTab(id)}
       aria-current={active ? "page" : undefined}
-      title={label}
-      className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all active:scale-95 min-h-[44px]
-        ${active ? "text-brand-navy" : "text-slate-400 hover:text-slate-600"}`}
+      aria-label={label}
+      className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-[18px] transition-all active:scale-95 ${
+        active ? "text-brand-navyDark" : "text-slate-400"
+      }`}
     >
+      {active && (
+        <motion.span
+          layoutId="mobile-active-tab"
+          className="absolute inset-1.5 rounded-2xl bg-brand-mist"
+          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+        />
+      )}
       <Icon
-        className="h-5 w-5"
-        fill={active ? "rgba(1, 46, 108, 0.12)" : "none"}
-        strokeWidth={active ? 2.4 : 1.8}
+        className="relative z-10 h-[19px] w-[19px]"
+        strokeWidth={active ? 2.5 : 1.9}
       />
-      <span className="text-[10px] leading-none font-bold">{label}</span>
+      <span className="relative z-10 text-[9px] font-extrabold tracking-tight">{label}</span>
     </button>
   );
 }
@@ -57,85 +82,71 @@ export function BottomTabBar({
   const navigate = useNavigate();
   const [fabOpen, setFabOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(window.innerWidth);
 
-  useEffect(() => {
-    const handleResize = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const current =
+    location.pathname === "/"
+      ? "home"
+      : (location.pathname.substring(1).split("/")[0] as TabId);
 
-  const current = location.pathname === "/"
-    ? "home"
-    : (location.pathname.substring(1).split("/")[0] as TabId);
-
-  const setTab = (t: TabId) => {
-    navigate(t === "home" ? "/" : `/${t}`);
+  const setTab = (tab: TabId) => {
+    setFabOpen(false);
+    navigate(tab === "home" ? "/" : `/${tab}`);
   };
-
-  const C = width / 2;
-  const h = 64;
-  const pathData = `
-    M 0 0
-    L ${C - 70} 0
-    C ${C - 52} 0, ${C - 44} 8, ${C - 36} 18
-    C ${C - 24} 36, ${C - 12} 42, ${C} 42
-    C ${C + 12} 42, ${C + 24} 36, ${C + 36} 18
-    C ${C + 44} 8, ${C + 52} 0, ${C + 70} 0
-    L ${width} 0
-    L ${width} ${h + 100}
-    L 0 ${h + 100}
-    Z
-  `;
 
   const actions = [
     {
       id: "booking",
       label: "Booking",
       Icon: ShoppingBag,
-      cls: "bg-brand-orange shadow-orange-400/50",
-      x: -96,
-      y: -80,
-      onClick: () => { setFabOpen(false); navigate("/preorders"); onAddBooking?.(); },
+      tone: "bg-rose-500",
+      onClick: () => {
+        setFabOpen(false);
+        navigate("/preorders");
+        onAddBooking?.();
+      },
     },
     {
       id: "schedule",
       label: "Jadwal",
       Icon: Calendar,
-      cls: "bg-amber-500 shadow-amber-400/50",
-      x: -48,
-      y: -80,
-      onClick: () => { setFabOpen(false); navigate("/schedules"); onAddSchedule?.(); },
+      tone: "bg-amber-500",
+      onClick: () => {
+        setFabOpen(false);
+        navigate("/schedules");
+        onAddSchedule?.();
+      },
     },
     {
       id: "order",
-      label: "Order",
+      label: "Pesanan",
       Icon: ClipboardList,
-      cls: "bg-brand-navy shadow-brand-navy/50",
-      x: 48,
-      y: -80,
-      onClick: () => { setFabOpen(false); navigate("/orders"); onAddOrder?.(); },
+      tone: "bg-brand-navyLight",
+      onClick: () => {
+        setFabOpen(false);
+        navigate("/orders");
+        onAddOrder?.();
+      },
     },
     {
       id: "cash",
       label: "Kas",
       Icon: Wallet,
-      cls: "bg-emerald-500 shadow-emerald-500/50",
-      x: 96,
-      y: -80,
-      onClick: () => { setFabOpen(false); navigate("/cash"); onAddTransaction?.(); },
+      tone: "bg-emerald-600",
+      onClick: () => {
+        setFabOpen(false);
+        navigate("/cash");
+        onAddTransaction?.();
+      },
     },
   ];
 
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (fabRef.current && !fabRef.current.contains(event.target as Node)) {
         setFabOpen(false);
       }
     };
-    if (fabOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
+    if (fabOpen) document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [fabOpen]);
 
@@ -143,118 +154,76 @@ export function BottomTabBar({
     <>
       <AnimatePresence>
         {fabOpen && (
-          <motion.div
+          <motion.button
+            type="button"
+            aria-label="Tutup menu aksi"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 md:hidden"
+            className="fixed inset-0 z-40 bg-brand-navyDark/35 backdrop-blur-[3px] md:hidden"
             onClick={() => setFabOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden shrink-0 pointer-events-none">
-        <nav className="relative h-16 w-full pointer-events-auto">
-          <div className="absolute inset-0 z-10">
-            <svg width={width} height={h + 100} className="drop-shadow-[0_-4px_12px_rgba(0,0,0,0.04)] filter">
-              <path d={pathData} fill="#ffffff" />
-            </svg>
+      <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(10px,env(safe-area-inset-bottom))] md:hidden">
+        <nav className="pointer-events-auto relative mx-auto flex h-[68px] max-w-md items-center rounded-[24px] border border-white/80 bg-white/95 px-2 shadow-[0_18px_55px_rgba(7,27,51,0.2)] backdrop-blur-xl">
+          <div className="flex h-full w-[41%] items-center">
+            {LEFT_TABS.map((tab) => (
+              <TabButton key={tab.id} {...tab} current={current} setTab={setTab} />
+            ))}
           </div>
 
-          <div className="relative z-20 h-full flex items-center justify-between px-3">
-            <div className="flex items-center justify-around w-[38%] h-full">
-              {LEFT_TABS.map((t) => (
-                <TabButton
-                  key={t.id}
-                  id={t.id}
-                  label={t.label}
-                  Icon={t.Icon}
-                  current={current}
-                  setTab={setTab}
-                />
-              ))}
-            </div>
+          <div className="h-full w-[18%]" />
 
-            <div className="w-[20%]" />
-
-            <div className="flex items-center justify-around w-[38%] h-full">
-              {RIGHT_TABS.map((t) => (
-                <TabButton
-                  key={t.id}
-                  id={t.id}
-                  label={t.label}
-                  Icon={t.Icon}
-                  current={current}
-                  setTab={setTab}
-                />
-              ))}
-            </div>
+          <div className="flex h-full w-[41%] items-center">
+            {RIGHT_TABS.map((tab) => (
+              <TabButton key={tab.id} {...tab} current={current} setTab={setTab} />
+            ))}
           </div>
 
-          <div ref={fabRef} className="absolute top-[-22px] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+          <div ref={fabRef} className="absolute left-1/2 top-0 -translate-x-1/2">
             <AnimatePresence>
               {fabOpen && (
                 <motion.div
-                  key="opts"
-                  initial="hidden"
-                  animate="visible"
-                  exit="hidden"
-                  className="absolute inset-0 z-[-1] pointer-events-none mb-4"
+                  initial={{ opacity: 0, y: 12, scale: 0.94 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 12, scale: 0.94 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute bottom-[76px] left-1/2 grid w-[220px] -translate-x-1/2 grid-cols-2 gap-2 rounded-[22px] border border-white/70 bg-white/95 p-2.5 shadow-[0_24px_60px_rgba(7,27,51,0.25)] backdrop-blur-xl"
                 >
                   {actions.map((action) => (
-                    <motion.div
+                    <button
                       key={action.id}
-                      variants={{
-                        hidden: { opacity: 0, x: 0, y: 0, scale: 0 },
-                        visible: {
-                          opacity: 1,
-                          x: action.x,
-                          y: action.y,
-                          scale: 1,
-                          transition: {
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 20,
-                          },
-                        },
-                      }}
-                      className="absolute left-1/2 top-1/2 pointer-events-auto flex flex-col items-center"
-                      style={{
-                        width: 90,
-                        marginLeft: -45,
-                        marginTop: -22,
-                      }}
+                      onClick={action.onClick}
+                      className="flex min-h-[52px] items-center gap-2.5 rounded-2xl px-2.5 text-left text-xs font-bold text-brand-navyDark transition-colors hover:bg-slate-50 active:scale-[0.98]"
                     >
-                      <button
-                        onClick={action.onClick}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center shadow-xl text-white shrink-0 active:scale-90 transition-transform ${action.cls}`}
+                      <span
+                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-[13px] text-white shadow-sm ${action.tone}`}
                       >
-                        <action.Icon size={19} />
-                      </button>
-                      <span className="bg-white text-brand-navy text-[8.5px] font-black px-2.5 py-1 rounded-full shadow-lg border border-slate-100 select-none text-center whitespace-nowrap mt-1.5 leading-none">
-                        {action.label}
+                        <action.Icon size={16} />
                       </span>
-                    </motion.div>
+                      {action.label}
+                    </button>
                   ))}
                 </motion.div>
               )}
             </AnimatePresence>
 
             <motion.button
-              onClick={() => setFabOpen((p) => !p)}
-              whileTap={{ scale: 0.87 }}
-              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-colors duration-200
-                ${fabOpen
-                  ? "bg-slate-800 shadow-slate-800/50"
-                  : "bg-brand-orange shadow-brand-orange/50"
-                }`}
+              type="button"
+              aria-label={fabOpen ? "Tutup menu aksi" : "Buat data baru"}
+              aria-expanded={fabOpen}
+              onClick={() => setFabOpen((open) => !open)}
+              whileTap={{ scale: 0.9 }}
+              className="grid h-[58px] w-[58px] -translate-y-[18px] place-items-center rounded-[20px] border-[5px] border-surface-base bg-brand-orange text-white shadow-[0_14px_28px_rgba(242,101,34,0.36)]"
             >
-              <motion.div
+              <motion.span
                 animate={{ rotate: fabOpen ? 45 : 0 }}
-                transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                transition={{ type: "spring", stiffness: 420, damping: 28 }}
               >
-                <Zap size={22} className="text-white" fill="white" />
-              </motion.div>
+                <Plus size={25} strokeWidth={2.6} />
+              </motion.span>
             </motion.button>
           </div>
         </nav>
