@@ -1,4 +1,4 @@
-import { access, cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -34,6 +34,7 @@ export function sites(): Plugin {
   return {
     name: "nihong-sites-output",
     apply: "build",
+    enforce: "post",
     configResolved(config) {
       root = config.root;
     },
@@ -42,8 +43,20 @@ export function sites(): Plugin {
     },
     async closeBundle() {
       const dist = resolve(root, "dist");
+      const clientDirectory = resolve(dist, "client");
       const metadataDirectory = resolve(dist, ".openai");
       const hostingConfig = resolve(root, ".openai", "hosting.json");
+
+      await rm(clientDirectory, { recursive: true, force: true });
+      await mkdir(clientDirectory, { recursive: true });
+
+      const entries = await readdir(dist, { withFileTypes: true });
+      for (const entry of entries) {
+        if (["client", "server", ".openai"].includes(entry.name)) continue;
+        await cp(resolve(dist, entry.name), resolve(clientDirectory, entry.name), {
+          recursive: entry.isDirectory(),
+        });
+      }
 
       await rm(metadataDirectory, { recursive: true, force: true });
       await mkdir(metadataDirectory, { recursive: true });

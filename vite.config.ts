@@ -6,7 +6,6 @@ import { sites } from "./build/sites-vite-plugin";
 export default defineConfig({
   plugins: [
     react(),
-    sites(),
     VitePWA({
       registerType: "prompt",
       workbox: {
@@ -41,8 +40,6 @@ export default defineConfig({
         ],
       },
     }),
+    sites(),
   ],
-  build: {
-    outDir: "dist/client",
-  },
 });
