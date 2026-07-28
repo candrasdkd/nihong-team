@@ -185,28 +185,30 @@ export function BottomTabBar({
           <div ref={fabRef} className="absolute left-1/2 top-0 -translate-x-1/2">
             <AnimatePresence>
               {fabOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 12, scale: 0.94 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.94 }}
-                  transition={{ duration: 0.18 }}
-                  className="absolute bottom-[76px] left-1/2 grid w-[220px] -translate-x-1/2 grid-cols-2 gap-2 rounded-[22px] border border-white/70 bg-white/95 p-2.5 shadow-[0_24px_60px_rgba(7,27,51,0.25)] backdrop-blur-xl"
-                >
-                  {actions.map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={action.onClick}
-                      className="flex min-h-[52px] items-center gap-2.5 rounded-2xl px-2.5 text-left text-xs font-bold text-brand-navyDark transition-colors hover:bg-slate-50 active:scale-[0.98]"
-                    >
-                      <span
-                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-[13px] text-white shadow-sm ${action.tone}`}
+                <div className="absolute bottom-[76px] left-1/2 -translate-x-1/2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 12, scale: 0.94 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 12, scale: 0.94 }}
+                    transition={{ duration: 0.18 }}
+                    className="grid w-[220px] grid-cols-2 gap-2 rounded-[22px] border border-white/70 bg-white/95 p-2.5 shadow-[0_24px_60px_rgba(7,27,51,0.25)] backdrop-blur-xl"
+                  >
+                    {actions.map((action) => (
+                      <button
+                        key={action.id}
+                        onClick={action.onClick}
+                        className="flex min-h-[52px] items-center gap-2.5 rounded-2xl px-2.5 text-left text-xs font-bold text-brand-navyDark transition-colors hover:bg-slate-50 active:scale-[0.98]"
                       >
-                        <action.Icon size={16} />
-                      </span>
-                      {action.label}
-                    </button>
-                  ))}
-                </motion.div>
+                        <span
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-[13px] text-white shadow-sm ${action.tone}`}
+                        >
+                          <action.Icon size={16} />
+                        </span>
+                        {action.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </div>
               )}
             </AnimatePresence>
 
