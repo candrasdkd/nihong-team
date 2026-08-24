@@ -20,6 +20,7 @@ const MenuPage = React.lazy(() => import("./pages/MenuPage").then(m => ({ defaul
 const JastipersPage = React.lazy(() => import("./pages/JastipersPage").then(m => ({ default: m.JastipersPage })));
 const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
 const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
+const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ default: m.InboxPage })));
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
 const SharedLedgerPage = React.lazy(() => import("./pages/SharedLedgerPage").then(m => ({ default: m.SharedLedgerPage })));
 
@@ -129,6 +130,10 @@ function PreOrdersRoute() {
       onFormTriggerConsumed={() => setPreorderFormTrigger(0)}
     />
   );
+}
+
+function InboxRoute() {
+  return <InboxPage />;
 }
 
 // Layout Shell for Authenticated Users
@@ -384,6 +389,7 @@ const router = createBrowserRouter([
       { path: "jastipers", element: <JastipersRoute /> },
       { path: "schedules", element: <SchedulesRoute /> },
       { path: "preorders", element: <PreOrdersRoute /> },
+      { path: "inbox", element: <InboxRoute /> },
       { path: "menu", element: <MenuRoute /> },
     ],
   },

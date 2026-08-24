@@ -8,9 +8,9 @@ export type TabId =
   | "jastipers"
   | "schedules"
   | "preorders"
+  | "inbox"
   | "menu"
   | string;
-
 
 export interface Order {
   id?: string;
@@ -154,6 +154,52 @@ export interface PreOrder {
   totalKg: number;
   status: PreOrderStatus;
   catatan?: string;
+  nihongStoreOrderId?: string;
+  nihongStoreOrderNo?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+// ===== NihongStore Inbox Types =====
+export type NihongStoreOrderStatus = "inbox" | "assigned" | "rejected";
+
+export interface NihongStoreItem {
+  namaBarang: string;
+  kodeBarang?: string;
+  warna?: string;
+  ukuran?: string;
+  jumlah: number;
+  hargaYen?: number;
+  hargaIdr?: number;
+  beratKg?: number;
+  imageUrl?: string;
+  url?: string;
+  catatan?: string;
+  status?: string;
+}
+
+export interface NihongStoreOrder {
+  id: string;
+  no: string;
+  namaPelanggan: string;
+  noTelponPelanggan: string;
+  alamatPelanggan?: string;
+  idPelanggan?: string;
+  items: NihongStoreItem[];
+  totalKg: number;
+  totalEstimasiHargaIdr?: number;
+  totalEstimasiHargaYen?: number;
+  catatan?: string;
+  status: NihongStoreOrderStatus;
+  displayStatus?: string;
+  paymentStatus?: string;
+  assignedScheduleId?: string;
+  assignedScheduleRoute?: string;
+  assignedScheduleDate?: string;
+  assignedPreOrderId?: string;
+  assignedOrderId?: string;
+  timeline?: Array<{ status: string; note: string; at: string }>;
+  source?: string;
   createdAt?: any;
   updatedAt?: any;
 }

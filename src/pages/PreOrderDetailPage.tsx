@@ -15,6 +15,7 @@ import {
   Link2,
   Check,
   RotateCw,
+  AlertCircle,
 } from "lucide-react";
 import { DepartureSchedule, PreOrder, Customer, PreOrderItem } from "../types";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
@@ -975,11 +976,14 @@ export function PreOrderDetailPage({
                 </>
               )}
               <span className="text-sm font-extrabold text-slate-800 truncate">{schedule.rute}</span>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${schedule.status === "Open"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-slate-100 text-slate-500 border border-slate-200"
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                schedule.id === "__unscheduled__"
+                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                  : schedule.status === "Open"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-slate-100 text-slate-500 border border-slate-200"
                 }`}>
-                {schedule.status}
+                {schedule.id === "__unscheduled__" ? "Belum Ada Jadwal" : schedule.status}
               </span>
             </div>
 
@@ -1091,15 +1095,27 @@ export function PreOrderDetailPage({
                 </button>
               </div>
             ) : (
-              <div className={`bg-white border border-slate-200/80 rounded-2xl shadow-sm ${isRotated ? "" : "overflow-hidden"}`}>
-                {/* Sub-header with font size selector and stats */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spreadsheet</span>
-                      <span className="text-[10px] text-slate-400">— Klik cell untuk edit langsung</span>
+              <div className="space-y-3">
+                {schedule.id === "__unscheduled__" && (
+                  <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                      <span className="leading-relaxed font-medium">
+                        Daftar booking ini <strong>belum memiliki jadwal keberangkatan aktif</strong>. Klik ikon <strong>Pensil (Edit)</strong> pada baris pesanan untuk memasukkannya ke jadwal tujuan.
+                      </span>
                     </div>
                   </div>
+                )}
+
+                <div className={`bg-white border border-slate-200/80 rounded-2xl shadow-sm ${isRotated ? "" : "overflow-hidden"}`}>
+                  {/* Sub-header with font size selector and stats */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spreadsheet</span>
+                        <span className="text-[10px] text-slate-400">— Klik cell untuk edit langsung</span>
+                      </div>
+                    </div>
 
                   <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500">
                     <span className="flex items-center gap-1">
@@ -1316,6 +1332,19 @@ export function PreOrderDetailPage({
                             {/* Aksi */}
                             <td className={`px-1 py-1 ${isRotated ? "w-[80px]" : "w-44"} text-right align-middle`}>
                               <div className="flex items-center justify-end gap-0.5 flex-wrap">
+                                {!isShareMode && (
+                                  <button
+                                    onClick={() => {
+                                      setEditing(po);
+                                      setShowForm(true);
+                                    }}
+                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
+                                    title="Edit & Ubah Jadwal"
+                                  >
+                                    <Pencil size={isRotated ? 11 : 13} />
+                                  </button>
+                                )}
+
                                 <button
                                   onClick={() => shareWA(po)}
                                   className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100`}
@@ -1373,6 +1402,7 @@ export function PreOrderDetailPage({
                     </tfoot>
                   </table>
                 </div>
+              </div>
               </div>
             )}
           </motion.div>

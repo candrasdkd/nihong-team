@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DepartureSchedule, PreOrder, Customer } from "../types";
-import { listenPreOrdersBySchedule, updatePreOrder, deletePreOrder } from "../services/preOrdersFirebase";
+import { listenPreOrders, listenPreOrdersBySchedule, updatePreOrder, deletePreOrder } from "../services/preOrdersFirebase";
+import { UNSCHEDULED_SCHEDULE_ID } from "./usePreOrders";
 import { formatDate, formatIDR } from "../utils/format";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -45,12 +46,21 @@ export function usePreOrderDetail(
   // ─── Live listener ────────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
-    const unsub = listenPreOrdersBySchedule(schedule.id, (rows) => {
-      setPOs(rows);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [schedule.id]);
+    if (schedule.id === UNSCHEDULED_SCHEDULE_ID) {
+      const unsub = listenPreOrders((rows) => {
+        const orphanRows = rows.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
+        setPOs(orphanRows);
+        setLoading(false);
+      });
+      return () => unsub();
+    } else {
+      const unsub = listenPreOrdersBySchedule(schedule.id, (rows) => {
+        setPOs(rows);
+        setLoading(false);
+      });
+      return () => unsub();
+    }
+  }, [schedule.id, schedules]);
 
   // ─── Toast helper ─────────────────────────────────────────────────────────
   const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {

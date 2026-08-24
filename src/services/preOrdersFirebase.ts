@@ -18,6 +18,7 @@ import {
 import { db } from "../lib/firebase";
 import { PreOrder, PreOrderItem, PreOrderStatus } from "../types";
 import { adjustScheduleWeight } from "./schedulesFirebase";
+import { storeDb } from "./nihongStoreFirebase";
 
 const COL = "pre_orders";
 
@@ -215,6 +216,36 @@ export async function convertPreOrderToOrder(
     }
   });
 
+  // 5. Sinkronkan status linimasa NihongStore jika PreOrder berasal dari NihongStore
+  try {
+    const preOrderSnap = await getDoc(preOrderRef);
+    if (preOrderSnap.exists()) {
+      const data = preOrderSnap.data() as PreOrder;
+      if (data.nihongStoreOrderId) {
+        const storeOrderRef = doc(storeDb, "nihongstore_orders", data.nihongStoreOrderId);
+        const storeSnap = await getDoc(storeOrderRef);
+        if (storeSnap.exists()) {
+          const curTimeline = storeSnap.data().timeline || [];
+          await updateDoc(storeOrderRef, {
+            displayStatus: "Diproses di Jepang",
+            assignedOrderId: newOrderRef.id,
+            timeline: [
+              ...curTimeline,
+              {
+                status: "Diproses di Jepang",
+                note: "Booking telah dikonversi menjadi pesanan resmi & sedang dibelanjakan oleh jastiper di Tokyo.",
+                at: new Date().toISOString(),
+              },
+            ],
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync NihongStore timeline on preorder conversion:", err);
+  }
+
   return newOrderRef.id;
 }
 
@@ -285,7 +316,7 @@ export async function checkAndProcessExpiredSchedules() {
     for (const poDoc of preOrdersSnap.docs) {
       const poId = poDoc.id;
       const poData = poDoc.data() as PreOrder;
-      const namaBarang = poData.items.map((i) => i.namaBarang).join(", ");
+      const namaBarang = poData.items.map((i) => i.namaBarang).join("\n");
 
       await convertPreOrderToOrder(poId, {
         no: `PO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,

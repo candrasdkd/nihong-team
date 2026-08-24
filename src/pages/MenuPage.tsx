@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import {
   UserRound, Calendar, ShoppingBag, Users, Plane,
-  ArrowRight,
+  ArrowRight, Inbox,
 } from "lucide-react";
 import { TabId } from "../types";
 
@@ -11,6 +11,36 @@ interface MenuPageProps {
 }
 
 const MENU_ITEMS = [
+  {
+    id: "inbox" as TabId,
+    label: "Inbox NihongStore",
+    description: "Pesanan masuk dari NihongStore untuk di-assign ke jadwal",
+    icon: Inbox,
+    gradient: "from-brand-orange to-rose-600",
+    bg: "bg-brand-cream",
+    iconColor: "text-brand-orange",
+    accent: "ring-brand-orange/20",
+  },
+  {
+    id: "preorders" as TabId,
+    label: "Booking Jadwal",
+    description: "Catat booking konsumen & konversi ke pesanan",
+    icon: ShoppingBag,
+    gradient: "from-rose-500 to-red-600",
+    bg: "bg-rose-50",
+    iconColor: "text-rose-600",
+    accent: "ring-rose-200/70",
+  },
+  {
+    id: "schedules" as TabId,
+    label: "Jadwal Keberangkatan",
+    description: "Buat & pantau jadwal perjalanan jastiper",
+    icon: Calendar,
+    gradient: "from-amber-500 to-orange-600",
+    bg: "bg-amber-50",
+    iconColor: "text-amber-700",
+    accent: "ring-amber-200/70",
+  },
   {
     id: "customers" as TabId,
     label: "Pelanggan",
@@ -30,26 +60,6 @@ const MENU_ITEMS = [
     bg: "bg-violet-50",
     iconColor: "text-violet-600",
     accent: "ring-violet-200/70",
-  },
-  {
-    id: "schedules" as TabId,
-    label: "Jadwal Keberangkatan",
-    description: "Buat & pantau jadwal perjalanan jastiper",
-    icon: Calendar,
-    gradient: "from-amber-500 to-orange-600",
-    bg: "bg-amber-50",
-    iconColor: "text-amber-700",
-    accent: "ring-amber-200/70",
-  },
-  {
-    id: "preorders" as TabId,
-    label: "Booking Jadwal",
-    description: "Catat booking konsumen & konversi ke pesanan",
-    icon: ShoppingBag,
-    gradient: "from-brand-orange to-orange-600",
-    bg: "bg-brand-cream",
-    iconColor: "text-brand-orange",
-    accent: "ring-brand-orange/15",
   },
 ];
 

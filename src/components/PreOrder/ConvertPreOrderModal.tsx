@@ -20,7 +20,7 @@ export function ConvertPreOrderModal({
   async function handleConvert() {
     setLoading(true);
     try {
-      const namaBarang = preOrder.items.map((i) => i.namaBarang).join(", ");
+      const namaBarang = preOrder.items.map((i) => i.namaBarang).join("\n");
 
       const orderId = await convertPreOrderToOrder(preOrder.id, {
         no: `PO-${Date.now()}`,

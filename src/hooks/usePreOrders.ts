@@ -18,6 +18,41 @@ import { formatDate, formatIDR } from "../utils/format";
 
 const COL = "pre_orders";
 
+export const UNSCHEDULED_SCHEDULE_ID = "__unscheduled__";
+
+export interface ScheduleGroupItem {
+  schedule: DepartureSchedule;
+  preOrders: PreOrder[];
+  label: string;
+  date?: string;
+  jastiper?: string;
+}
+
+export interface JastiperGroup {
+  id: string;
+  namaJastiper: string;
+  totalKg: number;
+  totalPOs: number;
+  pendingPOs: number;
+  schedules: ScheduleGroupItem[];
+}
+
+export function createUnscheduledSchedule(orphans: PreOrder[]): DepartureSchedule {
+  const totalKg = orphans.reduce((sum, p) => sum + (p.totalKg || 0), 0);
+  return {
+    id: UNSCHEDULED_SCHEDULE_ID,
+    idJastiper: "",
+    namaJastiper: "Belum Ditetapkan",
+    rute: "Lainnya / Tanpa Jadwal",
+    tanggalBerangkat: "",
+    tanggalLastDrop: "",
+    slotBeratKg: totalKg,
+    beratTerpakai: totalKg,
+    status: "Open",
+    catatan: "Pre-order yang belum dialokasikan ke jadwal keberangkatan handcarry",
+  };
+}
+
 export function usePreOrders(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
   const [pendingPreOrders, setPendingPreOrders] = useState<PreOrder[]>([]);
   const [selesaiPreOrders, setSelesaiPreOrders] = useState<PreOrder[]>([]);
@@ -175,12 +210,87 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
     if (orphans.length > 0) {
       list.push({
+        schedule: createUnscheduledSchedule(orphans),
         preOrders: orphans,
         label: "Lainnya / Tanpa Jadwal",
       });
     }
 
     return list;
+  }, [schedules, filtered, q, statusFilter]);
+
+  const groupedByJastiper = useMemo(() => {
+    const jastiperMap = new Map<string, JastiperGroup>();
+
+    // 1. Group active schedules by Jastiper
+    schedules.forEach((sch) => {
+      if (statusFilter === "Pending" && sch.status === "Closed") return;
+
+      const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
+      if (matchPO.length > 0 || !q) {
+        const jastiperName = sch.namaJastiper?.trim() || "Jastiper Tanpa Nama";
+        const jastiperId = sch.idJastiper?.trim() || jastiperName;
+
+        if (!jastiperMap.has(jastiperId)) {
+          jastiperMap.set(jastiperId, {
+            id: jastiperId,
+            namaJastiper: jastiperName,
+            totalKg: 0,
+            totalPOs: 0,
+            pendingPOs: 0,
+            schedules: [],
+          });
+        }
+
+        const group = jastiperMap.get(jastiperId)!;
+        const totalKgSch = matchPO.reduce((sum, p) => sum + (p.totalKg || 0), 0);
+        const pendingCount = matchPO.filter((p) => p.status === "Pending").length;
+
+        group.totalKg += totalKgSch;
+        group.totalPOs += matchPO.length;
+        group.pendingPOs += pendingCount;
+
+        group.schedules.push({
+          schedule: sch,
+          preOrders: matchPO,
+          label: `${sch.rute} (${sch.status})`,
+          date: sch.tanggalBerangkat,
+          jastiper: sch.namaJastiper,
+        });
+      }
+    });
+
+    // Sort schedules inside each jastiper group by date ascending
+    const result: JastiperGroup[] = Array.from(jastiperMap.values()).map((g) => ({
+      ...g,
+      schedules: g.schedules.sort((a, b) => (a.date || "").localeCompare(b.date || "")),
+    }));
+
+    // 2. Check if there are orphans
+    const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
+    if (orphans.length > 0) {
+      const totalKgOrphans = orphans.reduce((sum, p) => sum + (p.totalKg || 0), 0);
+      const pendingOrphans = orphans.filter((p) => p.status === "Pending").length;
+
+      result.push({
+        id: UNSCHEDULED_SCHEDULE_ID,
+        namaJastiper: "Lainnya / Tanpa Jadwal",
+        totalKg: totalKgOrphans,
+        totalPOs: orphans.length,
+        pendingPOs: pendingOrphans,
+        schedules: [
+          {
+            schedule: createUnscheduledSchedule(orphans),
+            preOrders: orphans,
+            label: "Lainnya / Tanpa Jadwal",
+            date: "",
+            jastiper: "Belum Ditetapkan",
+          },
+        ],
+      });
+    }
+
+    return result;
   }, [schedules, filtered, q, statusFilter]);
 
   const toast = (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
@@ -314,6 +424,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     setConfirmModal,
     counts,
     groupedBySchedule,
+    groupedByJastiper,
     hasMoreSelesai,
     loadMoreSelesai,
     handleSubmit,

@@ -13,8 +13,10 @@ import {
   Calendar,
   ShoppingBag,
   PackageSearch,
+  Inbox,
 } from "lucide-react";
 import logo from "../assets/nihong.png";
+import { listenUnassignedNihongStoreCount } from "../services/nihongStoreFirebase";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -29,18 +31,23 @@ const MENU_ITEMS = [
 ];
 
 const SUB_MENU_ITEMS = [
-  { id: "customers",  label: "Pelanggan",  icon: Users },
-  { id: "jastipers",  label: "Jastiper",   icon: UserRound },
-  { id: "schedules",  label: "Jadwal",     icon: Calendar },
-  { id: "preorders",  label: "Booking",    icon: ShoppingBag },
+  { id: "inbox",      label: "Inbox Pesanan", icon: Inbox },
+  { id: "customers",  label: "Pelanggan",     icon: Users },
+  { id: "jastipers",  label: "Jastiper",      icon: UserRound },
+  { id: "schedules",  label: "Jadwal",        icon: Calendar },
+  { id: "preorders",  label: "Booking",       icon: ShoppingBag },
 ];
 
 function NavItem({
-  item, isActive, isCollapsed,
+  item,
+  isActive,
+  isCollapsed,
+  badge,
 }: {
   item: { id: string; label: string; icon: React.ElementType };
   isActive: boolean;
   isCollapsed: boolean;
+  badge?: number;
 }) {
   const Icon = item.icon;
   const to = item.id === "home" ? "/" : `/${item.id}`;
@@ -61,18 +68,30 @@ function NavItem({
       {isActive && (
         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-brand-orange rounded-full" />
       )}
-      <Icon size={18} strokeWidth={isActive ? 2.4 : 1.9} className={`shrink-0 relative z-10 ${isActive ? "text-brand-orange" : ""}`} />
+      <div className="relative shrink-0">
+        <Icon size={18} strokeWidth={isActive ? 2.4 : 1.9} className={`relative z-10 ${isActive ? "text-brand-orange" : ""}`} />
+        {isCollapsed && badge && badge > 0 ? (
+          <span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-full bg-brand-orange ring-2 ring-[#071B33]" />
+        ) : null}
+      </div>
       <AnimatePresence>
         {!isCollapsed && (
-          <motion.span
+          <motion.div
             initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="truncate relative z-10 text-sm"
+            className="flex-1 flex items-center justify-between min-w-0"
           >
-            {item.label}
-          </motion.span>
+            <span className="truncate relative z-10 text-sm">
+              {item.label}
+            </span>
+            {badge && badge > 0 ? (
+              <span className="relative z-10 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-brand-orange text-white leading-none shadow-sm">
+                {badge}
+              </span>
+            ) : null}
+          </motion.div>
         )}
       </AnimatePresence>
     </Link>
@@ -86,6 +105,15 @@ export function Sidebar({
 }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
+  const [unassignedCount, setUnassignedCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!user) return;
+    const unsub = listenUnassignedNihongStoreCount((cnt) => {
+      setUnassignedCount(cnt);
+    });
+    return () => unsub();
+  }, [user]);
 
   const currentTab = location.pathname === "/"
     ? "home"
@@ -192,6 +220,7 @@ export function Sidebar({
               item={item}
               isActive={isActive}
               isCollapsed={isCollapsed}
+              badge={item.id === "inbox" ? unassignedCount : undefined}
             />
           );
         })}

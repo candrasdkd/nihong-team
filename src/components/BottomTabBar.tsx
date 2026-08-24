@@ -22,7 +22,7 @@ const RIGHT_TABS: { id: TabId; label: string; Icon: ElementType }[] = [
   { id: "cash", label: "Kas", Icon: Wallet },
 ];
 
-const MENU_CHILD_TABS = new Set(["customers", "jastipers", "schedules", "preorders"]);
+const MENU_CHILD_TABS = new Set(["inbox", "customers", "jastipers", "schedules", "preorders"]);
 
 interface BottomTabBarProps {
   onAddOrder?: () => void;

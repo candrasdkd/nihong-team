@@ -26,7 +26,7 @@ import {
   Plus, FileText, ChevronDown, Search, Box, Trash2, Pencil,
   AlertCircle, CheckCircle2, Download, Scale, ShoppingBag, 
   DollarSign, TrendingUp, Wallet, ClipboardList, HelpCircle,
-  ArrowUpDown
+  ArrowUpDown, Package
 } from "lucide-react";
 import { exportOrdersToExcel } from "../utils/exportExcel";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -876,6 +876,14 @@ function ExpandableRow({
   onShowDetail,
 }: any) {
   const d = compute(order, unitPrice);
+  const [expandedItems, setExpandedItems] = useState(false);
+
+  const itemsList = useMemo(() => {
+    return (order.namaBarang || "")
+      .split("\n")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }, [order.namaBarang]);
 
   return (
     <>
@@ -913,16 +921,61 @@ function ExpandableRow({
         
         {/* Kolom Detail Barang */}
         <td className="px-6 py-4 align-middle">
-          <div
-            className="text-slate-700 font-bold text-xs sm:text-sm line-clamp-1 max-w-[250px]"
-            title={order.namaBarang}
-          >
-            {order.namaBarang}
-          </div>
-          <div className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-2">
+          {itemsList.length <= 1 ? (
+            <div
+              className="text-slate-700 font-bold text-xs sm:text-sm line-clamp-2 max-w-[280px] leading-snug"
+              title={order.namaBarang}
+            >
+              {order.namaBarang}
+            </div>
+          ) : (
+            <div className="space-y-1 max-w-[320px]">
+              {expandedItems ? (
+                <>
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {itemsList.map((item: string, idx: number) => (
+                      <p key={idx} className="text-slate-800 font-semibold text-xs leading-snug">
+                        • {item}
+                      </p>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedItems(false);
+                    }}
+                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors pt-0.5"
+                  >
+                    Ciutkan
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="text-slate-700 font-bold text-xs sm:text-sm truncate"
+                    title={itemsList[0]}
+                  >
+                    • {itemsList[0]}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedItems(true);
+                    }}
+                    className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                  >
+                    + {itemsList.length - 1} item lainnya…
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          <div className="text-[10px] text-slate-400 font-semibold mt-1 flex items-center gap-2 whitespace-nowrap">
             <span>{formatAndAddYear(order.tanggal)}</span>
             <span className="text-slate-300">&bull;</span>
-            <span className="font-extrabold text-slate-500">{d.kg} Kg</span>
+            <span className="font-extrabold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{d.kg} Kg</span>
           </div>
         </td>
         
@@ -1238,6 +1291,28 @@ function OrderDetailModal({
         : [order.imageUrl].filter((x): x is string => !!x)) 
     : [];
 
+  const detailItems = React.useMemo(() => {
+    if (!order.namaBarang) return [];
+    // 1. Split by \n or \r\n
+    let lines = order.namaBarang
+      .split(/\r?\n/)
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    // 2. If it was stored on a single line with multiple (xN) tags or concatenated:
+    if (lines.length === 1 && (order.namaBarang.match(/\(x\d+\)/g) || []).length > 1) {
+      const splitByQty = order.namaBarang
+        .split(/(?<=\))\s+(?=[A-Z0-9])/g)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if (splitByQty.length > 1) {
+        lines = splitByQty;
+      }
+    }
+
+    return lines;
+  }, [order.namaBarang]);
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[80] overflow-y-auto flex items-center justify-center p-4 sm:p-6 md:p-10">
@@ -1310,16 +1385,46 @@ function OrderDetailModal({
               </div>
             </div>
 
-            {/* 2. Nama Barang & Tanggal */}
-            <div className="bg-slate-50/50 border border-slate-100/70 p-4 rounded-2xl space-y-1.5">
-              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
-                Nama / Detail Barang
-              </span>
-              <div className="font-extrabold text-slate-800 text-sm sm:text-base leading-snug">
-                {order.namaBarang}
+            {/* 2. Daftar Barang & Detail Item */}
+            <div className="bg-slate-50/70 border border-slate-200/80 p-4 sm:p-5 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                  <Package size={14} className="text-slate-400" />
+                  Daftar Barang Titipan ({detailItems.length} Jenis Item)
+                </span>
+                <span className="text-[11px] text-slate-400 font-semibold">
+                  {formatAndAddYear(order.tanggal)}
+                </span>
               </div>
-              <div className="text-[11px] text-slate-400 font-semibold">
-                Tanggal Pemesanan: {formatAndAddYear(order.tanggal)}
+
+              <div className="space-y-2.5">
+                {detailItems.map((itemStr: string, idx: number) => {
+                  const qtyMatch = itemStr.match(/\(x(\d+)\)/i);
+                  const qty = qtyMatch ? qtyMatch[1] : null;
+
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-3 p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        {idx + 1}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 leading-snug">
+                          {itemStr}
+                        </p>
+                      </div>
+
+                      {qty && (
+                        <span className="text-[11px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-1 rounded-lg shrink-0">
+                          {qty} pcs
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

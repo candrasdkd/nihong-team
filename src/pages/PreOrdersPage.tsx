@@ -1,7 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag, Plus, Search, Plane, Package, Weight, CalendarDays, User, ChevronRight,
+  ShoppingBag, Plus, Search, Plane, Package, Weight, CalendarDays, User, ChevronRight, AlertCircle,
 } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { usePreOrders } from "../hooks/usePreOrders";
@@ -11,6 +11,34 @@ import { FAB_COLOR_CLASS } from "../utils/constants";
 import { formatDate } from "../utils/format";
 import { DepartureSchedule, PreOrder } from "../types";
 import { PreOrderDetailPage } from "./PreOrderDetailPage";
+
+function parseHighlightDate(dateStr?: string) {
+  if (!dateStr) {
+    return { day: "—", month: "TANPA", year: "", dayName: "Info" };
+  }
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parts[2].padStart(2, "0");
+    const d = new Date(parseInt(year, 10), monthIndex, parseInt(day, 10));
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
+    const month = monthNames[monthIndex] || parts[1];
+    const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const dayName = !isNaN(d.getDay()) ? dayNames[d.getDay()] : "";
+    return { day, month, year, dayName };
+  }
+
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {
+    return { day: "—", month: "TGL", year: "", dayName: "" };
+  }
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = d.toLocaleDateString("id-ID", { month: "short" }).toUpperCase();
+  const year = d.getFullYear().toString();
+  const dayName = d.toLocaleDateString("id-ID", { weekday: "short" });
+  return { day, month, year, dayName };
+}
 
 export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
   const { showToast } = useOutletContext<{ showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void }>();
@@ -31,6 +59,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     setConvertTarget,
     counts,
     groupedBySchedule,
+    groupedByJastiper,
     hasMoreSelesai,
     loadMoreSelesai,
     handleSubmit,
@@ -171,7 +200,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
               <div key={i} className="animate-pulse bg-white rounded-2xl p-4 border border-slate-100 shadow-sm h-24" />
             ))}
           </div>
-        ) : groupedBySchedule.length === 0 ? (
+        ) : groupedByJastiper.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 shadow-inner">
               <Package size={26} className="text-rose-300" />
@@ -186,144 +215,201 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {groupedBySchedule.map((group, idx) => {
-              const sch = group.schedule;
-              const slotFill = sch
-                ? Math.min(100, (sch.beratTerpakai / sch.slotBeratKg) * 100)
-                : 0;
-              const isFull = slotFill >= 100;
-              const totalBeratGroup = group.preOrders.reduce((s, p) => s + (p.totalKg || 0), 0);
-              const pendingCount = group.preOrders.filter((p) => p.status === "Pending").length;
+          <div className="space-y-6">
+            {groupedByJastiper.map((jastiperGroup, jIdx) => {
+              const isUnscheduledJastiper = jastiperGroup.id === "__unscheduled__";
 
               return (
-                <motion.div
-                  key={sch?.id || idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, delay: idx * 0.04 }}
-                >
-                  {/* Schedule Card — clickable */}
-                  <button
-                    onClick={() => sch && setDetailSchedule(sch)}
-                    disabled={!sch}
-                    className={`w-full text-left bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm transition-all duration-200 ${
-                      sch
-                        ? "hover:shadow-md hover:-translate-y-0.5 hover:border-rose-200/60 active:scale-[0.99] active:translate-y-0 cursor-pointer"
-                        : "cursor-default"
-                    }`}
-                  >
-                    <div className="px-4 py-3.5">
-                      <div className="flex items-center justify-between gap-3">
-                        {/* Left — main info */}
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Icon */}
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                            sch?.status === "Open"
-                              ? "bg-rose-50 border border-rose-100"
-                              : "bg-slate-100 border border-slate-200"
-                          }`}>
-                            <Plane size={16} className={sch?.status === "Open" ? "text-rose-500" : "text-slate-400"} />
-                          </div>
+                <div key={jastiperGroup.id || jIdx} className="space-y-3">
+                  {/* Jastiper Group Header */}
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
+                        isUnscheduledJastiper
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-gradient-to-br from-brand-navyDark to-brand-navy text-white"
+                      }`}>
+                        {isUnscheduledJastiper ? (
+                          <Package size={15} />
+                        ) : (
+                          jastiperGroup.namaJastiper[0]?.toUpperCase() || "J"
+                        )}
+                      </div>
 
-                          {/* Info */}
-                          <div className="min-w-0 flex-1">
-                            {/* Route + status */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-extrabold text-slate-800 truncate">
-                                {group.label.replace(/ \(.+\)$/, "")}
-                              </span>
-                              {sch && (
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md select-none ${
-                                  sch.status === "Open"
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : "bg-slate-100 text-slate-500 border border-slate-200"
-                                }`}>
-                                  {sch.status}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Meta row */}
-                            <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                              {group.date && (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
-                                  <CalendarDays size={10} className="text-slate-400" />
-                                  {formatDate(group.date)}
-                                </span>
-                              )}
-                              {group.jastiper && (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
-                                  <User size={10} className="text-slate-400" />
-                                  {group.jastiper}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1 text-[11px] font-bold text-rose-600">
-                                <Weight size={10} className="text-rose-400" />
-                                {totalBeratGroup.toFixed(1)} Kg
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right — badges + arrow */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <div className="text-right hidden sm:block">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
-                                {group.preOrders.length} PO
-                              </span>
-                              {pendingCount > 0 && (
-                                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
-                                  {pendingCount} Pending
-                                </span>
-                              )}
-                            </div>
-                            {sch && (
-                              <div className="text-[10px] text-slate-400 font-semibold mt-0.5 text-right">
-                                {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
-                              </div>
-                            )}
-                          </div>
-                          {sch && (
-                            <ChevronRight size={16} className="text-slate-300 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black text-slate-800 tracking-tight truncate">
+                            {jastiperGroup.namaJastiper}
+                          </h3>
+                          {!isUnscheduledJastiper && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60 shrink-0">
+                              {jastiperGroup.schedules.length} Jadwal
+                            </span>
                           )}
                         </div>
+                        <p className="text-[11px] text-slate-400 font-medium truncate">
+                          Total titipan: <strong className="text-slate-700 font-bold">{jastiperGroup.totalKg.toFixed(1)} Kg</strong> ({jastiperGroup.totalPOs} PO)
+                        </p>
                       </div>
-
-                      {/* Mobile badges */}
-                      <div className="flex items-center gap-1.5 mt-2 sm:hidden">
-                        <span className="text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
-                          {group.preOrders.length} PO
-                        </span>
-                        {pendingCount > 0 && (
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
-                            {pendingCount} Pending
-                          </span>
-                        )}
-                        {sch && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border select-none ${
-                            isFull ? "text-red-600 bg-red-50 border-red-200" : "text-rose-600 bg-rose-50 border-rose-100"
-                          }`}>
-                            {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Slot Progress Bar */}
-                      {sch && (
-                        <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isFull ? "bg-red-500" : slotFill > 75 ? "bg-amber-500" : "bg-rose-500"
-                            }`}
-                            style={{ width: `${slotFill}%` }}
-                          />
-                        </div>
-                      )}
                     </div>
-                  </button>
-                </motion.div>
+
+                    {jastiperGroup.pendingPOs > 0 && (
+                      <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl shrink-0">
+                        {jastiperGroup.pendingPOs} Pending
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Schedule Cards under this Jastiper */}
+                  <div className="space-y-2.5">
+                    {jastiperGroup.schedules.map((group, sIdx) => {
+                      const sch = group.schedule;
+                      const isUnscheduled = sch?.id === "__unscheduled__";
+                      const slotFill = sch
+                        ? Math.min(100, (sch.beratTerpakai / sch.slotBeratKg) * 100)
+                        : 0;
+                      const isFull = slotFill >= 100;
+                      const totalBeratGroup = group.preOrders.reduce((s, p) => s + (p.totalKg || 0), 0);
+                      const pendingCount = group.preOrders.filter((p) => p.status === "Pending").length;
+                      const dateInfo = parseHighlightDate(sch?.tanggalBerangkat);
+
+                      return (
+                        <motion.div
+                          key={sch?.id || sIdx}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: (jIdx * 0.05) + (sIdx * 0.03) }}
+                        >
+                          <button
+                            onClick={() => sch && setDetailSchedule(sch)}
+                            className="w-full text-left bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-rose-200/60 active:scale-[0.99] active:translate-y-0 cursor-pointer group"
+                          >
+                            <div className="p-3.5 sm:p-4">
+                              <div className="flex items-center gap-3 sm:gap-4">
+                                {/* Highlighted Calendar Date Block */}
+                                {isUnscheduled ? (
+                                  <div className="flex flex-col items-center justify-center w-14 sm:w-16 py-2 px-1 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 shrink-0 select-none">
+                                    <AlertCircle size={16} className="text-amber-500 mb-0.5" />
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 leading-tight">
+                                      TANPA
+                                    </span>
+                                    <span className="text-[9px] font-bold text-amber-600 uppercase">
+                                      JADWAL
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center w-14 sm:w-16 py-2 px-1 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 shrink-0 select-none shadow-2xs group-hover:bg-rose-100/70 group-hover:border-rose-200 transition-colors">
+                                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-rose-500">
+                                      {dateInfo.month}
+                                    </span>
+                                    <span className="text-xl sm:text-2xl font-black text-rose-900 leading-tight my-0.5">
+                                      {dateInfo.day}
+                                    </span>
+                                    <span className="text-[9px] font-bold text-rose-600/80">
+                                      {dateInfo.dayName || dateInfo.year}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Middle Info */}
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  {/* Route + Status Badge */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm sm:text-base font-black text-slate-800 tracking-tight truncate">
+                                      {group.label.replace(/ \(.+\)$/, "")}
+                                    </span>
+                                    {isUnscheduled ? (
+                                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full select-none bg-amber-50 text-amber-700 border border-amber-200">
+                                        Belum Ada Jadwal
+                                      </span>
+                                    ) : sch && (
+                                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full select-none ${
+                                        sch.status === "Open"
+                                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                          : "bg-slate-100 text-slate-500 border border-slate-200"
+                                      }`}>
+                                        {sch.status}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Flight Details row */}
+                                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
+                                    <span className="flex items-center gap-1 font-bold text-rose-600">
+                                      <Weight size={12} className="text-rose-400 shrink-0" />
+                                      <span>{totalBeratGroup.toFixed(1)} Kg titipan</span>
+                                    </span>
+                                    {sch && !isUnscheduled && (
+                                      <span className="text-slate-400 text-[11px]">
+                                        · Kapasitas: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Slot Progress Bar */}
+                                  {sch && !isUnscheduled && (
+                                    <div className="pt-1">
+                                      <div className="h-1.5 w-full max-w-md rounded-full bg-slate-100 overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-500 ${
+                                            isFull ? "bg-red-500" : slotFill > 75 ? "bg-amber-500" : "bg-rose-500"
+                                          }`}
+                                          style={{ width: `${slotFill}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Right Side: PO Counters & Chevron */}
+                                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                  <div className="text-right hidden sm:block">
+                                    <div className="flex items-center gap-1.5 justify-end">
+                                      <span className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
+                                        {group.preOrders.length} PO
+                                      </span>
+                                      {pendingCount > 0 && (
+                                        <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                                          {pendingCount} Pending
+                                        </span>
+                                      )}
+                                    </div>
+                                    {sch && !isUnscheduled && (
+                                      <div className="text-[10px] text-slate-400 font-semibold mt-1">
+                                        Sisa {(sch.slotBeratKg - sch.beratTerpakai).toFixed(1)} Kg
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="w-8 h-8 rounded-xl bg-slate-50 group-hover:bg-rose-50 border border-slate-200/80 group-hover:border-rose-200 flex items-center justify-center text-slate-400 group-hover:text-rose-600 transition-colors">
+                                    <ChevronRight size={16} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Mobile PO Counters */}
+                              <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-100 sm:hidden">
+                                <span className="text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
+                                  {group.preOrders.length} PO
+                                </span>
+                                {pendingCount > 0 && (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                                    {pendingCount} Pending
+                                  </span>
+                                )}
+                                {sch && !isUnscheduled && (
+                                  <span className="text-[10px] font-bold text-slate-500 ml-auto">
+                                    Slot: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
 

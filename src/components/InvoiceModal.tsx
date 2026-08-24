@@ -95,6 +95,22 @@ const NAVY = "#0c2a4a";
 const GOLD = "#f59e0b";
 const GOLD_LIGHT = "#fef3c7";
 
+function parseInvoiceItems(rawText?: string | null): string[] {
+  if (!rawText) return [];
+  const clean = sanitizeText(rawText).trim();
+  let lines = clean.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length === 1 && (clean.match(/\(x\d+\)/g) || []).length > 1) {
+    const splitByQty = clean
+      .split(/(?<=\))\s+(?=[A-Z0-9])/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (splitByQty.length > 1) {
+      lines = splitByQty;
+    }
+  }
+  return lines;
+}
+
 // --- SUB-COMPONENT: Invoice Paper (Pure UI) ---
 const InvoicePaper = React.forwardRef(
   ({ order, items, customer, totals, grandTotal, badge, unitPrice }: any, ref: any) => {
@@ -385,20 +401,85 @@ const InvoicePaper = React.forwardRef(
                     }}
                   >
                     <div style={{ flex: "1", minWidth: 0 }}>
-                      <div style={{ fontSize: "3.2mm", fontWeight: 700, color: "#1e293b", wordBreak: "break-word" }}>
-                        {sanitizeText(item.namaBarang)}
-                      </div>
+                      {(() => {
+                        const subItems = parseInvoiceItems(item.namaBarang);
+                        if (subItems.length > 1) {
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1.8mm" }}>
+                              {subItems.map((sub, sIdx) => {
+                                const qtyMatch = sub.match(/\(x(\d+)\)/i);
+                                const qty = qtyMatch ? qtyMatch[1] : null;
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "flex-start",
+                                      gap: "2mm",
+                                      padding: "1.6mm 2.4mm",
+                                      background: "rgba(241, 245, 249, 0.7)",
+                                      borderRadius: "1.5mm",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: "4.5mm",
+                                        height: "4.5mm",
+                                        borderRadius: "1mm",
+                                        background: NAVY,
+                                        color: "#fff",
+                                        fontSize: "2.3mm",
+                                        fontWeight: 800,
+                                        flexShrink: 0,
+                                        marginTop: "0.2mm",
+                                      }}
+                                    >
+                                      {sIdx + 1}
+                                    </span>
+                                    <div style={{ flex: 1, minWidth: 0, fontSize: "2.9mm", fontWeight: 700, color: "#1e293b", lineHeight: 1.35 }}>
+                                      {sanitizeText(sub)}
+                                    </div>
+                                    {qty && (
+                                      <span
+                                        style={{
+                                          fontSize: "2.3mm",
+                                          fontWeight: 800,
+                                          color: NAVY,
+                                          background: "#e2e8f0",
+                                          padding: "0.4mm 1.4mm",
+                                          borderRadius: "1mm",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {qty} pcs
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ fontSize: "3.2mm", fontWeight: 700, color: "#1e293b", wordBreak: "break-word", whiteSpace: "pre-line", lineHeight: 1.35 }}>
+                            {sanitizeText(item.namaBarang)}
+                          </div>
+                        );
+                      })()}
                       {item.catatan && (
                         <div style={{
                           fontSize: "2.6mm",
                           color: "#94a3b8",
-                          marginTop: "0.8mm",
+                          marginTop: "1.2mm",
                           fontStyle: "italic",
                           whiteSpace: "pre-wrap",
                           wordBreak: "break-word",
-                          maxWidth: "70mm",
                         }}>
-                          {sanitizeText(item.catatan)}
+                          Catatan: {sanitizeText(item.catatan)}
                         </div>
                       )}
                     </div>

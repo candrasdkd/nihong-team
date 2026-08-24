@@ -41,11 +41,33 @@ export const formatCurrency = (val: number, currency?: string) => {
   return formatIDR(val);
 };
 
-export const formatDate = (d: string) => {
-  if (!d) return "-";
+export const parseSafeDate = (d: any): Date | null => {
+  if (!d) return null;
   try {
-    return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+    if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
+    if (typeof d === "object" && typeof d.toDate === "function") return d.toDate();
+    if (typeof d === "object" && typeof d.seconds === "number") return new Date(d.seconds * 1000);
+    if (typeof d === "number") return new Date(d);
+    if (typeof d === "string") {
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
   } catch {
-    return d;
+    return null;
   }
+};
+
+export const formatDate = (d: any) => {
+  const dateObj = parseSafeDate(d);
+  if (!dateObj) return "-";
+  return dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+};
+
+export const formatDateTime = (d: any) => {
+  const dateObj = parseSafeDate(d);
+  if (!dateObj) return "-";
+  const dateStr = dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  const timeStr = dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
+  return `${dateStr} · ${timeStr}`;
 };

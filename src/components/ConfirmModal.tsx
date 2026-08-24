@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Trash2, Info } from "lucide-react";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 
@@ -25,6 +25,7 @@ export function ConfirmModal({
   type = "danger",
 }: ConfirmModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   if (!isOpen) return null;
 
@@ -48,7 +49,6 @@ export function ConfirmModal({
 
   const config = typeConfig[type] || typeConfig.danger;
   const Icon = config.icon;
-  const shouldReduceMotion = useReducedMotion();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
