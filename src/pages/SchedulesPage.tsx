@@ -29,17 +29,17 @@ const TableSkeleton = () => (
         <td className="px-3 sm:px-4 py-3 text-center align-middle w-[40px]">
           <div className="h-4 bg-slate-200 rounded w-4 mx-auto" />
         </td>
-        <td className="px-3 sm:px-4 py-3 align-middle w-[150px]">
-          <div className="h-4 bg-slate-200 rounded w-20" />
-        </td>
-        <td className="px-3 sm:px-4 py-3 align-middle w-[150px]">
-          <div className="h-4 bg-slate-150 rounded w-20" />
-        </td>
         <td className="px-3 sm:px-4 py-3 align-middle w-[200px]">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-slate-200 shrink-0" />
             <div className="h-4 bg-slate-200 rounded w-24" />
           </div>
+        </td>
+        <td className="px-3 sm:px-4 py-3 align-middle w-[150px]">
+          <div className="h-4 bg-slate-200 rounded w-20" />
+        </td>
+        <td className="px-3 sm:px-4 py-3 align-middle w-[150px]">
+          <div className="h-4 bg-slate-150 rounded w-20" />
         </td>
         <td className="px-3 sm:px-4 py-3 align-middle w-[150px]">
           <div className="h-4 bg-slate-150 rounded w-20" />
@@ -162,9 +162,9 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                 <thead className="bg-slate-50 border-b border-slate-200 select-none">
                   <tr className="text-slate-500 text-left">
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-[40px]">No</th>
+                    <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Jastiper</th>
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Tanggal Berangkat</th>
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Last Drop</th>
-                    <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Jastiper</th>
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Rute</th>
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Kapasitas</th>
                     <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Fee Jastip</th>
@@ -198,9 +198,9 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                   <thead className="bg-slate-50 border-b border-slate-200 select-none">
                     <tr className="text-slate-500 text-left">
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-[40px]">No</th>
+                      <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Jastiper</th>
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Tanggal Berangkat</th>
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Last Drop</th>
-                      <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Jastiper</th>
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Rute</th>
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Kapasitas</th>
                       <th className="px-3 sm:px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Fee Jastip</th>
@@ -224,16 +224,6 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                             {schIdx + 1}
                           </td>
                           <td className="px-3 sm:px-4 py-3 align-middle">
-                            <div className="font-extrabold text-slate-800 text-xs">
-                              {formatDate(sch.tanggalBerangkat)}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 align-middle">
-                            <div className="font-extrabold text-amber-700 text-xs bg-amber-50 border border-amber-100 rounded-lg px-2 py-1 inline-block">
-                              {formatDate(sch.tanggalLastDrop)}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 align-middle">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-blue-100/80 flex items-center justify-center text-blue-600 font-extrabold text-xs shadow-inner shrink-0">
                                 {sch.namaJastiper ? sch.namaJastiper.charAt(0).toUpperCase() : <User size={12} />}
@@ -246,6 +236,16 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                   </div>
                                 )}
                               </div>
+                            </div>
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 align-middle">
+                            <div className="font-extrabold text-slate-800 text-xs">
+                              {formatDate(sch.tanggalBerangkat)}
+                            </div>
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 align-middle">
+                            <div className="font-extrabold text-amber-700 text-xs bg-amber-50 border border-amber-100 rounded-lg px-2 py-1 inline-block">
+                              {formatDate(sch.tanggalLastDrop)}
                             </div>
                           </td>
                           <td className="px-3 sm:px-4 py-3 align-middle">
@@ -385,4 +385,3 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     </div>
   );
 }
-

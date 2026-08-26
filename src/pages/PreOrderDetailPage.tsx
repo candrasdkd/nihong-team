@@ -24,6 +24,240 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { usePreOrderDetail, EditingCell } from "../hooks/usePreOrderDetail";
 import { updatePreOrder } from "../services/preOrdersFirebase";
 
+type BookingColumnKey =
+  | "number"
+  | "selection"
+  | "customer"
+  | "weight"
+  | "items"
+  | "pic"
+  | "notes"
+  | "status"
+  | "actions";
+
+type BookingColumn = {
+  key: BookingColumnKey;
+  label: string;
+  defaultWidth: number;
+  minWidth: number;
+  rotatedWidth: string;
+  align?: "left" | "center" | "right";
+};
+
+const BOOKING_COLUMN_WIDTHS_STORAGE_KEY = "nihong:booking-detail:column-widths";
+const BOOKING_COLUMN_WIDTHS_VERSION_KEY = "nihong:booking-detail:column-widths-version";
+const BOOKING_COLUMN_WIDTHS_VERSION = 2;
+
+const BOOKING_COLUMNS: readonly BookingColumn[] = [
+  { key: "number", label: "#", defaultWidth: 36, minWidth: 32, rotatedWidth: "4%", align: "center" },
+  { key: "selection", label: "✓", defaultWidth: 40, minWidth: 36, rotatedWidth: "6%", align: "center" },
+  { key: "customer", label: "Pelanggan", defaultWidth: 160, minWidth: 110, rotatedWidth: "20%" },
+  { key: "weight", label: "Berat", defaultWidth: 112, minWidth: 80, rotatedWidth: "11%" },
+  { key: "items", label: "Barang", defaultWidth: 150, minWidth: 100, rotatedWidth: "12%" },
+  { key: "pic", label: "PIC", defaultWidth: 112, minWidth: 80, rotatedWidth: "10%" },
+  { key: "notes", label: "Catatan", defaultWidth: 160, minWidth: 100, rotatedWidth: "17%" },
+  { key: "status", label: "Status", defaultWidth: 96, minWidth: 80, rotatedWidth: "10%", align: "center" },
+  { key: "actions", label: "Aksi", defaultWidth: 120, minWidth: 92, rotatedWidth: "10%", align: "right" },
+];
+
+type BookingColumnWidths = Record<BookingColumnKey, number>;
+
+function getDefaultBookingColumnWidths(): BookingColumnWidths {
+  return BOOKING_COLUMNS.reduce((widths, column) => {
+    widths[column.key] = column.defaultWidth;
+    return widths;
+  }, {} as BookingColumnWidths);
+}
+
+function loadBookingColumnWidths(): BookingColumnWidths {
+  const widths = getDefaultBookingColumnWidths();
+  if (typeof window === "undefined") return widths;
+
+  try {
+    const saved = JSON.parse(
+      window.localStorage.getItem(BOOKING_COLUMN_WIDTHS_STORAGE_KEY) || "{}",
+    ) as Partial<BookingColumnWidths>;
+
+    BOOKING_COLUMNS.forEach((column) => {
+      const savedWidth = Number(saved[column.key]);
+      if (Number.isFinite(savedWidth)) {
+        widths[column.key] = Math.max(column.minWidth, savedWidth);
+      }
+    });
+
+    const savedVersion = Number(
+      window.localStorage.getItem(BOOKING_COLUMN_WIDTHS_VERSION_KEY) || 0,
+    );
+    if (savedVersion < BOOKING_COLUMN_WIDTHS_VERSION) {
+      // Versi sebelumnya menyimpan kolom Aksi terlalu lebar (176px atau lebih).
+      widths.actions = BOOKING_COLUMNS.find((column) => column.key === "actions")!.defaultWidth;
+      window.localStorage.setItem(
+        BOOKING_COLUMN_WIDTHS_VERSION_KEY,
+        String(BOOKING_COLUMN_WIDTHS_VERSION),
+      );
+    }
+  } catch {
+    // Gunakan ukuran bawaan jika preferensi yang tersimpan tidak valid.
+  }
+
+  return widths;
+}
+
+function useBookingColumnWidths() {
+  const [columnWidths, setColumnWidths] = useState<BookingColumnWidths>(
+    loadBookingColumnWidths,
+  );
+  const activeResizeCleanup = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        BOOKING_COLUMN_WIDTHS_STORAGE_KEY,
+        JSON.stringify(columnWidths),
+      );
+    } catch {
+      // Tabel tetap dapat dipakai jika penyimpanan browser tidak tersedia.
+    }
+  }, [columnWidths]);
+
+  useEffect(() => () => activeResizeCleanup.current?.(), []);
+
+  const startResizing = useCallback(
+    (column: BookingColumn, event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      activeResizeCleanup.current?.();
+
+      const startX = event.clientX;
+      const startWidth = columnWidths[column.key];
+      const previousCursor = document.body.style.cursor;
+      const previousUserSelect = document.body.style.userSelect;
+
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const handlePointerMove = (pointerEvent: PointerEvent) => {
+        const nextWidth = Math.max(
+          column.minWidth,
+          Math.round(startWidth + pointerEvent.clientX - startX),
+        );
+        setColumnWidths((current) =>
+          current[column.key] === nextWidth
+            ? current
+            : { ...current, [column.key]: nextWidth },
+        );
+      };
+
+      const stopResizing = () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", stopResizing);
+        window.removeEventListener("pointercancel", stopResizing);
+        document.body.style.cursor = previousCursor;
+        document.body.style.userSelect = previousUserSelect;
+        activeResizeCleanup.current = null;
+      };
+
+      activeResizeCleanup.current = stopResizing;
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", stopResizing);
+      window.addEventListener("pointercancel", stopResizing);
+    },
+    [columnWidths],
+  );
+
+  const resetColumnWidth = useCallback((column: BookingColumn) => {
+    setColumnWidths((current) => ({
+      ...current,
+      [column.key]: column.defaultWidth,
+    }));
+  }, []);
+
+  const resetAllColumnWidths = useCallback(() => {
+    setColumnWidths(getDefaultBookingColumnWidths());
+  }, []);
+
+  const tableWidth = useMemo(
+    () => BOOKING_COLUMNS.reduce((total, column) => total + columnWidths[column.key], 0),
+    [columnWidths],
+  );
+
+  return {
+    columnWidths,
+    tableWidth,
+    startResizing,
+    resetColumnWidth,
+    resetAllColumnWidths,
+  };
+}
+
+function BookingTableColGroup({
+  widths,
+  isRotated,
+}: {
+  widths: BookingColumnWidths;
+  isRotated: boolean;
+}) {
+  return (
+    <colgroup>
+      {BOOKING_COLUMNS.map((column) => (
+        <col
+          key={column.key}
+          style={{ width: isRotated ? column.rotatedWidth : widths[column.key] }}
+        />
+      ))}
+    </colgroup>
+  );
+}
+
+function ResizableBookingTableHeader({
+  isRotated,
+  onResizeStart,
+  onResetWidth,
+}: {
+  isRotated: boolean;
+  onResizeStart: (column: BookingColumn, event: React.PointerEvent<HTMLDivElement>) => void;
+  onResetWidth: (column: BookingColumn) => void;
+}) {
+  return (
+    <thead className="isolate border-b border-slate-300 bg-white">
+      <tr
+        className="bg-white text-slate-500 font-bold uppercase tracking-wider select-none"
+        style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+      >
+        {BOOKING_COLUMNS.map((column) => (
+          <th
+            key={column.key}
+            className={`sticky top-0 z-30 px-2 py-2 shadow-[0_1px_0_#cbd5e1] ${
+              column.key === "number" ? "bg-slate-100" : "bg-white"
+            } ${column.key === "actions" ? "" : "border-r border-slate-200"} ${
+              column.align === "center"
+                ? "text-center"
+                : column.align === "right"
+                  ? "text-right"
+                  : "text-left"
+            }`}
+          >
+            {column.label}
+            {!isRotated && (
+              <div
+                role="separator"
+                aria-label={`Ubah lebar kolom ${column.label}`}
+                aria-orientation="vertical"
+                onPointerDown={(event) => onResizeStart(column, event)}
+                onDoubleClick={() => onResetWidth(column)}
+                className="group absolute -right-1 top-0 bottom-0 z-30 flex w-3 cursor-col-resize touch-none items-center justify-center"
+                title="Tarik untuk mengubah lebar · klik dua kali untuk reset"
+              >
+                <span className="h-full w-px bg-slate-200 transition-all group-hover:w-0.5 group-hover:bg-rose-500" />
+              </div>
+            )}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
 // ─── Inline Editable Cell ────────────────────────────────────────────────────
 
 function EditableCell({
@@ -491,9 +725,7 @@ function CustomerDropdownCell({
             title="Klik untuk ganti pelanggan"
           >
             <span className={isRotated ? "flex-1 truncate font-extrabold text-slate-800" : "flex-1 font-extrabold text-slate-800 break-words whitespace-normal leading-tight block"}>
-              {isRotated && po.namaPelanggan && po.namaPelanggan.length > 10
-                ? `${po.namaPelanggan.slice(0, 10)}...`
-                : po.namaPelanggan || "—"}
+              {po.namaPelanggan || "—"}
             </span>
           </div>
         ) : (
@@ -824,6 +1056,13 @@ export function PreOrderDetailPage({
   const [localIsRotated, setLocalIsRotated] = useState(false);
   const [focusedInput, setFocusedInput] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [customerPickPO, setCustomerPickPO] = useState<PreOrder | null>(null);
+  const {
+    columnWidths,
+    tableWidth,
+    startResizing,
+    resetColumnWidth,
+    resetAllColumnWidths,
+  } = useBookingColumnWidths();
 
   const isRotated = propIsRotated !== undefined ? propIsRotated : localIsRotated;
   const setIsRotated = (v: boolean) => {
@@ -937,6 +1176,7 @@ export function PreOrderDetailPage({
     handleDelete,
     shareWA,
     shareMultipleWA,
+    shareAllWA,
     toggleSelect,
     totalBeratPOs,
   } = usePreOrderDetail(
@@ -1113,11 +1353,34 @@ export function PreOrderDetailPage({
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spreadsheet</span>
-                        <span className="text-[10px] text-slate-400">— Klik cell untuk edit langsung</span>
+                        <span className="text-[10px] text-slate-400">
+                          — Klik cell untuk edit langsung
+                          {!isRotated && <span className="hidden sm:inline"> · tarik batas header untuk atur kolom</span>}
+                        </span>
                       </div>
                     </div>
 
-                  <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500">
+                  <div className="flex flex-wrap items-center justify-end gap-2 text-[10px] font-bold text-slate-500">
+                    <button
+                      type="button"
+                      onClick={shareAllWA}
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-emerald-700 transition-colors hover:bg-emerald-100"
+                      title={`Bagikan seluruh ${pos.length} booking ke WhatsApp`}
+                    >
+                      <MessageCircle size={10} />
+                      <span className="hidden sm:inline">Share Semua WA</span>
+                      <span className="sm:hidden">Semua WA</span>
+                    </button>
+                    {!isRotated && (
+                      <button
+                        type="button"
+                        onClick={resetAllColumnWidths}
+                        className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-slate-500 transition-colors hover:border-rose-200 hover:text-rose-600"
+                        title="Kembalikan semua lebar kolom"
+                      >
+                        Reset Kolom
+                      </button>
+                    )}
                     <span className="flex items-center gap-1">
                       <Weight size={10} />
                       Total: {totalBeratPOs.toFixed(1)} Kg
@@ -1132,22 +1395,20 @@ export function PreOrderDetailPage({
                     style={{
                       "--table-fs": `${tableFontSize}px`,
                       fontSize: "var(--table-fs)",
+                      width: isRotated ? "100%" : `${tableWidth}px`,
+                      minWidth: isRotated ? 0 : "100%",
                     } as React.CSSProperties}
-                    className={`${isRotated ? "w-full min-w-0 table-fixed" : "min-w-[900px] table-auto"} w-full border-collapse text-left`}
+                    className="table-fixed border-collapse text-left"
                   >
-                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
-                      <tr className="text-slate-500 font-bold uppercase tracking-wider select-none" style={{ fontSize: "calc(var(--table-fs) - 1px)" }}>
-                        <th className="border-r border-slate-200 px-1 py-2 text-center bg-slate-100/80" style={{ width: isRotated ? "4%" : "36px" }}>#</th>
-                        <th className="border-r border-slate-200 px-1 py-2 text-center bg-slate-50" style={{ width: isRotated ? "6%" : "40px" }}>✓</th>
-                        <th className="border-r border-slate-200 px-2 py-2" style={{ width: isRotated ? "18%" : "160px" }}>Pelanggan</th>
-                        <th className="border-r border-slate-200 px-2 py-2" style={{ width: isRotated ? "11%" : "112px" }}>Berat</th>
-                        <th className="border-r border-slate-200 px-2 py-2" style={{ width: isRotated ? "12%" : "150px" }}>Barang</th>
-                        <th className="border-r border-slate-200 px-2 py-2" style={{ width: isRotated ? "10%" : "112px" }}>PIC</th>
-                        <th className="border-r border-slate-200 px-2 py-2" style={{ width: isRotated ? "15%" : "160px" }}>Catatan</th>
-                        <th className="border-r border-slate-200 px-2 py-2 text-center" style={{ width: isRotated ? "10%" : "96px" }}>Status</th>
-                        <th className="px-2 py-2 text-right" style={{ width: isRotated ? "14%" : "176px" }}>Aksi</th>
-                      </tr>
-                    </thead>
+                    <BookingTableColGroup
+                      widths={columnWidths}
+                      isRotated={isRotated}
+                    />
+                    <ResizableBookingTableHeader
+                      isRotated={isRotated}
+                      onResizeStart={startResizing}
+                      onResetWidth={resetColumnWidth}
+                    />
 
                     <tbody className="divide-y divide-slate-100">
                       {pos.map((po, poIdx) => {
@@ -1169,13 +1430,13 @@ export function PreOrderDetailPage({
                             {/* # */}
                             <td
                               style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                              className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5 w-7" : "px-2 py-2 w-9"} text-center bg-slate-50/80 font-mono text-slate-400 select-none`}
+                              className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center bg-slate-50/80 font-mono text-slate-400 select-none overflow-hidden`}
                             >
                               {poIdx + 1}
                             </td>
 
                             {/* Checkbox */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5 w-8" : "px-2 py-2 w-10"} text-center`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center overflow-hidden`}>
                               <input
                                 type="checkbox"
                                 checked={selectedIds.includes(po.id)}
@@ -1185,7 +1446,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Pelanggan */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 min-w-[75px]" : "px-2 py-1.5 min-w-[160px]"} align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               {isRotated ? (
                                 <div
                                   onClick={() => !isSelesai && setCustomerPickPO(po)}
@@ -1200,9 +1461,7 @@ export function PreOrderDetailPage({
                                     style={{ fontSize: "var(--table-fs)" }}
                                     className="font-extrabold text-slate-800 truncate block"
                                   >
-                                    {po.namaPelanggan && po.namaPelanggan.length > 10
-                                      ? `${po.namaPelanggan.slice(0, 10)}...`
-                                      : po.namaPelanggan}
+                                    {po.namaPelanggan || "—"}
                                   </span>
                                 ) : (
                                   <CustomerDropdownCell
@@ -1217,7 +1476,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Total Berat */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 w-[50px]" : "px-2 py-1.5 w-28"} align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               <div className="flex items-center gap-1">
                                 {!isRotated && <Weight size={10} className="text-slate-400 shrink-0" />}
                                 {isSelesai ? (
@@ -1247,7 +1506,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Barang */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 min-w-[80px]" : "px-2 py-1.5 min-w-[150px]"} align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               <button
                                 onClick={() => setViewItemsPO(po)}
                                 className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600 font-extrabold text-slate-600 transition-all active:scale-95 w-full justify-center whitespace-normal"
@@ -1267,7 +1526,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* PIC — editable bebas */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 w-[45px]" : "px-2 py-1.5 w-28"} align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               {isSelesai ? (
                                 <span
                                   style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
@@ -1291,7 +1550,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Catatan */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 min-w-[70px]" : "px-2 py-1.5 min-w-[160px]"} align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               {isSelesai ? (
                                 po.catatan ? (
                                   <span
@@ -1317,7 +1576,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Status */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1 w-[50px]" : "px-2 py-1.5 w-24"} text-center align-middle`}>
+                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} text-center align-middle overflow-hidden`}>
                               <span
                                 style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
                                 className={`font-bold px-1 py-0.5 rounded select-none ${isRotated ? "block break-words whitespace-normal leading-tight" : "inline-block"} ${isSelesai
@@ -1330,7 +1589,7 @@ export function PreOrderDetailPage({
                             </td>
 
                             {/* Aksi */}
-                            <td className={`px-1 py-1 ${isRotated ? "w-[80px]" : "w-44"} text-right align-middle`}>
+                            <td className="px-1 py-1 text-right align-middle overflow-hidden">
                               <div className="flex items-center justify-end gap-0.5 flex-wrap">
                                 {!isShareMode && (
                                   <button
@@ -1512,33 +1771,6 @@ export function PreOrderDetailPage({
             )}
           </AnimatePresence>
 
-          {/* ── Floating Rotate Back Button — Only visible when rotated ── */}
-          {isRotated && (
-            <button
-              onClick={() => setIsRotated(false)}
-              className="fixed bottom-6 left-6 z-[60] flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-900/90 backdrop-blur text-white rounded-xl text-xs font-extrabold shadow-2xl transition-all active:scale-90"
-            >
-              <RotateCw size={12} className="animate-spin-slow" />
-              Vertikal
-            </button>
-          )}
-
-          {/* ── Share Mode FAB ── Tombol Tambah mengambang di bawah saat share mode */}
-          <AnimatePresence>
-            {isShareMode && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                onClick={onOpenCreateForm}
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-2xl shadow-rose-500/40 flex items-center justify-center transition-all active:scale-90 z-40"
-                title="Tambah Booking"
-              >
-                <Plus size={22} strokeWidth={2.5} />
-              </motion.button>
-            )}
-          </AnimatePresence>
-
           {/* ── Custom Virtual Keyboard (rotated inside content area) ── */}
           {focusedInput && (
             <VirtualKeyboard
@@ -1547,6 +1779,58 @@ export function PreOrderDetailPage({
             />
           )}
         </div>
+
+        {/* Kontrol mode putar berada di overlay tersendiri agar tidak ikut scroll tabel. */}
+        {isRotated && (
+          <div
+            className="pointer-events-none fixed z-[10010]"
+            style={{
+              top: 0,
+              left: "100%",
+              width: "100vh",
+              height: "100vw",
+              transform: "rotate(90deg)",
+              transformOrigin: "top left",
+            }}
+          >
+            <button
+              onClick={() => setIsRotated(false)}
+              className="pointer-events-auto absolute bottom-6 left-6 flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-900/90 backdrop-blur text-white rounded-xl text-xs font-extrabold shadow-2xl transition-all active:scale-90"
+            >
+              <RotateCw size={12} className="animate-spin-slow" />
+              Vertikal
+            </button>
+
+            {isShareMode && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                onClick={onOpenCreateForm}
+                className="pointer-events-auto absolute bottom-6 right-6 h-14 w-14 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-2xl shadow-rose-500/40 flex items-center justify-center transition-all active:scale-90"
+                title="Tambah Booking"
+              >
+                <Plus size={22} strokeWidth={2.5} />
+              </motion.button>
+            )}
+          </div>
+        )}
+
+        {/* Share Mode FAB pada tampilan mobile normal (belum diputar). */}
+        <AnimatePresence>
+          {!isRotated && isShareMode && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              onClick={onOpenCreateForm}
+              className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-2xl shadow-rose-500/40 flex items-center justify-center transition-all active:scale-90"
+              title="Tambah Booking"
+            >
+              <Plus size={22} strokeWidth={2.5} />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -107,6 +107,7 @@ export interface Jastiper {
   nama: string;
   noTelpon: string;
   alamat: string;
+  shareLocationUrl?: string;
   createdAt?: any;
   updatedAt?: any;
 }

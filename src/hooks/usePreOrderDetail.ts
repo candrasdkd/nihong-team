@@ -151,9 +151,8 @@ export function usePreOrderDetail(
   }
 
   // ─── WhatsApp (bulk) ──────────────────────────────────────────────────────
-  function shareMultipleWA() {
-    const selected = pos.filter((p) => selectedIds.includes(p.id));
-    if (!selected.length) return;
+  function openBulkWhatsApp(bookings: PreOrder[]) {
+    if (!bookings.length) return;
     const feeJastiper = schedule.hargaFeeJastiper
       ? formatIDR(schedule.hargaFeeJastiper)
       : "Rp 0";
@@ -163,7 +162,7 @@ export function usePreOrderDetail(
       `*Last Drop:* ${formatDate(schedule.tanggalLastDrop)}\n` +
       `*Keberangkatan:* ${formatDate(schedule.tanggalBerangkat)}\n` +
       `*Fee Jastip:* ${feeJastiper} / Kg`;
-    const poDetails = selected
+    const poDetails = bookings
       .map((po, i) => `${i + 1}. ${po.namaPelanggan} (${po.totalKg.toFixed(1)} Kg)`)
       .join("\n");
     const msg = `${header}\n\n*Konsumen:*\n${poDetails}`;
@@ -172,6 +171,15 @@ export function usePreOrderDetail(
       "_blank",
       "noopener,noreferrer"
     );
+  }
+
+  function shareMultipleWA() {
+    const selected = pos.filter((p) => selectedIds.includes(p.id));
+    openBulkWhatsApp(selected);
+  }
+
+  function shareAllWA() {
+    openBulkWhatsApp(pos);
   }
 
   // ─── Select toggle ────────────────────────────────────────────────────────
@@ -228,6 +236,7 @@ export function usePreOrderDetail(
     handleDelete,
     shareWA,
     shareMultipleWA,
+    shareAllWA,
     toggleSelect,
     // derived
     totalBeratPOs,

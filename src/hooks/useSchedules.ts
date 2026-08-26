@@ -55,7 +55,9 @@ export function useSchedules(showToast?: (message: string, type: "success" | "er
           sch.namaJastiper.toLowerCase().includes(s)
       );
     }
-    return list;
+    return [...list].sort((a, b) =>
+      a.tanggalBerangkat.localeCompare(b.tanggalBerangkat),
+    );
   }, [schedules, statusFilter, q]);
 
   // Reset pagination whenever search query or status filter changes

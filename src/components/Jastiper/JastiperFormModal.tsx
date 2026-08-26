@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserRound, X } from "lucide-react";
+import { MapPinned, UserRound, X } from "lucide-react";
 import { Jastiper } from "../../types";
 import { Button } from "../ui/Button";
 
@@ -14,6 +14,7 @@ export function JastiperFormModal({ initial, onClose, onSubmit }: JastiperFormMo
   const [nama, setNama] = useState(initial?.nama || "");
   const [noTelpon, setNoTelpon] = useState(initial?.noTelpon || "");
   const [alamat, setAlamat] = useState(initial?.alamat || "");
+  const [shareLocationUrl, setShareLocationUrl] = useState(initial?.shareLocationUrl || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -40,12 +41,27 @@ export function JastiperFormModal({ initial, onClose, onSubmit }: JastiperFormMo
       return;
     }
 
+    const locationValue = shareLocationUrl.trim();
+    const normalizedLocationUrl = locationValue && !/^https?:\/\//i.test(locationValue)
+      ? `https://${locationValue}`
+      : locationValue;
+    if (normalizedLocationUrl) {
+      try {
+        const parsedUrl = new URL(normalizedLocationUrl);
+        if (!/^https?:$/.test(parsedUrl.protocol)) throw new Error();
+      } catch {
+        setError("Link Share Location tidak valid.");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await onSubmit({
         nama: nama.trim().toUpperCase(),
         noTelpon: noTelpon.trim(),
         alamat: alamat.trim(),
+        shareLocationUrl: normalizedLocationUrl,
       });
       onClose();
     } catch (err: any) {
@@ -74,7 +90,7 @@ export function JastiperFormModal({ initial, onClose, onSubmit }: JastiperFormMo
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 60 }}
           transition={{ type: "spring", stiffness: 340, damping: 28 }}
-          className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden border-t-4 border-t-violet-500 z-10"
+          className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border-t-4 border-t-violet-500 bg-white shadow-2xl sm:max-w-md sm:rounded-2xl z-10 custom-scrollbar"
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
@@ -128,6 +144,27 @@ export function JastiperFormModal({ initial, onClose, onSubmit }: JastiperFormMo
                 rows={3}
                 className={`${fieldClass} resize-none`}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <label className={labelClass}>Share Location</label>
+                <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Opsional</span>
+              </div>
+              <div className="relative">
+                <MapPinned className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-violet-400" />
+                <input
+                  value={shareLocationUrl}
+                  onChange={(e) => setShareLocationUrl(e.target.value)}
+                  placeholder="https://maps.app.goo.gl/..."
+                  type="text"
+                  inputMode="url"
+                  className={`${fieldClass} pl-10`}
+                />
+              </div>
+              <p className="text-[10px] font-medium leading-relaxed text-slate-400">
+                Tempel link dari menu Share/Bagi di Google Maps.
+              </p>
             </div>
 
             <div className="flex gap-3 pt-2">

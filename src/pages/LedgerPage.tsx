@@ -362,6 +362,16 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     isFiltered,
   } = useLedger();
 
+  const isViewingFilteredSummary = isFiltered || q.trim() !== "";
+  const summaryTotalMasuk =
+    !isViewingFilteredSummary && globalSummary
+      ? globalSummary.totalMasuk
+      : totalMasuk;
+  const summaryTotalKeluar =
+    !isViewingFilteredSummary && globalSummary
+      ? globalSummary.totalKeluar
+      : totalKeluar;
+
   const handleShareReport = () => {
     const params = new URLSearchParams();
     params.set("share_ledger", "true");
@@ -520,13 +530,25 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
 
         {/* Stats Grid */}
         <div className={`${showStats ? "grid" : "hidden sm:grid"} grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-300`}>
-          <StatCard label="Pemasukan" value={totalMasuk} type="income" />
-          <StatCard label="Pengeluaran" value={totalKeluar} type="expense" />
+          <StatCard
+            label={isViewingFilteredSummary ? "Pemasukan (Filter)" : "Total Pemasukan"}
+            value={summaryTotalMasuk}
+            type="income"
+          />
+          <StatCard
+            label={isViewingFilteredSummary ? "Pengeluaran (Filter)" : "Total Pengeluaran"}
+            value={summaryTotalKeluar}
+            type="expense"
+          />
           <StatCard 
             label="Sisa Saldo Kas" 
             value={globalSummary ? globalSummary.totalSaldo : saldo} 
             type="balance"
-            sub={globalSummary ? `Net flow periode ini: ${totalMasuk - totalKeluar >= 0 ? "+" : ""}${formatIDR(totalMasuk - totalKeluar)}` : undefined}
+            sub={
+              globalSummary && isViewingFilteredSummary
+                ? `Net flow filter: ${saldo >= 0 ? "+" : ""}${formatIDR(saldo)}`
+                : undefined
+            }
           />
         </div>
 
