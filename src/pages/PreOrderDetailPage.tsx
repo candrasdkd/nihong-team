@@ -1426,6 +1426,7 @@ export function PreOrderDetailPage({
                         const isSelesai = po.status === "Selesai";
                         const checkedCount = po.items.filter((i) => i.checked).length;
                         const totalItems = po.items.length;
+                        const isKomplit = totalItems > 0 && checkedCount === totalItems;
                         const isSaving = savingCell?.startsWith(po.id);
 
                         return (
@@ -1433,15 +1434,19 @@ export function PreOrderDetailPage({
                             key={po.id}
                             className={`group transition-colors duration-100 ${selectedIds.includes(po.id)
                               ? "bg-rose-50/50"
-                              : isSelesai
-                                ? "bg-emerald-50/20"
+                              : isKomplit || isSelesai
+                                ? "bg-emerald-50/40 hover:bg-emerald-50/70"
                                 : "hover:bg-slate-50/60"
                               } ${isSaving ? "opacity-70" : ""}`}
                           >
                             {/* # */}
                             <td
                               style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                              className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center bg-slate-50/80 font-mono text-slate-400 select-none overflow-hidden`}
+                              className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center font-mono select-none overflow-hidden ${
+                                isKomplit || isSelesai
+                                  ? "bg-emerald-100/40 text-emerald-700 font-bold"
+                                  : "bg-slate-50/80 text-slate-400"
+                              }`}
                             >
                               {poIdx + 1}
                             </td>
@@ -1520,7 +1525,11 @@ export function PreOrderDetailPage({
                             <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               <button
                                 onClick={() => setViewItemsPO(po)}
-                                className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600 font-extrabold text-slate-600 transition-all active:scale-95 w-full justify-center whitespace-normal"
+                                className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded font-extrabold transition-all active:scale-95 w-full justify-center whitespace-normal ${
+                                  isKomplit
+                                    ? "bg-emerald-100/70 text-emerald-800 border border-emerald-200 hover:bg-emerald-200/70"
+                                    : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600"
+                                }`}
                                 style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
                               >
                                 {!isRotated && <Package size={10} className="shrink-0" />}
