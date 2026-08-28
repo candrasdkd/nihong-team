@@ -1385,6 +1385,17 @@ export function PreOrderDetailPage({
                       <Weight size={10} />
                       Total: {totalBeratPOs.toFixed(1)} Kg
                     </span>
+                    {schedule.id !== "__unscheduled__" && (
+                      <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-extrabold ${
+                        (schedule.slotBeratKg - schedule.beratTerpakai) <= 0
+                          ? "bg-red-50 text-red-600 border border-red-100"
+                          : (schedule.slotBeratKg - schedule.beratTerpakai) <= 5
+                          ? "bg-amber-50 text-amber-600 border border-amber-100"
+                          : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                      }`}>
+                        Sisa {Math.max(0, schedule.slotBeratKg - schedule.beratTerpakai).toFixed(1)} Kg
+                      </span>
+                    )}
                     <span>{pos.length} baris</span>
                   </div>
                 </div>
@@ -1749,7 +1760,9 @@ export function PreOrderDetailPage({
                   </div>
                   <div>
                     <p className="text-xs font-extrabold text-white leading-none">{selectedIds.length} Terpilih</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Booking dipilih</p>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                      {pos.filter((p) => selectedIds.includes(p.id)).reduce((sum, p) => sum + p.totalKg, 0).toFixed(1)} Kg terpilih
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

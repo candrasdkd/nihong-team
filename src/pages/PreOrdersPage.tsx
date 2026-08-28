@@ -335,13 +335,15 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
                                   {/* Flight Details row */}
                                   <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
-                                    <span className="flex items-center gap-1 font-bold text-rose-600">
-                                      <Weight size={12} className="text-rose-400 shrink-0" />
-                                      <span>{totalBeratGroup.toFixed(1)} Kg titipan</span>
-                                    </span>
-                                    {sch && !isUnscheduled && (
-                                      <span className="text-slate-400 text-[11px]">
-                                        · Kapasitas: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
+                                    {sch && !isUnscheduled ? (
+                                      <span className="flex items-center gap-1 font-bold text-rose-600">
+                                        <Weight size={12} className="text-rose-400 shrink-0" />
+                                        <span>Kapasitas: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg</span>
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center gap-1 font-bold text-rose-600">
+                                        <Weight size={12} className="text-rose-400 shrink-0" />
+                                        <span>{totalBeratGroup.toFixed(1)} Kg titipan</span>
                                       </span>
                                     )}
                                   </div>
@@ -365,12 +367,13 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                   <div className="text-right hidden sm:block">
                                     <div className="flex items-center gap-1.5 justify-end">
-                                      <span className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
-                                        {group.preOrders.length} PO
-                                      </span>
-                                      {pendingCount > 0 && (
+                                      {pendingCount > 0 ? (
                                         <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
                                           {pendingCount} Pending
+                                        </span>
+                                      ) : (
+                                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                                          Semua Selesai
                                         </span>
                                       )}
                                     </div>
@@ -389,17 +392,24 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
                               {/* Mobile PO Counters */}
                               <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-100 sm:hidden">
-                                <span className="text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
-                                  {group.preOrders.length} PO
-                                </span>
-                                {pendingCount > 0 && (
+                                {pendingCount > 0 ? (
                                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
                                     {pendingCount} Pending
                                   </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                                    Semua Selesai
+                                  </span>
                                 )}
                                 {sch && !isUnscheduled && (
-                                  <span className="text-[10px] font-bold text-slate-500 ml-auto">
-                                    Slot: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg
+                                  <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
+                                    (sch.slotBeratKg - sch.beratTerpakai) <= 0
+                                      ? "bg-red-50 text-red-600 border border-red-100"
+                                      : (sch.slotBeratKg - sch.beratTerpakai) <= 5
+                                      ? "bg-amber-50 text-amber-600 border border-amber-100"
+                                      : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                  }`}>
+                                    Sisa {Math.max(0, sch.slotBeratKg - sch.beratTerpakai).toFixed(1)} Kg
                                   </span>
                                 )}
                               </div>

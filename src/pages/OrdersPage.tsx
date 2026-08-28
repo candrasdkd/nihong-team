@@ -1088,26 +1088,26 @@ function ExpandableRow({
                 </div>
                 <div className="grid grid-cols-2 gap-4 bg-white/70 backdrop-blur-sm border border-slate-100 p-3 rounded-xl shadow-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold block">Base Jastip</span>
+                    <span className="text-[10px] text-slate-400 font-bold block">Harga dibelanjakan (asli)</span>
                     <span className="text-xs font-bold text-slate-600">
                       {formatCurrency(d.baseJastip, d.currency)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold block">Markup Jastip</span>
+                    <span className="text-[10px] text-slate-400 font-bold block">Harga kita (mark up)</span>
                     <span className="text-xs font-extrabold text-emerald-600">
                       +{formatCurrency(d.jastipMarkup, d.currency)}
                     </span>
                   </div>
                   <div className="border-t border-slate-100/70 pt-2 col-span-2 grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold block">Base Ongkir</span>
+                      <span className="text-[10px] text-slate-400 font-bold block">Biaya titip bagasi (asli)</span>
                       <span className="text-xs font-bold text-slate-600">
                         {formatCurrency(d.baseOngkir, d.currency)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold block">Markup Ongkir</span>
+                      <span className="text-[10px] text-slate-400 font-bold block">Biaya kita (mark up)</span>
                       <span className="text-xs font-extrabold text-emerald-600">
                         +{formatCurrency(d.ongkirMarkup, d.currency)}
                       </span>
@@ -1472,13 +1472,13 @@ function OrderDetailModal({
               <div className="bg-slate-50/30 border border-slate-100 p-4 rounded-2xl space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">Base Jastip</span>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Harga dibelanjakan (asli)</span>
                     <span className="font-bold text-slate-700">
                       {formatCurrency(d.baseJastip, d.currency)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">Markup Jastip</span>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Harga kita (mark up)</span>
                     <span className="font-bold text-emerald-600 flex items-center">
                       +{formatCurrency(d.jastipMarkup, d.currency)}
                     </span>
@@ -1489,13 +1489,13 @@ function OrderDetailModal({
 
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">Base Ongkir ({d.kg} Kg x {formatCurrency(unitPrice)})</span>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Biaya titip bagasi (asli) ({d.kg} Kg x {formatCurrency(unitPrice)})</span>
                     <span className="font-bold text-slate-700">
                       {formatCurrency(d.baseOngkir, d.currency)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">Markup Ongkir</span>
+                    <span className="text-[10px] text-slate-400 font-semibold block">Biaya kita (mark up)</span>
                     <span className="font-bold text-emerald-600 flex items-center">
                       +{formatCurrency(d.ongkirMarkup, d.currency)}
                     </span>

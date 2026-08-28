@@ -625,7 +625,7 @@ export function OrderFormModal({
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        {renderLabel("Jastip Asli (Modal)", hargaJastipManual, false)}
+                        {renderLabel("Harga dibelanjakan (asli)", hargaJastipManual, false)}
                         <RupiahInput
                           currency={currency}
                           label=""
@@ -636,7 +636,7 @@ export function OrderFormModal({
                         />
                       </div>
                       <div>
-                        {renderLabel("Jastip Nihong (Jual)", hargaJastipMarkup, false)}
+                        {renderLabel("Harga kita (mark up)", hargaJastipMarkup, false)}
                         <RupiahInput
                           currency={currency}
                           label=""
@@ -658,7 +658,7 @@ export function OrderFormModal({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        {renderLabel("Ongkir Asli (Modal)", hargaOngkir, false)}
+                        {renderLabel("Biaya titip bagasi (asli)", hargaOngkir, false)}
                         <RupiahInput
                           currency={currency}
                           label=""
@@ -669,7 +669,7 @@ export function OrderFormModal({
                         />
                       </div>
                       <div>
-                        {renderLabel("Ongkir Nihong (Jual)", hargaOngkirMarkup, false)}
+                        {renderLabel("Biaya kita (mark up)", hargaOngkirMarkup, false)}
                         <RupiahInput
                           currency={currency}
                           label=""

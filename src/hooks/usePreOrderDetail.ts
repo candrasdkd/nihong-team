@@ -131,6 +131,12 @@ export function usePreOrderDetail(
     const sch = schedules.find((s) => s.id === po.idJadwal);
     const lastDropDate = sch?.tanggalLastDrop ? formatDate(sch.tanggalLastDrop) : "-";
     const feeJastiper = sch?.hargaFeeJastiper ? formatIDR(sch.hargaFeeJastiper) : "Rp 0";
+    const totalItems = po.items.length;
+    const checkedItems = po.items.filter((item) => item.checked).length;
+    const allChecked = totalItems > 0 && checkedItems === totalItems;
+    const statusBarang = allChecked
+      ? `✅ Semua barang sudah lengkap (${totalItems}/${totalItems})`
+      : `⚠️ Barang belum lengkap (${checkedItems}/${totalItems} sudah di-check)`;
     const itemsText = po.items
       .map((item) => `${item.checked ? "✅" : "⬜"} ${item.namaBarang}`)
       .join("\n");
@@ -141,7 +147,8 @@ export function usePreOrderDetail(
       `*Keberangkatan:* ${formatDate(po.tanggalBerangkat)}\n` +
       `*Fee Jastip:* ${feeJastiper} / Kg\n` +
       `*Konsumen:* ${po.namaPelanggan}\n` +
-      `*Total Berat:* ${po.totalKg.toFixed(1)} Kg\n\n` +
+      `*Total Berat:* ${po.totalKg.toFixed(1)} Kg\n` +
+      `*Status Barang:* ${statusBarang}\n\n` +
       `*Daftar Barang:*\n${itemsText}`;
     window.open(
       `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`,
@@ -156,6 +163,7 @@ export function usePreOrderDetail(
     const feeJastiper = schedule.hargaFeeJastiper
       ? formatIDR(schedule.hargaFeeJastiper)
       : "Rp 0";
+    const totalBeratTerpilih = bookings.reduce((sum, po) => sum + po.totalKg, 0);
     const header =
       `*Jastiper:* ${schedule.namaJastiper}\n` +
       `*Rute:* ${schedule.rute}\n` +
@@ -163,7 +171,13 @@ export function usePreOrderDetail(
       `*Keberangkatan:* ${formatDate(schedule.tanggalBerangkat)}\n` +
       `*Fee Jastip:* ${feeJastiper} / Kg`;
     const poDetails = bookings
-      .map((po, i) => `${i + 1}. ${po.namaPelanggan} (${po.totalKg.toFixed(1)} Kg)`)
+      .map((po, i) => {
+        const total = po.items.length;
+        const checked = po.items.filter((item) => item.checked).length;
+        const statusIcon = total > 0 && checked === total ? "✅" : "⚠️";
+        const statusText = total > 0 && checked === total ? "Lengkap" : "Belum lengkap";
+        return `${i + 1}. ${statusIcon} ${po.namaPelanggan} (${po.totalKg.toFixed(1)} Kg) — ${statusText}`;
+      })
       .join("\n");
     const msg = `${header}\n\n*Konsumen:*\n${poDetails}`;
     window.open(

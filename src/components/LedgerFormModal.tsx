@@ -308,10 +308,10 @@ export function LedgerFormModal({
           <AnimatePresence>
             {isMonthlyProfitCategory && (
               <motion.div
-                initial={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
-                animate={isSmall ? { opacity: 1 } : { opacity: 1, height: "auto", marginTop: 12 }}
-                exit={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
-                transition={isSmall ? { duration: 0.15 } : undefined}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 className="overflow-hidden"
               >
                 <div className="p-4 border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/30 rounded-xl space-y-4">
@@ -328,20 +328,22 @@ export function LedgerFormModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Dari Tanggal</span>
-                      <Input
+                      <input
                         type="date"
                         value={profitCalcFrom}
                         onChange={(e) => setProfitCalcFrom(e.target.value)}
-                        className={`w-full bg-white border-amber-200/70 focus:bg-white text-slate-800 rounded-xl h-10 text-xs focus:!ring-amber-500/20 focus:!border-amber-500`}
+                        style={{ WebkitAppearance: "none", appearance: "none" }}
+                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-10 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[40px]"
                       />
                     </div>
                     <div className="space-y-1">
                       <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Sampai Tanggal</span>
-                      <Input
+                      <input
                         type="date"
                         value={profitCalcTo}
                         onChange={(e) => setProfitCalcTo(e.target.value)}
-                        className={`w-full bg-white border-amber-200/70 focus:bg-white text-slate-800 rounded-xl h-10 text-xs focus:!ring-amber-500/20 focus:!border-amber-500`}
+                        style={{ WebkitAppearance: "none", appearance: "none" }}
+                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-10 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[40px]"
                       />
                     </div>
                   </div>
@@ -386,11 +388,12 @@ export function LedgerFormModal({
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                   Tanggal Transaksi
                 </label>
-                <Input
+                <input
                   type="date"
                   value={tanggal}
                   onChange={(e) => setTanggal(e.target.value)}
-                  className={`w-full h-11 bg-white border-slate-200 focus:bg-white rounded-xl transition-all ${themeBorderFocus}`}
+                  style={{ WebkitAppearance: "none", appearance: "none" }}
+                  className={`w-full h-11 min-h-[44px] bg-white border border-slate-200 rounded-xl px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:border-transparent transition-all ${isMasuk ? "focus:ring-emerald-500/20" : "focus:ring-rose-500/20"}`}
                 />
               </div>
 
@@ -479,13 +482,13 @@ export function LedgerFormModal({
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                 Keterangan / Deskripsi
               </label>
-              <Input
+              <textarea
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 placeholder={isMonthlyProfitCategory ? "Akan diisi otomatis oleh kalkulator" : "Tulis deskripsi transaksi..."}
                 disabled={isMonthlyProfitCategory}
-                className={`w-full h-11 bg-white border-slate-200 focus:bg-white rounded-xl transition-all ${themeBorderFocus} ${isMonthlyProfitCategory ? "cursor-not-allowed opacity-75 bg-slate-50" : ""
-                  }`}
+                rows={3}
+                className={`w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all ${isMasuk ? "focus:ring-emerald-500/20" : "focus:ring-rose-500/20"} ${isMonthlyProfitCategory ? "cursor-not-allowed opacity-75 bg-slate-50" : ""}`}
               />
               {isMonthlyProfitCategory && (
                 <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
