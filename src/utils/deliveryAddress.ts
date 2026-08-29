@@ -121,7 +121,7 @@ export type JapanDeliveryAddressErrors = Partial<
 >;
 
 const ROMAJI_ADDRESS_PATTERN = /^[\p{Script=Latin}\p{Mark}\d\s.,'’/#()\-]+$/u;
-const JAPANESE_ADDRESS_PATTERN = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{Mark}\d\s.,'’/#()\-々〆ヵヶー・〒]+$/u;
+const JAPANESE_ADDRESS_PATTERN = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{Mark}\d\s.,、。''/#()\-々〆ヵヶー・〒「」【】〔〕]+$/u;
 
 export function validateJapanDeliveryAddress(
   value: JapanDeliveryAddress,
@@ -142,12 +142,7 @@ export function validateJapanDeliveryAddress(
     errors.alamatPenerimaRomaji = "Gunakan alamat berhuruf Latin/Romaji; angka dan tanda alamat diperbolehkan.";
   }
 
-  if (address.alamatPenerimaKanji && (
-    !JAPANESE_ADDRESS_PATTERN.test(address.alamatPenerimaKanji)
-    || !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(address.alamatPenerimaKanji)
-  )) {
-    errors.alamatPenerimaKanji = "Gunakan aksara Jepang; angka dan tanda alamat diperbolehkan.";
-  }
+
   if (!address.kodePos) {
     errors.kodePos = "Kode pos wajib diisi.";
   } else if (!/^\d{7}$/.test(address.kodePos)) {

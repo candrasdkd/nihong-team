@@ -128,7 +128,13 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
     }
 
     const cleanedJapanAddress = cleanJapanDeliveryAddress(alamatJepang);
-    if (alamatJepangTouched) {
+    const japanIsEmpty = !cleanedJapanAddress.namaPenerima
+      && !cleanedJapanAddress.alamatPenerimaRomaji
+      && !cleanedJapanAddress.alamatPenerimaKanji
+      && !cleanedJapanAddress.kodePos
+      && !cleanedJapanAddress.noHpAktif;
+
+    if (!japanIsEmpty && alamatJepangTouched) {
       const validationErrors = validateJapanDeliveryAddress(cleanedJapanAddress);
       if (Object.keys(validationErrors).length > 0) {
         setAlamatJepangErrors(validationErrors);
@@ -136,6 +142,13 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
         return;
       }
     }
+
+    const cleanedIndonesiaAddress = cleanIndonesiaDeliveryAddress(alamatIndonesia);
+    const indonesiaIsEmpty = !cleanedIndonesiaAddress.namaPenerima
+      && !cleanedIndonesiaAddress.alamatPenerima
+      && !cleanedIndonesiaAddress.kodePos
+      && !cleanedIndonesiaAddress.noHp;
+
     setErrorMsg(null);
     setSubmitting(true);
     try {
@@ -144,8 +157,8 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
         nama: nama.trim().toUpperCase(),
         alamat: alamat.trim(),
         telpon: telpon.trim(),
-        alamatPengirimanIndonesia: cleanIndonesiaDeliveryAddress(alamatIndonesia),
-        alamatPengirimanJepang: cleanedJapanAddress,
+        alamatPengirimanIndonesia: indonesiaIsEmpty ? undefined : cleanedIndonesiaAddress,
+        alamatPengirimanJepang: japanIsEmpty ? undefined : cleanedJapanAddress,
       });
     } catch (err: any) {
       setErrorMsg(err?.message || "Gagal menyimpan data.");

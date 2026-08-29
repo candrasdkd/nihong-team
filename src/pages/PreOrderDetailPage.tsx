@@ -1183,8 +1183,8 @@ export function PreOrderDetailPage({
       return;
     }
 
-    const customerPhone = po.noTelponPelanggan
-      || customers.find((customer) => customer.id === po.idPelanggan)?.telpon
+    const customerPhone = customers.find((c) => c.id === po.idPelanggan)?.telpon
+      || po.noTelponPelanggan
       || "";
     const whatsappPhone = normalizeWhatsAppPhone(customerPhone);
     if (!whatsappPhone) {
@@ -1200,9 +1200,15 @@ export function PreOrderDetailPage({
       `/?delivery=${encodeURIComponent(shareToken)}`,
       import.meta.env.VITE_PUBLIC_APP_URL,
     );
-    const whatsappMessage =
-      `Halo ${po.namaPelanggan}, silakan lengkapi alamat penerima untuk pengiriman domestik di ${destination} melalui link berikut:\n\n`
-      + `${shareUrl}\n\nLink ini hanya dapat digunakan satu kali.`;
+
+    const customer = customers.find((c) => c.id === po.idPelanggan);
+    const hasExistingAddress = country === "japan"
+      ? !!customer?.alamatPengirimanJepang?.namaPenerima
+      : !!customer?.alamatPengirimanIndonesia?.namaPenerima;
+
+    const whatsappMessage = hasExistingAddress
+      ? `Halo ${po.namaPelanggan} \u{1F44B}\n\nKami ingin memastikan data alamat pengiriman domestik di ${destination} kamu sudah benar.\n\nSilakan cek melalui link berikut, dan update jika ada yang perlu diperbaiki:\n\n${shareUrl}\n\nTerima kasih! \u{1F64F}`
+      : `Halo ${po.namaPelanggan} \u{1F44B}\n\nSilakan lengkapi alamat penerima untuk pengiriman domestik di ${destination} melalui link berikut:\n\n${shareUrl}\n\nLink ini hanya dapat digunakan satu kali. Terima kasih! \u{1F64F}`;
     const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
     // Popup dan clipboard harus dimulai langsung dari klik agar tidak diblokir browser.
@@ -1728,56 +1734,69 @@ export function PreOrderDetailPage({
 
                             {/* Aksi */}
                             <td className="px-1 py-1 text-right align-middle overflow-hidden">
-                              <div className="flex items-center justify-end gap-0.5 flex-wrap">
-                                {!isShareMode && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setEditing(po);
-                                        setShowForm(true);
-                                      }}
-                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
-                                      title="Edit & Ubah Jadwal"
-                                    >
-                                      <Pencil size={isRotated ? 11 : 13} />
-                                    </button>
+                              {isSelesai ? (
+                                <div className="flex items-center justify-end gap-0.5">
+                                  {!isShareMode && (
                                     <button
                                       onClick={() => handleDeliveryAddressShare(po)}
                                       className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100`}
-                                      title="Bagikan form alamat pengiriman ke customer"
+                                      title="Kirim link cek alamat ke customer"
                                     >
                                       {deliveryLinkCopied === po.id
                                         ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
                                         : <Link2 size={isRotated ? 11 : 13} />}
                                     </button>
-                                  </>
-                                )}
-
-                                <button
-                                  onClick={() => shareWA(po)}
-                                  className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100`}
-                                  title="Share WA"
-                                >
-                                  <MessageCircle size={isRotated ? 11 : 13} />
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleDelete(po)}
-                                  className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
-                                  title="Hapus"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-
-                                {isSelesai ? (
+                                  )}
                                   <span
                                     style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
                                     className="text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1 py-0.5 rounded select-none whitespace-nowrap"
                                   >
                                     Sudah dipindahkan ✓
                                   </span>
-                                ) : (
-                                  !isShareMode && (
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-0.5 flex-wrap">
+                                  {!isShareMode && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditing(po);
+                                          setShowForm(true);
+                                        }}
+                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
+                                        title="Edit & Ubah Jadwal"
+                                      >
+                                        <Pencil size={isRotated ? 11 : 13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeliveryAddressShare(po)}
+                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100`}
+                                        title="Bagikan form alamat pengiriman ke customer"
+                                      >
+                                        {deliveryLinkCopied === po.id
+                                          ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
+                                          : <Link2 size={isRotated ? 11 : 13} />}
+                                      </button>
+                                    </>
+                                  )}
+
+                                  <button
+                                    onClick={() => shareWA(po)}
+                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100`}
+                                    title="Share WA"
+                                  >
+                                    <MessageCircle size={isRotated ? 11 : 13} />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDelete(po)}
+                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
+                                    title="Hapus"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+
+                                  {!isShareMode && (
                                     <button
                                       onClick={() => setConvertTarget(po)}
                                       className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
@@ -1786,9 +1805,9 @@ export function PreOrderDetailPage({
                                       <ArrowRight size={9} strokeWidth={3} />
                                       Pindahkan
                                     </button>
-                                  )
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
