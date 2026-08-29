@@ -23,6 +23,8 @@ export const UNSCHEDULED_SCHEDULE_ID = "__unscheduled__";
 export interface ScheduleGroupItem {
   schedule: DepartureSchedule;
   preOrders: PreOrder[];
+  /** Semua PO (Pending + Selesai) untuk menghitung kapasitas aktual. */
+  allPreOrders: PreOrder[];
   label: string;
   date?: string;
   jastiper?: string;
@@ -185,6 +187,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     const list: {
       schedule?: DepartureSchedule;
       preOrders: PreOrder[];
+      allPreOrders: PreOrder[];
       label: string;
       date?: string;
       jastiper?: string;
@@ -195,10 +198,12 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       if (statusFilter === "Pending" && sch.status === "Closed") return;
 
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || !q) {
+      const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
+      if (matchPO.length > 0 || allPOsForCapacity.length > 0 || !q) {
         list.push({
           schedule: sch,
           preOrders: matchPO,
+          allPreOrders: allPOsForCapacity,
           label: `${sch.rute} (${sch.status})`,
           date: sch.tanggalBerangkat,
           jastiper: sch.namaJastiper,
@@ -212,6 +217,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       list.push({
         schedule: createUnscheduledSchedule(orphans),
         preOrders: orphans,
+        allPreOrders: orphans,
         label: "Lainnya / Tanpa Jadwal",
       });
     }
@@ -227,7 +233,9 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       if (statusFilter === "Pending" && sch.status === "Closed") return;
 
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || !q) {
+      // Semua PO (Pending + Selesai) untuk hitung kapasitas aktual
+      const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
+      if (matchPO.length > 0 || allPOsForCapacity.length > 0 || !q) {
         const jastiperName = sch.namaJastiper?.trim() || "Jastiper Tanpa Nama";
         const jastiperId = sch.idJastiper?.trim() || jastiperName;
 
@@ -253,6 +261,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
         group.schedules.push({
           schedule: sch,
           preOrders: matchPO,
+          allPreOrders: allPOsForCapacity,
           label: `${sch.rute} (${sch.status})`,
           date: sch.tanggalBerangkat,
           jastiper: sch.namaJastiper,
@@ -282,6 +291,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
           {
             schedule: createUnscheduledSchedule(orphans),
             preOrders: orphans,
+            allPreOrders: orphans,
             label: "Lainnya / Tanpa Jadwal",
             date: "",
             jastiper: "Belum Ditetapkan",

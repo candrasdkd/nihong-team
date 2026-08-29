@@ -187,14 +187,8 @@ export async function convertPreOrderToOrder(
       updatedAt: Date.now(),
     });
 
-    // Sesuaikan berat terpakai di Jadwal Keberangkatan jika pre-order tadinya Pending
-    if (preOrderData.status === "Pending") {
-      const scheduleRef = doc(db, "departure_schedules", preOrderData.idJadwal);
-      transaction.update(scheduleRef, {
-        beratTerpakai: increment(-Number(preOrderData.totalKg || 0)),
-        updatedAt: serverTimestamp(),
-      });
-    }
+    // beratTerpakai di jadwal TIDAK dikurangi saat pre-order dikonversi ke pesanan,
+    // karena barang tetap ada dan kapasitas jadwal harus tetap terhitung.
 
     // 3. Update jumlah order bulanan di ringkasan (orderCount +1)
     transaction.set(summaryRef, {

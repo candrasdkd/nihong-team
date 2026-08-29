@@ -269,7 +269,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                         ? Math.min(100, (sch.beratTerpakai / sch.slotBeratKg) * 100)
                         : 0;
                       const isFull = slotFill >= 100;
-                      const totalBeratGroup = group.preOrders.reduce((s, p) => s + (p.totalKg || 0), 0);
+                      const totalBeratGroup = (group.allPreOrders ?? group.preOrders).reduce((s, p) => s + (p.totalKg || 0), 0);
                       const pendingCount = group.preOrders.filter((p) => p.status === "Pending").length;
                       const dateInfo = parseHighlightDate(sch?.tanggalBerangkat);
 
@@ -334,7 +334,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                     {sch && !isUnscheduled ? (
                                       <span className="flex items-center gap-1 text-slate-500">
                                         <Weight size={12} className="text-slate-400 shrink-0" />
-                                        <span>Kapasitas: {sch.beratTerpakai.toFixed(1)}/{sch.slotBeratKg} Kg</span>
+                                        <span>Kapasitas: {totalBeratGroup.toFixed(1)}/{sch.slotBeratKg} Kg</span>
                                       </span>
                                     ) : (
                                       <span className="flex items-center gap-1 text-slate-500">
@@ -350,9 +350,9 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                        <div className="h-1.5 w-full max-w-md rounded-full bg-slate-100 overflow-hidden">
                                          <div
                                            className={`h-full rounded-full transition-all duration-500 ${
-                                             isFull ? "bg-red-500" : slotFill > 75 ? "bg-amber-500" : "bg-rose-500"
+                                             totalBeratGroup >= sch.slotBeratKg ? "bg-red-500" : totalBeratGroup / sch.slotBeratKg > 0.75 ? "bg-amber-500" : "bg-rose-500"
                                            }`}
-                                           style={{ width: `${slotFill}%` }}
+                                           style={{ width: `${Math.min(100, (totalBeratGroup / sch.slotBeratKg) * 100)}%` }}
                                          />
                                        </div>
                                      </div>
@@ -375,7 +375,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                     </div>
                                     {sch && !isUnscheduled && (
                                       <div className="text-[10px] text-slate-400 font-semibold mt-1">
-                                        Sisa {(sch.slotBeratKg - sch.beratTerpakai).toFixed(1)} Kg
+                                        Sisa {Math.max(0, sch.slotBeratKg - totalBeratGroup).toFixed(1)} Kg
                                       </div>
                                     )}
                                   </div>
@@ -399,7 +399,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                                 )}
                                 {sch && !isUnscheduled && (
                                   <span className="ml-auto text-[10px] font-semibold text-slate-400">
-                                    Sisa {Math.max(0, sch.slotBeratKg - sch.beratTerpakai).toFixed(1)} Kg
+                                    Sisa {Math.max(0, sch.slotBeratKg - totalBeratGroup).toFixed(1)} Kg
                                   </span>
                                 )}
                               </div>
