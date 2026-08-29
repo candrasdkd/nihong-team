@@ -314,16 +314,11 @@ export function printDeliveryAddressBatch(
     }
     .country-title { margin: 1.8mm 0 1.5mm; font-size: 9pt; font-weight: 900; line-height: 1.1; }
     .fields {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: 3mm;
-      row-gap: 0.9mm;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9mm;
     }
     .field { min-width: 0; }
-    .field:first-child,
-    .fields-japan .field:nth-child(2),
-    .fields-japan .field:nth-child(3),
-    .fields-indonesia .field:nth-child(2) { grid-column: 1 / -1; }
     .field-label { color: #64748b; font-size: 5.5pt; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
     .field-value {
       margin-top: 0.2mm;

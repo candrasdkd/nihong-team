@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   DocumentData,
   getDocs,
@@ -97,6 +98,26 @@ export async function updateCustomer(
  */
 export async function deleteCustomer(id: string) {
   await deleteDoc(doc(db, COL, id));
+}
+
+/**
+ * Menghapus data alamat pengiriman (Jepang atau Indonesia) dari profil pelanggan.
+ *
+ * @param id - ID dokumen pelanggan.
+ * @param country - Negara tujuan pengiriman yang akan dihapus: 'japan' atau 'indonesia'.
+ */
+export async function clearCustomerDeliveryAddress(
+  id: string,
+  country: "japan" | "indonesia",
+) {
+  const field =
+    country === "japan"
+      ? "alamatPengirimanJepang"
+      : "alamatPengirimanIndonesia";
+  await updateDoc(doc(db, COL, id), {
+    [field]: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**

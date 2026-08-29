@@ -25,6 +25,7 @@ import {
   addCustomer,
   updateCustomer,
   deleteCustomer,
+  clearCustomerDeliveryAddress,
   migrateCustomersAndOrdersToUppercase,
 } from "../services/customersFirebase";
 import { Card } from "../components/ui/Card";
@@ -239,6 +240,28 @@ export function CustomersPage() {
           await deleteCustomer(id);
         } catch (err: any) {
           alert("Gagal menghapus: " + (err?.message || err));
+        }
+      },
+    });
+  }
+
+  async function handleDeleteDeliveryAddress(
+    c: Customer,
+    country: "japan" | "indonesia",
+  ) {
+    if (!c.id) return;
+    const label = country === "japan" ? "Jepang 🇯🇵" : "Indonesia 🇮🇩";
+    setConfirmModal({
+      isOpen: true,
+      title: `Hapus Alamat Pengiriman ${label}`,
+      message: `Apakah Anda yakin ingin menghapus data alamat pengiriman ${label} milik ${c.nama}? Data ini tidak dapat dipulihkan.`,
+      confirmText: "Hapus Alamat",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await clearCustomerDeliveryAddress(c.id!, country);
+        } catch (err: any) {
+          alert("Gagal menghapus alamat: " + (err?.message || err));
         }
       },
     });
@@ -508,6 +531,32 @@ export function CustomersPage() {
                             <Pencil className="w-4 h-4" />
                           </Button>
 
+                          {c.alamatPengirimanJepang && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteDeliveryAddress(c, "japan")}
+                              className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all duration-200 active:scale-95"
+                              title="Hapus Alamat Jepang"
+                              aria-label={`Hapus alamat Jepang ${c.nama}`}
+                            >
+                              <span className="text-[10px] font-black leading-none">🇯🇵</span>
+                            </Button>
+                          )}
+
+                          {c.alamatPengirimanIndonesia && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteDeliveryAddress(c, "indonesia")}
+                              className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all duration-200 active:scale-95"
+                              title="Hapus Alamat Indonesia"
+                              aria-label={`Hapus alamat Indonesia ${c.nama}`}
+                            >
+                              <span className="text-[10px] font-black leading-none">🇮🇩</span>
+                            </Button>
+                          )}
+
                           <Button
                             size="icon"
                             variant="ghost"
@@ -606,6 +655,32 @@ export function CustomersPage() {
                       <Pencil className="h-3.5 w-3.5" />
                       <span className="truncate">Edit</span>
                     </Button>
+
+                    {c.alamatPengirimanJepang && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteDeliveryAddress(c, "japan")}
+                        className="h-9 w-9 shrink-0 rounded-xl text-rose-400 hover:bg-rose-50 hover:text-rose-600"
+                        title="Hapus Alamat Jepang"
+                        aria-label={`Hapus alamat Jepang ${c.nama}`}
+                      >
+                        <span className="text-[11px] font-black">🇯🇵</span>
+                      </Button>
+                    )}
+
+                    {c.alamatPengirimanIndonesia && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteDeliveryAddress(c, "indonesia")}
+                        className="h-9 w-9 shrink-0 rounded-xl text-rose-400 hover:bg-rose-50 hover:text-rose-600"
+                        title="Hapus Alamat Indonesia"
+                        aria-label={`Hapus alamat Indonesia ${c.nama}`}
+                      >
+                        <span className="text-[11px] font-black">🇮🇩</span>
+                      </Button>
+                    )}
 
                     <Button
                       size="icon"
