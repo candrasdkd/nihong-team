@@ -7,6 +7,7 @@ import { Select } from "../components/ui/Select";
 import { Card } from "../components/ui/Card";
 import { StickyPageHeader } from "../components/ui/StickyPageHeader";
 import { formatIDR } from "../utils/format";
+import { buildPublicUrl } from "../utils/publicUrl";
 import {
   type LedgerEntry,
   type LedgerUpsert,
@@ -380,7 +381,11 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     if (typeFilter) params.set("type", typeFilter);
     if (categoryFilter) params.set("category", categoryFilter);
 
-    const shareUrl = `${window.location.origin}/?${params.toString()}`;
+    const shareUrl = buildPublicUrl(
+      window.location.origin,
+      `/?${params.toString()}`,
+      import.meta.env.VITE_PUBLIC_APP_URL,
+    );
     navigator.clipboard.writeText(shareUrl).then(() => {
       alert("Link laporan kas berhasil disalin!");
     });

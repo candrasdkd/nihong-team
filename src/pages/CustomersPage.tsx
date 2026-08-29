@@ -644,12 +644,16 @@ export function CustomersPage() {
                 nama: cleanName,
                 alamat: val.alamat,
                 telpon: val.telpon,
+                alamatPengirimanIndonesia: val.alamatPengirimanIndonesia,
+                alamatPengirimanJepang: val.alamatPengirimanJepang,
               });
             } else {
               await addCustomer({
                 nama: cleanName,
                 alamat: val.alamat,
                 telpon: val.telpon,
+                alamatPengirimanIndonesia: val.alamatPengirimanIndonesia,
+                alamatPengirimanJepang: val.alamatPengirimanJepang,
               });
             }
             setShowForm(false);

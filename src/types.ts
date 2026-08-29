@@ -33,9 +33,32 @@ export type Customer = {
   nama: string;
   alamat?: string;
   telpon?: string;
+  alamatPengirimanIndonesia?: IndonesiaDeliveryAddress;
+  alamatPengirimanJepang?: JapanDeliveryAddress;
   createdAt?: any;
   updatedAt?: any;
 };
+
+export type DeliveryCountry = "indonesia" | "japan";
+
+export interface IndonesiaDeliveryAddress {
+  namaPenerima: string;
+  alamatPenerima: string;
+  kodePos: string;
+  noHp: string;
+}
+
+export interface JapanDeliveryAddress {
+  namaPenerima: string;
+  alamatPenerimaRomaji: string;
+  alamatPenerimaKanji: string;
+  /** Field lama yang tetap dibaca saat migrasi data alamat Jepang. */
+  namaPenerimaRomaji?: string;
+  alamatPenerima?: string;
+  kodePos: string;
+  noHpAktif: string;
+  jamPenerimaPaket: string;
+}
 export type SubscribeOpts = {
   q?: string; // (belum diimplementasi server-side; gunakan client-side jika perlu)
   status?: string;
@@ -157,6 +180,8 @@ export interface PreOrder {
   catatan?: string;
   nihongStoreOrderId?: string;
   nihongStoreOrderNo?: string;
+  deliveryAddressShareToken?: string;
+  deliveryAddressShareCreatedAt?: any;
   createdAt?: any;
   updatedAt?: any;
 }

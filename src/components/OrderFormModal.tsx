@@ -827,6 +827,8 @@ export function OrderFormModal({
               nama: cleanName,
               telpon: values.telpon || "",
               alamat: values.alamat || "",
+              alamatPengirimanIndonesia: values.alamatPengirimanIndonesia,
+              alamatPengirimanJepang: values.alamatPengirimanJepang,
             });
             setNamaPelanggan(newCust.nama);
             setCustomerModalOpen(false);

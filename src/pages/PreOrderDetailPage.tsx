@@ -16,6 +16,7 @@ import {
   Check,
   RotateCw,
   AlertCircle,
+  Printer,
 } from "lucide-react";
 import { DepartureSchedule, PreOrder, Customer, PreOrderItem } from "../types";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
@@ -23,6 +24,18 @@ import { ConvertPreOrderModal } from "../components/PreOrder/ConvertPreOrderModa
 import { ConfirmModal } from "../components/ConfirmModal";
 import { usePreOrderDetail, EditingCell } from "../hooks/usePreOrderDetail";
 import { updatePreOrder } from "../services/preOrdersFirebase";
+import {
+  getIndonesiaDeliveryAddress,
+  getJapanDeliveryAddress,
+  inferDeliveryCountry,
+  printDeliveryAddressBatch,
+} from "../utils/deliveryAddress";
+import { buildPublicUrl } from "../utils/publicUrl";
+import {
+  createDeliveryAddressLink,
+  createDeliveryAddressToken,
+} from "../services/deliveryAddressFirebase";
+import { normalizeWhatsAppPhone } from "../utils/whatsapp";
 
 type BookingColumnKey =
   | "number"
@@ -46,7 +59,7 @@ type BookingColumn = {
 
 const BOOKING_COLUMN_WIDTHS_STORAGE_KEY = "nihong:booking-detail:column-widths";
 const BOOKING_COLUMN_WIDTHS_VERSION_KEY = "nihong:booking-detail:column-widths-version";
-const BOOKING_COLUMN_WIDTHS_VERSION = 2;
+const BOOKING_COLUMN_WIDTHS_VERSION = 3;
 
 const BOOKING_COLUMNS: readonly BookingColumn[] = [
   { key: "number", label: "#", defaultWidth: 36, minWidth: 32, rotatedWidth: "4%", align: "center" },
@@ -57,7 +70,7 @@ const BOOKING_COLUMNS: readonly BookingColumn[] = [
   { key: "pic", label: "PIC", defaultWidth: 112, minWidth: 80, rotatedWidth: "10%" },
   { key: "notes", label: "Catatan", defaultWidth: 160, minWidth: 100, rotatedWidth: "17%" },
   { key: "status", label: "Status", defaultWidth: 96, minWidth: 80, rotatedWidth: "10%", align: "center" },
-  { key: "actions", label: "Aksi", defaultWidth: 120, minWidth: 92, rotatedWidth: "10%", align: "right" },
+  { key: "actions", label: "Aksi", defaultWidth: 154, minWidth: 120, rotatedWidth: "10%", align: "right" },
 ];
 
 type BookingColumnWidths = Record<BookingColumnKey, number>;
@@ -89,7 +102,7 @@ function loadBookingColumnWidths(): BookingColumnWidths {
       window.localStorage.getItem(BOOKING_COLUMN_WIDTHS_VERSION_KEY) || 0,
     );
     if (savedVersion < BOOKING_COLUMN_WIDTHS_VERSION) {
-      // Versi sebelumnya menyimpan kolom Aksi terlalu lebar (176px atau lebih).
+      // Sinkronkan lebar kolom aksi saat jumlah tombol berubah.
       widths.actions = BOOKING_COLUMNS.find((column) => column.key === "actions")!.defaultWidth;
       window.localStorage.setItem(
         BOOKING_COLUMN_WIDTHS_VERSION_KEY,
@@ -1052,6 +1065,7 @@ export function PreOrderDetailPage({
   onToggleRotate,
 }: Props) {
   const [linkCopied, setLinkCopied] = useState(false);
+  const [deliveryLinkCopied, setDeliveryLinkCopied] = useState<string | null>(null);
   const [tableFontSize, setTableFontSize] = useState<number>(10);
   const [localIsRotated, setLocalIsRotated] = useState(false);
   const [focusedInput, setFocusedInput] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -1130,7 +1144,11 @@ export function PreOrderDetailPage({
   }, [isRotated]);
 
   const handleShareLink = () => {
-    const shareUrl = `${window.location.origin}/?share=${schedule.id}`;
+    const shareUrl = buildPublicUrl(
+      window.location.origin,
+      `/?share=${encodeURIComponent(schedule.id)}`,
+      import.meta.env.VITE_PUBLIC_APP_URL,
+    );
     // Fallback untuk non-HTTPS (dev via IP, dll)
     const doCopy = () => {
       if (navigator.clipboard && window.isSecureContext) {
@@ -1158,6 +1176,106 @@ export function PreOrderDetailPage({
         prompt("Salin link berikut:", shareUrl);
       });
   };
+
+  async function handleDeliveryAddressShare(po: PreOrder) {
+    if (!po.idPelanggan) {
+      showToast?.("Booking belum terhubung ke customer.", "warning");
+      return;
+    }
+
+    const customerPhone = po.noTelponPelanggan
+      || customers.find((customer) => customer.id === po.idPelanggan)?.telpon
+      || "";
+    const whatsappPhone = normalizeWhatsAppPhone(customerPhone);
+    if (!whatsappPhone) {
+      showToast?.("No. WhatsApp customer belum diisi.", "warning");
+      return;
+    }
+
+    const country = inferDeliveryCountry(po.rute);
+    const destination = country === "japan" ? "Jepang" : "Indonesia";
+    const shareToken = createDeliveryAddressToken();
+    const shareUrl = buildPublicUrl(
+      window.location.origin,
+      `/?delivery=${encodeURIComponent(shareToken)}`,
+      import.meta.env.VITE_PUBLIC_APP_URL,
+    );
+    const whatsappMessage =
+      `Halo ${po.namaPelanggan}, silakan lengkapi alamat penerima untuk pengiriman domestik di ${destination} melalui link berikut:\n\n`
+      + `${shareUrl}\n\nLink ini hanya dapat digunakan satu kali.`;
+    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+
+    // Popup dan clipboard harus dimulai langsung dari klik agar tidak diblokir browser.
+    const whatsappWindow = window.open("about:blank", "_blank");
+    const clipboardResultPromise = (() => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          return navigator.clipboard.writeText(shareUrl).then(() => true, () => false);
+        }
+
+        const element = document.createElement("textarea");
+        element.value = shareUrl;
+        element.style.position = "fixed";
+        element.style.opacity = "0";
+        document.body.appendChild(element);
+        element.focus();
+        element.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(element);
+        return Promise.resolve(copied);
+      } catch {
+        return Promise.resolve(false);
+      }
+    })();
+
+    const createLinkPromise = createDeliveryAddressLink(po, country, shareToken);
+    try {
+      await createLinkPromise;
+      const copied = await clipboardResultPromise;
+
+      if (whatsappWindow && !whatsappWindow.closed) {
+        whatsappWindow.location.replace(whatsappUrl);
+        whatsappWindow.opener = null;
+      } else {
+        window.location.assign(whatsappUrl);
+      }
+
+      setDeliveryLinkCopied(po.id);
+      window.setTimeout(() => setDeliveryLinkCopied(null), 2500);
+      showToast?.(
+        copied ? "Link disalin dan WhatsApp dibuka." : "WhatsApp dibuka. Clipboard tidak tersedia.",
+        copied ? "success" : "warning",
+      );
+    } catch (error: any) {
+      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+      showToast?.(error?.message || "Gagal membuat link form alamat.", "error");
+    }
+  }
+
+  function handleDeliveryAddressBatchPrint() {
+    if (!pos.length) {
+      showToast?.("Belum ada booking pada batch ini untuk dicetak.", "warning");
+      return;
+    }
+
+    const printItems = pos.map((po, index) => {
+      const customer = customers.find((item) => item.id === po.idPelanggan) || {
+        nama: po.namaPelanggan,
+        telpon: po.noTelponPelanggan,
+      };
+      const country = inferDeliveryCountry(po.rute);
+      return {
+        country,
+        address: country === "japan"
+          ? getJapanDeliveryAddress(customer)
+          : getIndonesiaDeliveryAddress(customer),
+        bookingLabel: `#${index + 1} · ${po.namaPelanggan}`,
+      };
+    });
+
+    const opened = printDeliveryAddressBatch(printItems, schedule.rute);
+    if (!opened) showToast?.("Izinkan pop-up browser untuk membuka tampilan cetak.", "warning");
+  }
   const {
     pos,
     loading,
@@ -1612,16 +1730,27 @@ export function PreOrderDetailPage({
                             <td className="px-1 py-1 text-right align-middle overflow-hidden">
                               <div className="flex items-center justify-end gap-0.5 flex-wrap">
                                 {!isShareMode && (
-                                  <button
-                                    onClick={() => {
-                                      setEditing(po);
-                                      setShowForm(true);
-                                    }}
-                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
-                                    title="Edit & Ubah Jadwal"
-                                  >
-                                    <Pencil size={isRotated ? 11 : 13} />
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditing(po);
+                                        setShowForm(true);
+                                      }}
+                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
+                                      title="Edit & Ubah Jadwal"
+                                    >
+                                      <Pencil size={isRotated ? 11 : 13} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeliveryAddressShare(po)}
+                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100`}
+                                      title="Bagikan form alamat pengiriman ke customer"
+                                    >
+                                      {deliveryLinkCopied === po.id
+                                        ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
+                                        : <Link2 size={isRotated ? 11 : 13} />}
+                                    </button>
+                                  </>
                                 )}
 
                                 <button
@@ -1802,6 +1931,32 @@ export function PreOrderDetailPage({
           )}
         </div>
 
+        {/* Cetak seluruh alamat pada batch aktif. */}
+        <AnimatePresence>
+          {!isRotated && !isShareMode && pos.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9, y: 18 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 18 }}
+              onClick={handleDeliveryAddressBatchPrint}
+              className="group fixed bottom-[calc(96px+env(safe-area-inset-bottom))] right-6 z-[80] flex items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-950 px-3 py-2.5 text-left text-white shadow-2xl shadow-slate-950/30 transition-all hover:-translate-y-0.5 hover:bg-slate-900 active:scale-95 sm:bottom-6"
+              title="Cetak seluruh alamat batch ini dalam A4 dua kolom"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition-transform group-hover:scale-105">
+                <Printer size={19} strokeWidth={2.3} />
+              </span>
+              <span className="hidden min-w-0 pr-1 sm:block">
+                <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-indigo-300">
+                  Batch Saat Ini
+                </span>
+                <span className="mt-0.5 block whitespace-nowrap text-xs font-extrabold">
+                  Cetak {pos.length} Alamat · A4 2 Kolom
+                </span>
+              </span>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
         {/* Kontrol mode putar berada di overlay tersendiri agar tidak ikut scroll tabel. */}
         {isRotated && (
           <div
@@ -1833,6 +1988,25 @@ export function PreOrderDetailPage({
                 title="Tambah Booking"
               >
                 <Plus size={22} strokeWidth={2.5} />
+              </motion.button>
+            )}
+
+            {!isShareMode && pos.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                onClick={handleDeliveryAddressBatchPrint}
+                className="pointer-events-auto absolute bottom-6 right-6 flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-white shadow-2xl transition-all hover:bg-slate-900 active:scale-95"
+                title="Cetak seluruh alamat batch ini"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500">
+                  <Printer size={16} strokeWidth={2.4} />
+                </span>
+                <span className="text-left">
+                  <span className="block text-[8px] font-black uppercase tracking-wider text-indigo-300">Cetak Batch</span>
+                  <span className="block text-[10px] font-extrabold">{pos.length} Alamat</span>
+                </span>
               </motion.button>
             )}
           </div>

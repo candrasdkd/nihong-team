@@ -23,6 +23,7 @@ const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m =>
 const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ default: m.InboxPage })));
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
 const SharedLedgerPage = React.lazy(() => import("./pages/SharedLedgerPage").then(m => ({ default: m.SharedLedgerPage })));
+const SharedDeliveryAddressPage = React.lazy(() => import("./pages/SharedDeliveryAddressPage").then(m => ({ default: m.SharedDeliveryAddressPage })));
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -400,6 +401,15 @@ export default function App() {
   const searchParams = new URLSearchParams(window.location.search);
   const shareScheduleId = searchParams.get("share");
   const shareLedger = searchParams.get("share_ledger");
+  const deliveryShareToken = searchParams.get("delivery");
+
+  if (deliveryShareToken) {
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <SharedDeliveryAddressPage shareToken={deliveryShareToken} />
+      </Suspense>
+    );
+  }
 
   if (shareScheduleId) {
     return (

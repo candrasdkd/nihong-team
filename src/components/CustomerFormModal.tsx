@@ -4,12 +4,27 @@ import { Input } from "./ui/Input";
 import { TextArea } from "./ui/TextArea";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { IndonesiaDeliveryAddress, JapanDeliveryAddress } from "../types";
+import {
+  cleanIndonesiaDeliveryAddress,
+  cleanJapanDeliveryAddress,
+  getIndonesiaDeliveryAddress,
+  getJapanDeliveryAddress,
+  JapanDeliveryAddressErrors,
+  validateJapanDeliveryAddress,
+} from "../utils/deliveryAddress";
+import {
+  IndonesiaDeliveryAddressFields,
+  JapanDeliveryAddressFields,
+} from "./DeliveryAddressFields";
 
 export interface CustomerFormValues {
   id?: string;
   nama: string;
   alamat?: string;
   telpon?: string;
+  alamatPengirimanIndonesia?: IndonesiaDeliveryAddress;
+  alamatPengirimanJepang?: JapanDeliveryAddress;
 }
 
 interface CustomerFormModalProps {
@@ -22,6 +37,14 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
   const [nama, setNama] = useState(initial?.nama ?? "");
   const [alamat, setAlamat] = useState(initial?.alamat ?? "");
   const [telpon, setTelpon] = useState(initial?.telpon ?? "");
+  const [alamatIndonesia, setAlamatIndonesia] = useState<IndonesiaDeliveryAddress>(() =>
+    getIndonesiaDeliveryAddress(initial),
+  );
+  const [alamatJepang, setAlamatJepang] = useState<JapanDeliveryAddress>(() =>
+    getJapanDeliveryAddress(initial),
+  );
+  const [alamatJepangTouched, setAlamatJepangTouched] = useState(false);
+  const [alamatJepangErrors, setAlamatJepangErrors] = useState<JapanDeliveryAddressErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -103,6 +126,16 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
       setErrorMsg("Nama pelanggan wajib diisi.");
       return;
     }
+
+    const cleanedJapanAddress = cleanJapanDeliveryAddress(alamatJepang);
+    if (alamatJepangTouched) {
+      const validationErrors = validateJapanDeliveryAddress(cleanedJapanAddress);
+      if (Object.keys(validationErrors).length > 0) {
+        setAlamatJepangErrors(validationErrors);
+        setErrorMsg("Periksa kembali data alamat pengiriman Jepang yang ditandai.");
+        return;
+      }
+    }
     setErrorMsg(null);
     setSubmitting(true);
     try {
@@ -111,6 +144,8 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
         nama: nama.trim().toUpperCase(),
         alamat: alamat.trim(),
         telpon: telpon.trim(),
+        alamatPengirimanIndonesia: cleanIndonesiaDeliveryAddress(alamatIndonesia),
+        alamatPengirimanJepang: cleanedJapanAddress,
       });
     } catch (err: any) {
       setErrorMsg(err?.message || "Gagal menyimpan data.");
@@ -123,6 +158,7 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
     <Modal
       onClose={submitting ? () => {} : onClose}
       title={initial?.id ? "Edit Konsumen" : "Tambah Konsumen"}
+      size="2xl"
     >
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-5 py-2">
         {errorMsg && (
@@ -167,6 +203,39 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
           />
         </div>
 
+        <details className="group rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+          <summary className="cursor-pointer select-none text-sm font-extrabold text-slate-700">
+            🇮🇩 Alamat Pengiriman Indonesia
+          </summary>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <IndonesiaDeliveryAddressFields
+              value={alamatIndonesia}
+              onChange={setAlamatIndonesia}
+              disabled={submitting}
+              required={false}
+            />
+          </div>
+        </details>
+
+        <details className="group rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+          <summary className="cursor-pointer select-none text-sm font-extrabold text-slate-700">
+            🇯🇵 Alamat Pengiriman Jepang
+          </summary>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <JapanDeliveryAddressFields
+              value={alamatJepang}
+              onChange={(value) => {
+                setAlamatJepang(value);
+                setAlamatJepangTouched(true);
+                setAlamatJepangErrors({});
+              }}
+              disabled={submitting}
+              required={false}
+              errors={alamatJepangErrors}
+            />
+          </div>
+        </details>
+
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button
             variant="ghost"
@@ -200,4 +269,3 @@ export function CustomerFormModal({ initial, onClose, onSubmit }: CustomerFormMo
     </Modal>
   );
 }
-

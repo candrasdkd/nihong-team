@@ -77,6 +77,17 @@ npm run dev
 
 Siap deploy ke: - Vercel - Render
 
+Untuk memastikan link publik selalu memakai domain deployment meskipun admin
+membuka aplikasi dari server lokal, isi environment variable berikut:
+
+```bash
+VITE_PUBLIC_APP_URL=https://domain-aplikasi.example
+```
+
+Jika tidak diisi, aplikasi memakai origin halaman yang sedang dibuka. Origin
+`localhost` dan loopback otomatis dinormalisasi ke HTTP agar sesuai dengan
+server development Vite.
+
 ---
 
 ## 📜 License

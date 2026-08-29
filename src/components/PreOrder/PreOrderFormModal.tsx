@@ -502,6 +502,8 @@ export function PreOrderFormModal({
                   nama: cleanName,
                   telpon: values.telpon || "",
                   alamat: values.alamat || "",
+                  alamatPengirimanIndonesia: values.alamatPengirimanIndonesia,
+                  alamatPengirimanJepang: values.alamatPengirimanJepang,
                 });
                 if (newCust && newCust.id) {
                   setIdPelanggan(newCust.id);
@@ -735,6 +737,8 @@ export function PreOrderFormModal({
                   nama: cleanName,
                   telpon: values.telpon || "",
                   alamat: values.alamat || "",
+                  alamatPengirimanIndonesia: values.alamatPengirimanIndonesia,
+                  alamatPengirimanJepang: values.alamatPengirimanJepang,
                 });
                 if (newCust && newCust.id) {
                   setIdPelanggan(newCust.id);
