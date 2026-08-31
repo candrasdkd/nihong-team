@@ -28,7 +28,7 @@ test("keeps the mobile batch print button above the bottom navigation and safe a
   assert.match(bottomTabBar, /env\(safe-area-inset-bottom\)/);
   assert.match(
     detailPage,
-    /bottom-\[calc\(96px\+env\(safe-area-inset-bottom\)\)\] sm:bottom-6/,
+    /bottom-\[calc\(96px\+env\(safe-area-inset-bottom\)\)\].*?sm:bottom-6/,
   );
 });
 

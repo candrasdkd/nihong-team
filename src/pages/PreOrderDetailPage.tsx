@@ -24,6 +24,7 @@ import { ConvertPreOrderModal } from "../components/PreOrder/ConvertPreOrderModa
 import { ConfirmModal } from "../components/ConfirmModal";
 import { usePreOrderDetail, EditingCell } from "../hooks/usePreOrderDetail";
 import { updatePreOrder } from "../services/preOrdersFirebase";
+import { setScheduleUsedWeight } from "../services/schedulesFirebase";
 import {
   getIndonesiaDeliveryAddress,
   getJapanDeliveryAddress,
@@ -1070,6 +1071,7 @@ export function PreOrderDetailPage({
   const [localIsRotated, setLocalIsRotated] = useState(false);
   const [focusedInput, setFocusedInput] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [customerPickPO, setCustomerPickPO] = useState<PreOrder | null>(null);
+  const reconciledScheduleIdRef = useRef<string | null>(null);
   const {
     columnWidths,
     tableWidth,
@@ -1177,18 +1179,12 @@ export function PreOrderDetailPage({
       });
   };
 
-  async function handleDeliveryAddressShare(po: PreOrder) {
+  async function handleDeliveryAddressShare(
+    po: PreOrder,
+    action: "copy" | "whatsapp",
+  ) {
     if (!po.idPelanggan) {
       showToast?.("Booking belum terhubung ke customer.", "warning");
-      return;
-    }
-
-    const customerPhone = customers.find((c) => c.id === po.idPelanggan)?.telpon
-      || po.noTelponPelanggan
-      || "";
-    const whatsappPhone = normalizeWhatsAppPhone(customerPhone);
-    if (!whatsappPhone) {
-      showToast?.("No. WhatsApp customer belum diisi.", "warning");
       return;
     }
 
@@ -1202,6 +1198,13 @@ export function PreOrderDetailPage({
     );
 
     const customer = customers.find((c) => c.id === po.idPelanggan);
+    const customerPhone = customer?.telpon || po.noTelponPelanggan || "";
+    const whatsappPhone = normalizeWhatsAppPhone(customerPhone);
+    if (action === "whatsapp" && !whatsappPhone) {
+      showToast?.("No. WhatsApp customer belum diisi.", "warning");
+      return;
+    }
+
     const hasExistingAddress = country === "japan"
       ? !!customer?.alamatPengirimanJepang?.namaPenerima
       : !!customer?.alamatPengirimanIndonesia?.namaPenerima;
@@ -1211,9 +1214,11 @@ export function PreOrderDetailPage({
       : `Halo ${po.namaPelanggan} \u{1F44B}\n\nSilakan lengkapi alamat penerima untuk pengiriman domestik di ${destination} melalui link berikut:\n\n${shareUrl}\n\nLink ini hanya dapat digunakan satu kali. Terima kasih! \u{1F64F}`;
     const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
-    // Popup dan clipboard harus dimulai langsung dari klik agar tidak diblokir browser.
-    const whatsappWindow = window.open("about:blank", "_blank");
-    const clipboardResultPromise = (() => {
+    // Popup atau clipboard harus dimulai langsung dari klik agar tidak diblokir browser.
+    const whatsappWindow = action === "whatsapp"
+      ? window.open("about:blank", "_blank")
+      : null;
+    const clipboardResultPromise = action === "copy" ? (() => {
       try {
         if (navigator.clipboard && window.isSecureContext) {
           return navigator.clipboard.writeText(shareUrl).then(() => true, () => false);
@@ -1232,12 +1237,23 @@ export function PreOrderDetailPage({
       } catch {
         return Promise.resolve(false);
       }
-    })();
+    })() : null;
 
     const createLinkPromise = createDeliveryAddressLink(po, country, shareToken);
     try {
       await createLinkPromise;
-      const copied = await clipboardResultPromise;
+      if (action === "copy") {
+        const copied = await clipboardResultPromise;
+        if (copied) {
+          setDeliveryLinkCopied(po.id);
+          window.setTimeout(() => setDeliveryLinkCopied(null), 2500);
+          showToast?.("Link form alamat berhasil disalin.", "success");
+        } else {
+          window.prompt("Salin link form alamat berikut:", shareUrl);
+          showToast?.("Clipboard tidak tersedia. Salin link secara manual.", "warning");
+        }
+        return;
+      }
 
       if (whatsappWindow && !whatsappWindow.closed) {
         whatsappWindow.location.replace(whatsappUrl);
@@ -1245,13 +1261,7 @@ export function PreOrderDetailPage({
       } else {
         window.location.assign(whatsappUrl);
       }
-
-      setDeliveryLinkCopied(po.id);
-      window.setTimeout(() => setDeliveryLinkCopied(null), 2500);
-      showToast?.(
-        copied ? "Link disalin dan WhatsApp dibuka." : "WhatsApp dibuka. Clipboard tidak tersedia.",
-        copied ? "success" : "warning",
-      );
+      showToast?.("WhatsApp form alamat dibuka.", "success");
     } catch (error: any) {
       if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       showToast?.(error?.message || "Gagal membuat link form alamat.", "error");
@@ -1298,7 +1308,6 @@ export function PreOrderDetailPage({
     handleCustomerChange,
     handleToggleItemCheck,
     handleDelete,
-    shareWA,
     shareMultipleWA,
     shareAllWA,
     toggleSelect,
@@ -1313,6 +1322,27 @@ export function PreOrderDetailPage({
     handleSubmit,
     showToast
   );
+
+  const remainingCapacityKg = Math.max(0, schedule.slotBeratKg - totalBeratPOs);
+
+  useEffect(() => {
+    if (
+      isShareMode
+      || loading
+      || schedule.id === "__unscheduled__"
+      || reconciledScheduleIdRef.current === schedule.id
+    ) {
+      return;
+    }
+
+    reconciledScheduleIdRef.current = schedule.id;
+    if (Math.abs(Number(schedule.beratTerpakai || 0) - totalBeratPOs) < 0.001) return;
+
+    setScheduleUsedWeight(schedule.id, totalBeratPOs).catch((error) => {
+      reconciledScheduleIdRef.current = null;
+      console.error("Gagal menyinkronkan kapasitas jadwal:", error);
+    });
+  }, [isShareMode, loading, schedule.id, schedule.beratTerpakai, totalBeratPOs]);
 
   return (
     <div className="min-h-screen bg-transparent pb-28 font-sans text-slate-900">
@@ -1511,13 +1541,13 @@ export function PreOrderDetailPage({
                     </span>
                     {schedule.id !== "__unscheduled__" && (
                       <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-extrabold ${
-                        (schedule.slotBeratKg - schedule.beratTerpakai) <= 0
+                        remainingCapacityKg <= 0
                           ? "bg-red-50 text-red-600 border border-red-100"
-                          : (schedule.slotBeratKg - schedule.beratTerpakai) <= 5
+                          : remainingCapacityKg <= 5
                           ? "bg-amber-50 text-amber-600 border border-amber-100"
                           : "bg-emerald-50 text-emerald-600 border border-emerald-100"
                       }`}>
-                        Sisa {Math.max(0, schedule.slotBeratKg - schedule.beratTerpakai).toFixed(1)} Kg
+                        Sisa {remainingCapacityKg.toFixed(1)} Kg
                       </span>
                     )}
                     <span>{pos.length} baris</span>
@@ -1552,6 +1582,9 @@ export function PreOrderDetailPage({
                         const totalItems = po.items.length;
                         const isKomplit = totalItems > 0 && checkedCount === totalItems;
                         const isSaving = savingCell?.startsWith(po.id);
+                        const customerPhone = customers.find((customer) => customer.id === po.idPelanggan)?.telpon
+                          || po.noTelponPelanggan;
+                        const hasWhatsAppPhone = !!normalizeWhatsAppPhone(customerPhone);
 
                         return (
                           <tr
@@ -1737,22 +1770,27 @@ export function PreOrderDetailPage({
                               {isSelesai ? (
                                 <div className="flex items-center justify-end gap-0.5">
                                   {!isShareMode && (
-                                    <button
-                                      onClick={() => handleDeliveryAddressShare(po)}
-                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100`}
-                                      title="Kirim link cek alamat ke customer"
-                                    >
-                                      {deliveryLinkCopied === po.id
-                                        ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
-                                        : <Link2 size={isRotated ? 11 : 13} />}
-                                    </button>
+                                    <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/90 p-0.5 shadow-sm">
+                                      <button
+                                        onClick={() => handleDeliveryAddressShare(po, "copy")}
+                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors`}
+                                        title="Salin link form alamat"
+                                      >
+                                        {deliveryLinkCopied === po.id
+                                          ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
+                                          : <Link2 size={isRotated ? 11 : 13} />}
+                                      </button>
+                                      {hasWhatsAppPhone && (
+                                        <button
+                                          onClick={() => handleDeliveryAddressShare(po, "whatsapp")}
+                                          className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors`}
+                                          title="Kirim form alamat via WhatsApp"
+                                        >
+                                          <MessageCircle size={isRotated ? 11 : 13} />
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
-                                  <span
-                                    style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
-                                    className="text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1 py-0.5 rounded select-none whitespace-nowrap"
-                                  >
-                                    Sudah dipindahkan ✓
-                                  </span>
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-0.5 flex-wrap">
@@ -1768,25 +1806,28 @@ export function PreOrderDetailPage({
                                       >
                                         <Pencil size={isRotated ? 11 : 13} />
                                       </button>
-                                      <button
-                                        onClick={() => handleDeliveryAddressShare(po)}
-                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100`}
-                                        title="Bagikan form alamat pengiriman ke customer"
-                                      >
-                                        {deliveryLinkCopied === po.id
-                                          ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
-                                          : <Link2 size={isRotated ? 11 : 13} />}
-                                      </button>
+                                      <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/90 p-0.5 shadow-sm">
+                                        <button
+                                          onClick={() => handleDeliveryAddressShare(po, "copy")}
+                                          className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors`}
+                                          title="Salin link form alamat"
+                                        >
+                                          {deliveryLinkCopied === po.id
+                                            ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
+                                            : <Link2 size={isRotated ? 11 : 13} />}
+                                        </button>
+                                        {hasWhatsAppPhone && (
+                                          <button
+                                            onClick={() => handleDeliveryAddressShare(po, "whatsapp")}
+                                            className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors`}
+                                            title="Kirim form alamat via WhatsApp"
+                                          >
+                                            <MessageCircle size={isRotated ? 11 : 13} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </>
                                   )}
-
-                                  <button
-                                    onClick={() => shareWA(po)}
-                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100`}
-                                    title="Share WA"
-                                  >
-                                    <MessageCircle size={isRotated ? 11 : 13} />
-                                  </button>
 
                                   <button
                                     onClick={() => handleDelete(po)}

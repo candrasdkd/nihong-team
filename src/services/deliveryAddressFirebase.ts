@@ -30,11 +30,12 @@ interface DeliveryAddressLinkRecord {
   country: DeliveryCountry;
   createdAt: any;
   usedAt?: any;
+  submittedAddress?: IndonesiaDeliveryAddress | JapanDeliveryAddress;
 }
 
 export type PublicDeliveryAddressLinkResult =
   | { status: "active"; link: DeliveryAddressLinkRecord; customer: Customer }
-  | { status: "used" }
+  | { status: "used"; link: DeliveryAddressLinkRecord; customer: Customer }
   | { status: "invalid" };
 
 export class PublicDeliveryAddressLinkError extends Error {
@@ -93,13 +94,20 @@ export async function getPublicDeliveryAddressLink(
   if (!linkSnap.exists()) return { status: "invalid" };
 
   const link = linkSnap.data() as DeliveryAddressLinkRecord;
-  if (link.usedAt) return { status: "used" };
 
   const [bookingSnap, customerSnap] = await Promise.all([
     getDoc(doc(db, BOOKING_COLLECTION, link.bookingId)),
     getDoc(doc(db, CUSTOMER_COLLECTION, link.customerId)),
   ]);
-  if (!bookingSnap.exists() || !customerSnap.exists()) return { status: "invalid" };
+  if (!customerSnap.exists()) return { status: "invalid" };
+
+  const customer = {
+    id: customerSnap.id,
+    ...(customerSnap.data() as DocumentData),
+  } as Customer;
+
+  if (link.usedAt) return { status: "used", link, customer };
+  if (!bookingSnap.exists()) return { status: "invalid" };
 
   const booking = bookingSnap.data() as PreOrder;
   if (
@@ -109,10 +117,6 @@ export async function getPublicDeliveryAddressLink(
     return { status: "invalid" };
   }
 
-  const customer = {
-    id: customerSnap.id,
-    ...(customerSnap.data() as DocumentData),
-  } as Customer;
   return { status: "active", link, customer };
 }
 
@@ -174,6 +178,7 @@ export async function submitPublicDeliveryAddress(
     });
     transaction.update(linkRef, {
       usedAt: serverTimestamp(),
+      submittedAddress: storedAddress,
     });
   });
 }

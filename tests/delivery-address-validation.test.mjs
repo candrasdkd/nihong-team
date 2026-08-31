@@ -15,6 +15,7 @@ execFileSync(
   join(projectDir, "node_modules/.bin/tsc"),
   [
     "src/utils/deliveryAddress.ts",
+    "src/vite-env.d.ts",
     "--target", "ES2022",
     "--module", "commonjs",
     "--moduleResolution", "node",

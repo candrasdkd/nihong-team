@@ -397,7 +397,7 @@ const InvoicePaper = React.forwardRef(
                       gap: "2mm",
                       background: isEven ? "#f8fafc" : "#fff",
                       borderBottom: idx < items.length - 1 ? "1px solid #e2e8f0" : "none",
-                      alignItems: "flex-start",
+                      alignItems: "stretch",
                     }}
                   >
                     <div style={{ flex: "1", minWidth: 0 }}>
@@ -405,7 +405,12 @@ const InvoicePaper = React.forwardRef(
                         const subItems = parseInvoiceItems(item.namaBarang);
                         if (subItems.length > 1) {
                           return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "1.8mm" }}>
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              borderLeft: "0.7mm solid #dbeafe",
+                              paddingLeft: "3mm",
+                            }}>
                               {subItems.map((sub, sIdx) => {
                                 const qtyMatch = sub.match(/\(x(\d+)\)/i);
                                 const qty = qtyMatch ? qtyMatch[1] : null;
@@ -414,12 +419,13 @@ const InvoicePaper = React.forwardRef(
                                     key={sIdx}
                                     style={{
                                       display: "flex",
-                                      alignItems: "flex-start",
+                                      alignItems: "center",
                                       gap: "2mm",
-                                      padding: "1.6mm 2.4mm",
-                                      background: "rgba(241, 245, 249, 0.7)",
-                                      borderRadius: "1.5mm",
-                                      border: "1px solid #e2e8f0",
+                                      minHeight: "7mm",
+                                      padding: "1.1mm 0",
+                                      borderBottom: sIdx < subItems.length - 1
+                                        ? "1px solid #e2e8f0"
+                                        : "none",
                                     }}
                                   >
                                     <span
@@ -427,20 +433,20 @@ const InvoicePaper = React.forwardRef(
                                         display: "inline-flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        width: "4.5mm",
-                                        height: "4.5mm",
-                                        borderRadius: "1mm",
-                                        background: NAVY,
-                                        color: "#fff",
-                                        fontSize: "2.3mm",
+                                        width: "4.8mm",
+                                        height: "4.8mm",
+                                        borderRadius: "50%",
+                                        background: "#eff6ff",
+                                        border: "1px solid #bfdbfe",
+                                        color: NAVY,
+                                        fontSize: "2.2mm",
                                         fontWeight: 800,
                                         flexShrink: 0,
-                                        marginTop: "0.2mm",
                                       }}
                                     >
                                       {sIdx + 1}
                                     </span>
-                                    <div style={{ flex: 1, minWidth: 0, fontSize: "2.9mm", fontWeight: 700, color: "#1e293b", lineHeight: 1.35 }}>
+                                    <div style={{ flex: 1, minWidth: 0, fontSize: "3.1mm", fontWeight: 700, color: "#1e293b", lineHeight: 1.35 }}>
                                       {sanitizeText(sub)}
                                     </div>
                                     {qty && (
@@ -448,10 +454,11 @@ const InvoicePaper = React.forwardRef(
                                         style={{
                                           fontSize: "2.3mm",
                                           fontWeight: 800,
-                                          color: NAVY,
-                                          background: "#e2e8f0",
-                                          padding: "0.4mm 1.4mm",
-                                          borderRadius: "1mm",
+                                          color: "#b45309",
+                                          background: "#fffbeb",
+                                          border: "1px solid #fde68a",
+                                          padding: "0.5mm 1.5mm",
+                                          borderRadius: "999px",
                                           flexShrink: 0,
                                         }}
                                       >
@@ -472,21 +479,47 @@ const InvoicePaper = React.forwardRef(
                       })()}
                       {item.catatan && (
                         <div style={{
-                          fontSize: "2.6mm",
-                          color: "#94a3b8",
-                          marginTop: "1.2mm",
-                          fontStyle: "italic",
+                          display: "flex",
+                          gap: "1.5mm",
+                          alignItems: "flex-start",
+                          fontSize: "2.5mm",
+                          color: "#64748b",
+                          marginTop: "2mm",
+                          paddingTop: "1.8mm",
+                          borderTop: "1px dashed #cbd5e1",
                           whiteSpace: "pre-wrap",
                           wordBreak: "break-word",
                         }}>
-                          Catatan: {sanitizeText(item.catatan)}
+                          <span style={{ color: GOLD, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                            Catatan
+                          </span>
+                          <span>{sanitizeText(item.catatan)}</span>
                         </div>
                       )}
                     </div>
-                    <div style={{ width: "20mm", fontSize: "3mm", color: "#64748b", fontFamily: "monospace", textAlign: "right", paddingTop: "0.5mm" }}>
+                    <div style={{
+                      width: "20mm",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      fontSize: "3mm",
+                      color: "#64748b",
+                      fontVariantNumeric: "tabular-nums",
+                      textAlign: "right",
+                    }}>
                       {d.kg} Kg
                     </div>
-                    <div style={{ width: "35mm", fontSize: "3.2mm", fontWeight: 800, color: NAVY, fontFamily: "monospace", textAlign: "right", paddingTop: "0.5mm" }}>
+                    <div style={{
+                      width: "35mm",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      fontSize: "3.4mm",
+                      fontWeight: 800,
+                      color: NAVY,
+                      fontVariantNumeric: "tabular-nums",
+                      textAlign: "right",
+                    }}>
                       {formatCurrency(d.lineTotal, d.currency)}
                     </div>
                   </div>

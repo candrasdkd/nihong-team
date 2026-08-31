@@ -23,6 +23,7 @@ import {
 import {
   cleanIndonesiaDeliveryAddress,
   cleanJapanDeliveryAddress,
+  formatJapanPostalCode,
   getIndonesiaDeliveryAddress,
   getJapanDeliveryAddress,
   JapanDeliveryAddressErrors,
@@ -35,23 +36,97 @@ import {
 
 type LoadState = "loading" | "ready" | "invalid" | "used" | "error";
 
-function CompletedView() {
+function ReadOnlyField({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value?: string;
+  wide?: boolean;
+}) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-indigo-50 flex items-center justify-center p-5">
+    <div className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left ${wide ? "sm:col-span-2" : ""}`}>
+      <dt className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+        {label}
+      </dt>
+      <dd className="mt-1.5 whitespace-pre-wrap break-words text-sm font-bold leading-relaxed text-slate-800">
+        {value || "-"}
+      </dd>
+    </div>
+  );
+}
+
+function CompletedView({
+  customer,
+  country,
+  route,
+  indonesiaAddress,
+  japanAddress,
+}: {
+  customer: Customer | null;
+  country: DeliveryCountry;
+  route: string;
+  indonesiaAddress: IndonesiaDeliveryAddress;
+  japanAddress: JapanDeliveryAddress;
+}) {
+  const destinationLabel = country === "japan" ? "Jepang" : "Indonesia";
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-indigo-50 px-4 py-6 sm:py-10">
       <motion.main
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-md rounded-3xl border border-emerald-200 bg-white p-7 text-center shadow-2xl shadow-emerald-200/40 sm:p-9"
+        className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-2xl shadow-emerald-200/40"
       >
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 ring-8 ring-emerald-50">
-          <CheckCircle2 className="h-8 w-8" strokeWidth={2.5} />
+        <div className="border-b border-emerald-100 bg-emerald-50/70 px-5 py-7 text-center sm:px-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 ring-8 ring-emerald-50">
+            <CheckCircle2 className="h-8 w-8" strokeWidth={2.5} />
+          </div>
+          <h1 className="mt-6 text-2xl font-black text-slate-900">Alamat Berhasil Dikirim</h1>
+          <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+            Data pengiriman domestik ke {destinationLabel} sudah tersimpan.
+          </p>
         </div>
-        <h1 className="mt-6 text-2xl font-black text-slate-900">Alamat Berhasil Dikirim</h1>
-        <p className="mt-3 text-sm font-medium leading-relaxed text-slate-500">
-          Terima kasih. Data alamat pengiriman sudah tersimpan dan form ini telah ditutup.
-        </p>
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-relaxed text-slate-500">
-          Link ini hanya berlaku satu kali. Jika ada data yang perlu diperbaiki, hubungi admin untuk meminta link baru.
+
+        <div className="space-y-5 p-5 sm:p-8">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-emerald-700">
+              Data yang dikirim
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              {customer?.nama ? `${customer.nama} · ` : ""}{route || destinationLabel}
+            </p>
+          </div>
+
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {country === "japan" ? (
+              <>
+                <ReadOnlyField label="Nama Penerima" value={japanAddress.namaPenerima} wide />
+                <ReadOnlyField label="Alamat Penerima (Romaji)" value={japanAddress.alamatPenerimaRomaji} wide />
+                {japanAddress.alamatPenerimaKanji && (
+                  <ReadOnlyField label="Alamat Penerima (Kanji)" value={japanAddress.alamatPenerimaKanji} wide />
+                )}
+                <ReadOnlyField label="Kode Pos" value={formatJapanPostalCode(japanAddress.kodePos)} />
+                <ReadOnlyField label="No. HP Aktif" value={japanAddress.noHpAktif} />
+                <ReadOnlyField label="Jam Penerima Paket" value={japanAddress.jamPenerimaPaket} wide />
+              </>
+            ) : (
+              <>
+                <ReadOnlyField label="Nama Penerima" value={indonesiaAddress.namaPenerima} wide />
+                <ReadOnlyField label="Alamat Penerima" value={indonesiaAddress.alamatPenerima} wide />
+                <ReadOnlyField label="Kode Pos" value={indonesiaAddress.kodePos} />
+                <ReadOnlyField label="No. HP" value={indonesiaAddress.noHp} />
+              </>
+            )}
+          </dl>
+
+          <div className="flex items-start gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-relaxed text-slate-500">
+            <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Data ini hanya dapat dilihat dan tidak bisa diubah lagi. Jika ada kesalahan, hubungi admin untuk meminta link baru.
+            </p>
+          </div>
         </div>
       </motion.main>
     </div>
@@ -80,7 +155,7 @@ export function SharedDeliveryAddressPage({ shareToken }: { shareToken: string }
     getPublicDeliveryAddressLink(shareToken)
       .then((result) => {
         if (!active) return;
-        if (result.status !== "active") {
+        if (result.status === "invalid") {
           setLoadState(result.status);
           return;
         }
@@ -88,9 +163,21 @@ export function SharedDeliveryAddressPage({ shareToken }: { shareToken: string }
         setCustomer(result.customer);
         setCountry(result.link.country);
         setRoute(result.link.route);
-        setIndonesiaAddress(getIndonesiaDeliveryAddress(result.customer));
-        setJapanAddress(getJapanDeliveryAddress(result.customer));
-        setLoadState("ready");
+        if (result.status === "used" && result.link.submittedAddress) {
+          if (result.link.country === "japan") {
+            setJapanAddress(cleanJapanDeliveryAddress(
+              result.link.submittedAddress as JapanDeliveryAddress,
+            ));
+          } else {
+            setIndonesiaAddress(cleanIndonesiaDeliveryAddress(
+              result.link.submittedAddress as IndonesiaDeliveryAddress,
+            ));
+          }
+        } else {
+          setIndonesiaAddress(getIndonesiaDeliveryAddress(result.customer));
+          setJapanAddress(getJapanDeliveryAddress(result.customer));
+        }
+        setLoadState(result.status === "used" ? "used" : "ready");
       })
       .catch((error) => {
         console.error("Gagal membuka form alamat publik:", error);
@@ -118,17 +205,21 @@ export function SharedDeliveryAddressPage({ shareToken }: { shareToken: string }
     setSubmitting(true);
     try {
       if (country === "japan") {
+        const cleanedAddress = cleanJapanDeliveryAddress(japanAddress);
         await submitPublicDeliveryAddress(
           shareToken,
           "japan",
-          cleanJapanDeliveryAddress(japanAddress),
+          cleanedAddress,
         );
+        setJapanAddress(cleanedAddress);
       } else {
+        const cleanedAddress = cleanIndonesiaDeliveryAddress(indonesiaAddress);
         await submitPublicDeliveryAddress(
           shareToken,
           "indonesia",
-          cleanIndonesiaDeliveryAddress(indonesiaAddress),
+          cleanedAddress,
         );
+        setIndonesiaAddress(cleanedAddress);
       }
       setLoadState("used");
     } catch (error: any) {
@@ -153,7 +244,17 @@ export function SharedDeliveryAddressPage({ shareToken }: { shareToken: string }
     );
   }
 
-  if (loadState === "used") return <CompletedView />;
+  if (loadState === "used") {
+    return (
+      <CompletedView
+        customer={customer}
+        country={country}
+        route={route}
+        indonesiaAddress={indonesiaAddress}
+        japanAddress={japanAddress}
+      />
+    );
+  }
 
   if (loadState !== "ready" || !customer) {
     return (

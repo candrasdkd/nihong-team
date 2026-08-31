@@ -75,10 +75,8 @@ export async function addPreOrder(
 
   const ref = await addDoc(collection(db, COL), payload);
 
-  // Update berat terpakai di Jadwal Keberangkatan (hanya jika aktif/Pending)
-  if (payload.status === "Pending") {
-    await adjustScheduleWeight(data.idJadwal, totalKg);
-  }
+  // Semua booking tetap memakai kapasitas jadwal, termasuk yang sudah Selesai.
+  await adjustScheduleWeight(data.idJadwal, totalKg);
 
   return ref.id;
 }
@@ -97,11 +95,9 @@ export async function updatePreOrder(
   const oldData = snap.data() as PreOrder;
   const oldTotalKg = Number(oldData.totalKg || 0);
   const oldScheduleId = oldData.idJadwal;
-  const oldStatus = oldData.status;
 
   // Hitung totalKg baru jika ada perubahan items
   const newTotalKg = typeof data.totalKg === "number" ? data.totalKg : oldTotalKg;
-  const newStatus = data.status || oldStatus;
   const newScheduleId = data.idJadwal || oldScheduleId;
 
   await updateDoc(docRef, {
@@ -110,9 +106,9 @@ export async function updatePreOrder(
     updatedAt: Date.now(),
   });
 
-  // Hitung kontribusi berat ke jadwal
-  const oldContribution = oldStatus === "Pending" ? oldTotalKg : 0;
-  const newContribution = newStatus === "Pending" ? newTotalKg : 0;
+  // Status tidak mengubah penggunaan slot; barang Selesai tetap ikut jadwal.
+  const oldContribution = oldTotalKg;
+  const newContribution = newTotalKg;
 
   // Sesuaikan berat terpakai di Jadwal
   if (newScheduleId === oldScheduleId) {
@@ -135,10 +131,8 @@ export async function deletePreOrder(id: string) {
   const data = snap.data() as PreOrder;
   await deleteDoc(docRef);
 
-  // Rollback berat ke Jadwal (hanya jika aktif/Pending)
-  if (data.status === "Pending") {
-    await adjustScheduleWeight(data.idJadwal, -Number(data.totalKg || 0));
-  }
+  // Kapasitas dikembalikan hanya ketika booking benar-benar dihapus.
+  await adjustScheduleWeight(data.idJadwal, -Number(data.totalKg || 0));
 }
 
 /**

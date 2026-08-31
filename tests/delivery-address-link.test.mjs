@@ -19,14 +19,20 @@ const deliveryAddressFields = await readFile(
   "utf8",
 );
 
-test("customer page hides the form and printing after a successful submission", () => {
-  assert.match(publicPage, /if \(loadState === "used"\) return <CompletedView \/>/);
+test("customer page shows the submitted address read-only after a successful submission", () => {
+  assert.match(publicPage, /if \(loadState === "used"\)/);
+  assert.match(publicPage, /<CompletedView/);
+  assert.match(publicPage, /Data yang dikirim/);
+  assert.match(publicPage, /Data ini hanya dapat dilihat dan tidak bisa diubah lagi/);
+  assert.match(publicPage, /<ReadOnlyField label="Alamat Penerima"/);
   assert.doesNotMatch(publicPage, /printDeliveryAddress|Cetak Preview|Preview format cetak/);
 });
 
 test("delivery address links are single-use and a new link replaces the active token", () => {
   assert.match(linkService, /if \(link\.usedAt\) throw new PublicDeliveryAddressLinkError\("used"\)/);
   assert.match(linkService, /transaction\.update\(linkRef, \{\s*usedAt: serverTimestamp\(\)/);
+  assert.match(linkService, /submittedAddress: storedAddress/);
+  assert.match(linkService, /status: "used", link, customer/);
   assert.match(linkService, /deliveryAddressShareToken: token/);
   assert.match(linkService, /booking\.deliveryAddressShareToken !== token/);
 });

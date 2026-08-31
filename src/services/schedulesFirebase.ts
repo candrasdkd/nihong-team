@@ -81,3 +81,14 @@ export async function adjustScheduleWeight(scheduleId: string, delta: number) {
     updatedAt: serverTimestamp(),
   });
 }
+
+/**
+ * Menyetel ulang berat terpakai dari total booking aktual.
+ * Dipakai untuk memperbaiki data lama yang pernah melepas slot saat status menjadi Selesai.
+ */
+export async function setScheduleUsedWeight(scheduleId: string, totalKg: number) {
+  await updateDoc(doc(db, COL, scheduleId), {
+    beratTerpakai: Math.max(0, Number(totalKg) || 0),
+    updatedAt: serverTimestamp(),
+  });
+}

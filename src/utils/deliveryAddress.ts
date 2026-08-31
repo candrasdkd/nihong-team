@@ -289,14 +289,13 @@ export function printDeliveryAddressBatch(
     .card-topline {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 3mm;
       padding-bottom: 1.4mm;
       border-bottom: 0.25mm solid #cbd5e1;
     }
-    .brand { color: #475569; font-size: 7.5pt; font-weight: 800; letter-spacing: 0.12em; }
     .booking-label {
-      max-width: 56%;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -345,13 +344,10 @@ export function printDeliveryAddressBatch(
 
       const topLine = popup.document.createElement("div");
       topLine.className = "card-topline";
-      const brand = popup.document.createElement("span");
-      brand.className = "brand";
-      brand.textContent = "NIHONG DELIVERY";
       const bookingLabel = popup.document.createElement("span");
       bookingLabel.className = "booking-label";
       bookingLabel.textContent = item.bookingLabel;
-      topLine.append(brand, bookingLabel);
+      topLine.append(bookingLabel);
 
       const title = popup.document.createElement("h2");
       title.className = "country-title";
