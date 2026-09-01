@@ -1,5 +1,6 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function UpdatePrompt() {
     const {
@@ -7,12 +8,30 @@ export default function UpdatePrompt() {
         updateServiceWorker,
     } = useRegisterSW({
         onRegistered(r: ServiceWorkerRegistration | undefined) {
-            // Polling setiap 60 detik untuk cek update baru
-            if (r) {
-                setInterval(() => r.update(), 60 * 1000);
-            }
+            if (!r) return;
+            // Cek update berkala setiap 20 detik
+            setInterval(() => r.update(), 20 * 1000);
+
+            // Cek update instan saat user membuka/beralih kembali ke aplikasi di Android (focus & visibility change)
+            const handleFocusOrVisible = () => {
+                if (document.visibilityState === 'visible') {
+                    r.update();
+                }
+            };
+            window.addEventListener('focus', handleFocusOrVisible);
+            document.addEventListener('visibilitychange', handleFocusOrVisible);
+        },
+        onRegisterError(error) {
+            console.error('SW registration error', error);
         },
     });
+
+    // Otomatis refresh service worker saat versi baru terdeteksi
+    useEffect(() => {
+        if (needRefresh) {
+            updateServiceWorker(true);
+        }
+    }, [needRefresh, updateServiceWorker]);
 
     if (!needRefresh) return null;
 
@@ -22,15 +41,15 @@ export default function UpdatePrompt() {
                 <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center rounded-2xl mb-5 shadow-inner">
                     <RefreshCw size={28} className="text-indigo-600 dark:text-indigo-400 animate-spin" />
                 </div>
-                <h3 className="font-extrabold text-xl text-slate-800 dark:text-neutral-100 mb-2">Update Tersedia! 🎉</h3>
+                <h3 className="font-extrabold text-xl text-slate-800 dark:text-neutral-100 mb-2">Memperbarui Aplikasi... 🚀</h3>
                 <p className="text-slate-500 dark:text-neutral-400 text-sm mb-6 leading-relaxed">
-                    Versi terbaru aplikasi telah siap. Anda wajib memperbarui aplikasi untuk melanjutkan dan menikmati fitur terbaru.
+                    Sedang menerapkan versi terbaru agar aplikasi selalu sinkron.
                 </p>
                 <button
                     onClick={() => updateServiceWorker(true)}
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-indigo-200 dark:shadow-none active:scale-95 transition-all outline-none"
                 >
-                    Perbarui Sekarang
+                    Muat Ulang
                 </button>
             </div>
         </div>
