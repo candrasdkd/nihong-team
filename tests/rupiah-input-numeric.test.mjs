@@ -12,9 +12,9 @@ const orderFormModal = await readFile(
   "utf8"
 );
 
-test("RupiahInput enforces strict numeric keyboard without comma and blocks letter inputs", () => {
+test("RupiahInput enforces strict numeric keyboard without comma and blocks letter inputs without pattern conflict", () => {
   assert.match(rupiahInput, /inputMode="numeric"/);
-  assert.match(rupiahInput, /pattern="\[0-9\]\*"/);
+  assert.doesNotMatch(rupiahInput, /pattern="\[0-9\]\*"/);
   assert.match(rupiahInput, /data-keyboard-type="numeric"/);
   assert.match(rupiahInput, /handleKeyDown/);
   assert.match(rupiahInput, /handleBeforeInput/);

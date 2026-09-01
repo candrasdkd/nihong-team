@@ -87,6 +87,48 @@ export function OrderFormModal({
   const [tanggal, setTanggal] = useState(initial?.tanggal || todayStr());
   const [namaPelanggan, setNamaPelanggan] = useState(initial?.namaPelanggan || "");
   const [jumlahKg, setJumlahKg] = useState<number>(initial?.jumlahKg || 1);
+  const [jumlahKgStr, setJumlahKgStr] = useState<string>(() =>
+    initial?.jumlahKg != null ? String(initial.jumlahKg) : "1"
+  );
+
+  const handleKgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Allow digits, dot, comma
+    const cleaned = raw.replace(/[^0-9.,]/g, "");
+
+    // Keep only the first dot or comma separator
+    let separatorFound = false;
+    let result = "";
+    for (const char of cleaned) {
+      if (char === "." || char === ",") {
+        if (!separatorFound) {
+          result += char;
+          separatorFound = true;
+        }
+      } else {
+        result += char;
+      }
+    }
+
+    setJumlahKgStr(result);
+    const normalized = result.replace(",", ".");
+    const parsed = parseFloat(normalized);
+    setJumlahKg(Number.isFinite(parsed) ? parsed : 0);
+  };
+
+  const handleKgBlur = () => {
+    if (!jumlahKgStr || jumlahKgStr === "." || jumlahKgStr === ",") {
+      setJumlahKgStr("0");
+      setJumlahKg(0);
+    } else {
+      const normalized = jumlahKgStr.replace(",", ".");
+      const parsed = parseFloat(normalized);
+      const valid = Number.isFinite(parsed) ? parsed : 0;
+      setJumlahKg(valid);
+      setJumlahKgStr(String(valid));
+    }
+  };
+
   const [pengiriman, setPengiriman] = useState<string>(
     (initial as any)?.pengiriman || "INDO - JEPANG"
   );
@@ -530,12 +572,12 @@ export function OrderFormModal({
                       {renderLabel("Berat (Kg)", jumlahKg, true)}
                       <div className="relative">
                         <Input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           inputMode="decimal"
                           data-keyboard-type="numeric"
-                          value={toStr(jumlahKg)}
-                          onChange={(e) => setJumlahKg(num(e.target.value))}
+                          value={jumlahKgStr}
+                          onChange={handleKgChange}
+                          onBlur={handleKgBlur}
                           required
                           placeholder="0.0"
                           className={`${getInputClass(jumlahKg, true)} pr-20`}

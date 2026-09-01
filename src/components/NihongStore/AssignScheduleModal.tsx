@@ -115,7 +115,7 @@ export function AssignScheduleModal({
 
   const totalCalculatedKg = isBatch
     ? orders.reduce((sum, o) => sum + (o.totalKg || 0.5), 0)
-    : Number(totalKg) || 0.5;
+    : Number(String(totalKg).replace(",", ".")) || 0.5;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,13 +382,14 @@ export function AssignScheduleModal({
                   </label>
                   <div className="relative">
                     <input
-                      type="number"
-                      step="0.1"
-                      min="0.1"
+                      type="text"
                       inputMode="decimal"
                       data-keyboard-type="numeric"
                       value={totalKg}
-                      onChange={(e) => setTotalKg(e.target.value)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.,]/g, "");
+                        setTotalKg(raw);
+                      }}
                       placeholder="0.5"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-orange bg-white shadow-sm"
                     />

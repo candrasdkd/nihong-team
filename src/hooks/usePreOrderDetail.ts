@@ -76,7 +76,7 @@ export function usePreOrderDetail(
 
       let newVal: string | number = rawVal;
       if (field === "totalKg") {
-        newVal = parseFloat(rawVal) || 0;
+        newVal = parseFloat(String(rawVal).replace(",", ".")) || 0;
         if (newVal === po.totalKg) return;
       } else {
         if (rawVal === (po[field] ?? "")) return;

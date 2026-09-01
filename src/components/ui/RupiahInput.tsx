@@ -134,7 +134,6 @@ export const RupiahInput = forwardRef<
       label={label}
       type="text"
       inputMode="numeric"
-      pattern="[0-9]*"
       data-keyboard-type="numeric"
       value={text}
       onKeyDown={handleKeyDown}

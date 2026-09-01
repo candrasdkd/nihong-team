@@ -87,7 +87,6 @@ export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: num
             <input
               type="number"
               inputMode="numeric"
-              pattern="[0-9]*"
               data-keyboard-type="numeric"
               value={yenInput}
               onChange={handleYenChange}

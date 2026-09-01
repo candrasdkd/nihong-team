@@ -82,7 +82,7 @@ export function ScheduleFormModal({ initial, jastipers, onClose, onSubmit }: Sch
         rute: rute.trim(),
         tanggalBerangkat,
         tanggalLastDrop,
-        slotBeratKg: Number(slotBeratKg) || 0,
+        slotBeratKg: Number(String(slotBeratKg).replace(",", ".")) || 0,
         status,
         catatan: catatan.trim(),
         hargaFeeJastiper: Number(hargaFeeJastiper) || 0,
@@ -282,14 +282,15 @@ export function ScheduleFormModal({ initial, jastipers, onClose, onSubmit }: Sch
               <div className="space-y-1.5">
                 <label className={labelClass}>Slot Berat (Kg) *</label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   data-keyboard-type="numeric"
                   value={slotBeratKg}
-                  onChange={(e) => setSlotBeratKg(e.target.value)}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9.,]/g, "");
+                    setSlotBeratKg(raw);
+                  }}
                   placeholder="Contoh: 50"
-                  min="0"
-                  step="0.5"
                   className={fieldClass}
                 />
               </div>
