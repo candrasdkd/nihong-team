@@ -16,7 +16,12 @@ import {
   limit,
   type Firestore,
 } from "firebase/firestore";
-import { getAuth, signInAnonymously, type Auth } from "firebase/auth";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut as signOutStoreAuth,
+  type Auth,
+} from "firebase/auth";
 import { db } from "../lib/firebase"; // Primary Firebase DB (nihong-4b93e: ERP & Internal Operations)
 import {
   NihongStoreOrder,
@@ -47,23 +52,38 @@ const storeApp: FirebaseApp = existingStoreApp || initializeApp(nihongStoreConfi
 export const storeDb: Firestore = getFirestore(storeApp);
 
 /**
- * Memastikan sesi anonymous auth aktif di database nihongstore-6210b
- * sebelum menjalankan operasi baca/tulis.
+ * Login ke Firebase secondary storefront. Akun ini harus tersedia di Firebase
+ * Auth nihongstore-6210b dan UID-nya harus terdaftar di admins/{uid}.
  */
-export async function ensureStoreAuth(): Promise<Auth> {
+export async function loginNihongStoreAdmin(email: string, password: string): Promise<Auth> {
   const storeAuth = getAuth(storeApp);
-  try {
-    if (!storeAuth.currentUser) {
-      await signInAnonymously(storeAuth);
-    }
-  } catch (e) {
-    console.warn("[NihongStore Auth] Anonymous sign in notice:", e);
+  const credential = await signInWithEmailAndPassword(storeAuth, email, password);
+  const adminSnapshot = await getDoc(doc(storeDb, "admins", credential.user.uid));
+  if (!adminSnapshot.exists()) {
+    await signOutStoreAuth(storeAuth);
+    throw new Error("Akun belum diberi akses admin ke Firebase NihongStore.");
   }
   return storeAuth;
 }
 
-// Inisialisasi awal auth
-ensureStoreAuth().catch(() => {});
+export async function logoutNihongStoreAdmin(): Promise<void> {
+  await signOutStoreAuth(getAuth(storeApp));
+}
+
+/** Memastikan secondary session masih aktif dan terdaftar sebagai admin. */
+export async function ensureStoreAuth(): Promise<Auth> {
+  const storeAuth = getAuth(storeApp);
+  try { await storeAuth.authStateReady(); } catch { /* Continue with current user state. */ }
+  const user = storeAuth.currentUser;
+  if (!user) throw new Error("Login NihongStore diperlukan. Silakan keluar lalu masuk kembali.");
+
+  const adminSnapshot = await getDoc(doc(storeDb, "admins", user.uid));
+  if (!adminSnapshot.exists()) {
+    await signOutStoreAuth(storeAuth);
+    throw new Error("Akun belum diberi akses admin ke Firebase NihongStore.");
+  }
+  return storeAuth;
+}
 
 /**
  * Mendengarkan pesanan NihongStore secara real-time dari database nihongstore-6210b.
@@ -88,20 +108,32 @@ export function listenNihongStoreOrders(
     );
   }
 
-  return onSnapshot(
-    q,
-    (snap) => {
-      const rows = snap.docs.map((d) => ({
-        ...d.data(),
-        id: d.id, // Pastikan ID dokumen Firestore selalu dipakai sebagai primary id
-      })) as NihongStoreOrder[];
-      cb(rows);
-    },
-    (err) => {
-      console.warn("[NihongStore] Error in snapshot listener:", err);
-      cb([]);
-    }
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  ensureStoreAuth().then(() => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as NihongStoreOrder[];
+        cb(rows);
+      },
+      (err) => {
+        console.warn("[NihongStore] Error in snapshot listener:", err);
+        cb([]);
+      }
+    );
+  }).catch((err) => {
+    console.warn("[NihongStore] Secondary admin session unavailable:", err);
+    cb([]);
+  });
+  return () => {
+    cancelled = true;
+    unsubscribe();
+  };
 }
 
 /**
@@ -113,16 +145,26 @@ export function listenUnassignedNihongStoreCount(cb: (count: number) => void) {
     collection(storeDb, COL_NIHONGSTORE),
     where("status", "==", "inbox")
   );
-  return onSnapshot(
-    q,
-    (snap) => {
-      cb(snap.size);
-    },
-    (err) => {
-      console.warn("[NihongStore] Error in count listener:", err);
-      cb(0);
-    }
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  ensureStoreAuth().then(() => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      q,
+      (snap) => cb(snap.size),
+      (err) => {
+        console.warn("[NihongStore] Error in count listener:", err);
+        cb(0);
+      }
+    );
+  }).catch((err) => {
+    console.warn("[NihongStore] Secondary admin session unavailable:", err);
+    cb(0);
+  });
+  return () => {
+    cancelled = true;
+    unsubscribe();
+  };
 }
 
 /**

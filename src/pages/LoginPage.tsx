@@ -90,8 +90,10 @@ export function LoginPage() {
       try {
         setSuccessAnim(true);
         await login(email, password);
-      } catch {
-        setError("Email atau password salah. Coba lagi.");
+      } catch (error) {
+        setError(error instanceof Error && error.message.includes("NihongStore")
+          ? error.message
+          : "Email atau password salah. Coba lagi.");
         setSuccessAnim(false);
         setLoading(false);
       }

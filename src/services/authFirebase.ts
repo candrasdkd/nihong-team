@@ -6,20 +6,34 @@ import {
   User,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import {
+  loginNihongStoreAdmin,
+  logoutNihongStoreAdmin,
+} from "./nihongStoreFirebase";
 
 /**
  * Fungsi untuk melakukan autentikasi / login pengguna ke Firebase Auth.
  * Menggunakan email dan password yang diberikan.
  */
-export function login(email: string, password: string) {
-  return signInWithEmailAndPassword(auth, email, password);
+export async function login(email: string, password: string) {
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  try {
+    await loginNihongStoreAdmin(email, password);
+    return credential;
+  } catch (error) {
+    await signOut(auth);
+    throw error;
+  }
 }
 
 /**
  * Fungsi untuk mengeluarkan pengguna (logout) dari sesi autentikasi Firebase.
  */
-export function logout() {
-  return signOut(auth);
+export async function logout() {
+  await Promise.allSettled([
+    signOut(auth),
+    logoutNihongStoreAdmin(),
+  ]);
 }
 
 /**
