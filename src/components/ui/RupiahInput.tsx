@@ -84,22 +84,22 @@ export const RupiahInput = forwardRef<
       return;
     }
 
-    // Block any non-digit character (allow digits, comma, dot)
-    if (!/^[\d.,]$/.test(e.key)) {
+    // Block any non-digit character (allow only 0-9)
+    if (!/^\d$/.test(e.key)) {
       e.preventDefault();
     }
   };
 
   const handleBeforeInput = (e: React.FormEvent<HTMLInputElement> & { data?: string | null }) => {
-    if (e.data && !/^[\d.,]+$/.test(e.data)) {
+    if (e.data && !/^\d+$/.test(e.data)) {
       e.preventDefault();
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pasted = e.clipboardData?.getData("text") || "";
-    // If the pasted string contains no digits/numbers, block paste
-    if (!/[\d.,]/.test(pasted)) {
+    // If the pasted string contains no digits, block paste
+    if (!/\d/.test(pasted)) {
       e.preventDefault();
     }
   };
@@ -133,7 +133,8 @@ export const RupiahInput = forwardRef<
       ref={internalRef}
       label={label}
       type="text"
-      inputMode="decimal"
+      inputMode="numeric"
+      pattern="[0-9]*"
       data-keyboard-type="numeric"
       value={text}
       onKeyDown={handleKeyDown}

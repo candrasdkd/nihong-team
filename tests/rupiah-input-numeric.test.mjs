@@ -12,15 +12,16 @@ const orderFormModal = await readFile(
   "utf8"
 );
 
-test("RupiahInput enforces decimal numeric keyboard with comma support and blocks letter inputs", () => {
-  assert.match(rupiahInput, /inputMode="decimal"/);
+test("RupiahInput enforces strict numeric keyboard without comma and blocks letter inputs", () => {
+  assert.match(rupiahInput, /inputMode="numeric"/);
+  assert.match(rupiahInput, /pattern="\[0-9\]\*"/);
   assert.match(rupiahInput, /data-keyboard-type="numeric"/);
   assert.match(rupiahInput, /handleKeyDown/);
   assert.match(rupiahInput, /handleBeforeInput/);
   assert.match(rupiahInput, /handlePaste/);
 });
 
-test("OrderFormModal uses RupiahInput for jastip and ongkir fields with numeric decimal support for weight", () => {
+test("OrderFormModal uses RupiahInput for jastip and ongkir fields with decimal comma support for weight (kg)", () => {
   assert.match(orderFormModal, /<RupiahInput[^>]*value=\{hargaJastipManual\}/);
   assert.match(orderFormModal, /<RupiahInput[^>]*value=\{hargaJastipMarkup\}/);
   assert.match(orderFormModal, /<RupiahInput[^>]*value=\{hargaOngkir\}/);
