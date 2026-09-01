@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag, Plus, Search, Plane, Package, Weight, CalendarDays, User, ChevronRight, AlertCircle,
 } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePreOrders } from "../hooks/usePreOrders";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
 import { Button } from "../components/ui/Button";
@@ -41,6 +41,10 @@ function parseHighlightDate(dateStr?: string) {
 }
 
 export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
+  const [searchParams] = useSearchParams();
+  const scheduleIdParam = searchParams.get("scheduleId");
+  const qParam = searchParams.get("q");
+
   const { showToast } = useOutletContext<{ showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void }>();
   const {
     preOrders,
@@ -72,6 +76,22 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
 
   // Navigation state — which schedule's detail to show
   const [detailSchedule, setDetailSchedule] = React.useState<DepartureSchedule | null>(null);
+
+  // Auto-select schedule and search query from URL parameters
+  React.useEffect(() => {
+    if (qParam && !q) {
+      setQ(qParam);
+    }
+  }, [qParam]);
+
+  React.useEffect(() => {
+    if (scheduleIdParam && schedules.length > 0) {
+      const found = schedules.find((s) => s.id === scheduleIdParam);
+      if (found) {
+        setDetailSchedule(found);
+      }
+    }
+  }, [scheduleIdParam, schedules]);
 
   // Auto-open create form when triggered by SpeedDialFAB
   React.useEffect(() => {

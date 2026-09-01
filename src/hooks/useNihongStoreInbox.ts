@@ -19,6 +19,9 @@ import {
 } from "../services/nihongStoreFirebase";
 import { listenSchedules } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
+import { generateShoppingListText } from "../utils/nihongStoreExport";
+
+export type InboxSortOption = "newest" | "oldest" | "price_desc" | "price_asc" | "weight_desc";
 
 export function useNihongStoreInbox(
   showToast?: (
@@ -33,6 +36,9 @@ export function useNihongStoreInbox(
 
   // Filters & Search & Pagination Limit
   const [statusFilter, setStatusFilter] = useState<string>("inbox");
+  const [paymentFilter, setPaymentFilter] = useState<string>("");
+  const [stockFilter, setStockFilter] = useState<string>(""); // "" | "oos" | "ready"
+  const [sortBy, setSortBy] = useState<InboxSortOption>("newest");
   const [q, setQ] = useState<string>("");
   const [limitCount, setLimitCount] = useState<number>(50);
 
@@ -50,6 +56,14 @@ export function useNihongStoreInbox(
   // Update Status modal
   const [updateStatusModalOpen, setUpdateStatusModalOpen] = useState(false);
   const [statusTargetOrder, setStatusTargetOrder] = useState<NihongStoreOrder | null>(null);
+
+  // WhatsApp Dynamic Template modal
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
+  const [whatsAppTargetOrder, setWhatsAppTargetOrder] = useState<NihongStoreOrder | null>(null);
+
+  // Order Detail & Timeline modal
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailTargetOrder, setDetailTargetOrder] = useState<NihongStoreOrder | null>(null);
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -76,15 +90,35 @@ export function useNihongStoreInbox(
     [showToast]
   );
 
+  // Connect Store Auth Modal
+  const [connectAuthModalOpen, setConnectAuthModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshOrders = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const [error, setError] = useState<string | null>(null);
+
   // 1. Subscribe Real-time NihongStore Orders from nihongstore-6210b with limit
   useEffect(() => {
     setLoading(true);
-    const unsub = listenNihongStoreOrders("", (rows) => {
-      setOrders(rows);
-      setLoading(false);
-    }, limitCount);
+    setError(null);
+    const unsub = listenNihongStoreOrders(
+      "",
+      (rows) => {
+        setOrders(rows);
+        setLoading(false);
+        setError(null);
+      },
+      limitCount,
+      (err: any) => {
+        setError(err?.message || "Gagal memuat pesanan dari Firebase NihongStore.");
+        setLoading(false);
+      }
+    );
     return () => unsub();
-  }, [limitCount]);
+  }, [limitCount, refreshKey]);
 
   // 2. Subscribe Schedules & Customers from nihong-4b93e
   useEffect(() => {
@@ -121,32 +155,60 @@ export function useNihongStoreInbox(
     };
   }, [orders]);
 
-  // Filtered & Searched Orders
+  // Filtered & Searched Orders with Sorting
   const filteredOrders = useMemo(() => {
     let list = orders;
 
+    // Status Tab Filter
     if (statusFilter) {
       list = list.filter((o) => o.status === statusFilter);
     }
 
+    // Payment Status Filter
+    if (paymentFilter) {
+      list = list.filter((o) => (o.paymentStatus || "").toLowerCase() === paymentFilter.toLowerCase());
+    }
+
+    // Stock Condition Filter
+    if (stockFilter === "oos") {
+      list = list.filter((o) => o.items.some((it) => it.status === "Stok habis"));
+    } else if (stockFilter === "ready") {
+      list = list.filter((o) => o.items.every((it) => it.status !== "Stok habis"));
+    }
+
+    // Search Query Filter
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       list = list.filter(
         (o) =>
-          o.no.toLowerCase().includes(s) ||
-          o.namaPelanggan.toLowerCase().includes(s) ||
-          o.noTelponPelanggan?.toLowerCase().includes(s) ||
+          (o.no || "").toLowerCase().includes(s) ||
+          (o.namaPelanggan || "").toLowerCase().includes(s) ||
+          (o.noTelponPelanggan || "").toLowerCase().includes(s) ||
           o.items.some(
             (it) =>
-              it.namaBarang.toLowerCase().includes(s) ||
-              it.kodeBarang?.toLowerCase().includes(s) ||
-              it.warna?.toLowerCase().includes(s)
+              (it.namaBarang || "").toLowerCase().includes(s) ||
+              (it.kodeBarang || "").toLowerCase().includes(s) ||
+              (it.warna || "").toLowerCase().includes(s)
           )
       );
     }
 
-    return list;
-  }, [orders, statusFilter, q]);
+    // Sorting
+    const sorted = [...list];
+    if (sortBy === "newest") {
+      sorted.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+    } else if (sortBy === "oldest") {
+      sorted.sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+    } else if (sortBy === "price_desc") {
+      sorted.sort((a, b) => (b.totalEstimasiHargaIdr || 0) - (a.totalEstimasiHargaIdr || 0));
+    } else if (sortBy === "price_asc") {
+      sorted.sort((a, b) => (a.totalEstimasiHargaIdr || 0) - (b.totalEstimasiHargaIdr || 0));
+    } else if (sortBy === "weight_desc") {
+      sorted.sort((a, b) => (b.totalKg || 0) - (a.totalKg || 0));
+    }
+
+    return sorted;
+  }, [orders, statusFilter, paymentFilter, stockFilter, q, sortBy]);
 
   // Selection handlers
   const handleSelectToggle = (id: string) => {
@@ -164,6 +226,15 @@ export function useNihongStoreInbox(
   };
 
   const clearSelection = () => setSelectedIds([]);
+
+  const clearAllFilters = () => {
+    setStatusFilter("inbox");
+    setPaymentFilter("");
+    setStockFilter("");
+    setSortBy("newest");
+    setQ("");
+    clearSelection();
+  };
 
   // Open Assign Modal for Single Order
   const handleOpenAssignSingle = (order: NihongStoreOrder) => {
@@ -208,6 +279,30 @@ export function useNihongStoreInbox(
   const handleOpenUpdateStatus = (order: NihongStoreOrder) => {
     setStatusTargetOrder(order);
     setUpdateStatusModalOpen(true);
+  };
+
+  // Open Order Detail & Timeline Modal
+  const handleOpenOrderDetail = (order: NihongStoreOrder) => {
+    setDetailTargetOrder(order);
+    setDetailModalOpen(true);
+  };
+
+  // Open Dynamic WhatsApp Template Modal
+  const handleOpenWhatsApp = (order: NihongStoreOrder) => {
+    setWhatsAppTargetOrder(order);
+    setWhatsAppModalOpen(true);
+  };
+
+  // Copy Shopping List Text for Batch Selected Orders
+  const handleCopyBatchShoppingList = () => {
+    const targets = orders.filter((o) => selectedIds.includes(o.id));
+    if (targets.length === 0) {
+      toast("Pilih minimal satu pesanan untuk menyalin daftar belanja", "warning");
+      return;
+    }
+    const text = generateShoppingListText(targets);
+    navigator.clipboard.writeText(text);
+    toast(`Daftar belanja ${targets.length} pesanan disalin ke clipboard!`);
   };
 
   // Save Custom Status & Timeline note
@@ -317,30 +412,6 @@ export function useNihongStoreInbox(
     });
   };
 
-  // WhatsApp Click helper
-  const handleWhatsAppChat = (order: NihongStoreOrder) => {
-    if (!order.noTelponPelanggan) {
-      toast("Nomor telepon tidak tersedia", "warning");
-      return;
-    }
-
-    let phone = order.noTelponPelanggan.replace(/[^0-9]/g, "");
-    if (phone.startsWith("0")) phone = "62" + phone.slice(1);
-    if (!phone.startsWith("62")) phone = "62" + phone;
-
-    const itemsSummary = order.items
-      .map((it, i) => {
-        const isOos = it.status === "Stok habis";
-        return `${i + 1}. ${it.namaBarang} (x${it.jumlah})${isOos ? " [STOK HABIS]" : ""}`;
-      })
-      .join("\n");
-
-    const message = `Halo Kak ${order.namaPelanggan}, kami dari tim Nihong Jastip terkait pesanan NihongStore Kakak (*${order.no}*):\n\n${itemsSummary}\n\nAda yang bisa kami bantu konfirmasi jadwalnya? Terima kasih!`;
-
-    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const loadMore = useCallback(() => {
     setLimitCount((prev) => prev + 50);
   }, []);
@@ -354,8 +425,16 @@ export function useNihongStoreInbox(
     openSchedules,
     customers,
     loading,
+    error,
     statusFilter,
     setStatusFilter,
+    paymentFilter,
+    setPaymentFilter,
+    stockFilter,
+    setStockFilter,
+    sortBy,
+    setSortBy,
+    clearAllFilters,
     q,
     setQ,
     limitCount,
@@ -382,10 +461,23 @@ export function useNihongStoreInbox(
     statusTargetOrder,
     handleOpenUpdateStatus,
     handleSaveCustomStatus,
+    whatsAppModalOpen,
+    setWhatsAppModalOpen,
+    whatsAppTargetOrder,
+    setWhatsAppTargetOrder,
+    handleOpenWhatsApp,
+    detailModalOpen,
+    setDetailModalOpen,
+    detailTargetOrder,
+    setDetailTargetOrder,
+    handleOpenOrderDetail,
+    handleCopyBatchShoppingList,
     confirmModal,
     setConfirmModal,
+    connectAuthModalOpen,
+    setConnectAuthModalOpen,
+    refreshOrders,
     handleReject,
     handleDelete,
-    handleWhatsAppChat,
   };
 }

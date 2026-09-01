@@ -23,9 +23,15 @@ import {
   RefreshCw,
   Clock,
   Copy,
+  ClipboardList,
+  Eye,
+  ExternalLink,
+  ChevronRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { NihongStoreOrder } from "../../types";
 import { formatDate, formatDateTime, formatIDR } from "../../utils/format";
+import { generateShoppingListText } from "../../utils/nihongStoreExport";
 import { Button } from "../ui/Button";
 
 interface NihongStoreOrderCardProps {
@@ -38,6 +44,8 @@ interface NihongStoreOrderCardProps {
   onManageItems: (order: NihongStoreOrder) => void;
   onUpdateStatus: (order: NihongStoreOrder) => void;
   onWhatsAppChat: (order: NihongStoreOrder) => void;
+  onOpenDetail: (order: NihongStoreOrder) => void;
+  onShowToast?: (msg: string, type?: "success" | "error" | "info" | "warning") => void;
 }
 
 export function NihongStoreOrderCard({
@@ -50,7 +58,10 @@ export function NihongStoreOrderCard({
   onManageItems,
   onUpdateStatus,
   onWhatsAppChat,
+  onOpenDetail,
+  onShowToast,
 }: NihongStoreOrderCardProps) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -70,18 +81,34 @@ export function NihongStoreOrderCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyShoppingList = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = generateShoppingListText([order]);
+    navigator.clipboard.writeText(text);
+    onShowToast?.("Format daftar belanja berhasil disalin!");
+  };
+
+  const handleNavigateToPreOrder = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (order.assignedScheduleId) {
+      navigate(`/preorders?scheduleId=${order.assignedScheduleId}&q=${encodeURIComponent(order.namaPelanggan)}`);
+    } else {
+      navigate("/preorders");
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98 }}
-      className={`relative bg-white rounded-2xl sm:rounded-3xl border transition-all duration-200 shadow-xs sm:shadow-sm overflow-hidden ${
+      className={`relative bg-white rounded-2xl sm:rounded-3xl border transition-all duration-200 shadow-xs sm:shadow-sm overflow-hidden flex flex-col justify-between ${
         isSelected
           ? "border-brand-orange ring-2 ring-brand-orange/20 shadow-md bg-orange-50/[0.02]"
           : "border-slate-200/90 hover:border-slate-300 hover:shadow-md"
       }`}
     >
-      <div className="p-3 sm:p-4.5 space-y-2.5 sm:space-y-3">
+      <div className="p-3 sm:p-4.5 space-y-2.5 sm:space-y-3 flex-1 flex flex-col">
         {/* ── 1. Top Header: Checkbox + No Order / Date + Status Badge + Menu ── */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -155,6 +182,7 @@ export function NihongStoreOrderCard({
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Menu opsi"
               >
                 <MoreVertical size={15} />
               </button>
@@ -170,8 +198,28 @@ export function NihongStoreOrderCard({
                       initial={{ opacity: 0, scale: 0.95, y: -4 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                      className="absolute right-0 top-7 z-30 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 text-xs font-semibold text-slate-700 overflow-hidden"
+                      className="absolute right-0 top-7 z-30 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 text-xs font-semibold text-slate-700 overflow-hidden"
                     >
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onOpenDetail(order);
+                        }}
+                        className="w-full px-3.5 py-2 flex items-center gap-2 hover:bg-slate-50 text-slate-800 transition-colors text-left"
+                      >
+                        <Eye size={13} className="text-slate-500" />
+                        Detail & Linimasa
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          setMenuOpen(false);
+                          handleCopyShoppingList(e);
+                        }}
+                        className="w-full px-3.5 py-2 flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition-colors text-left"
+                      >
+                        <ClipboardList size={13} className="text-brand-orange" />
+                        Salin Format Belanja
+                      </button>
                       <button
                         onClick={() => {
                           setMenuOpen(false);
@@ -223,7 +271,11 @@ export function NihongStoreOrderCard({
         </div>
 
         {/* ── 2. Customer Information Bar & Direct WhatsApp ── */}
-        <div className="flex items-center justify-between gap-2 bg-slate-50/80 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 border border-slate-100">
+        <div
+          onClick={() => onOpenDetail(order)}
+          className="flex items-center justify-between gap-2 bg-slate-50/80 hover:bg-slate-100/70 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 border border-slate-100 cursor-pointer transition-colors"
+          title="Klik untuk melihat detail lengkap"
+        >
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-brand-navyDark to-brand-navy flex items-center justify-center text-white shrink-0 font-black text-xs">
               {order.namaPelanggan[0]?.toUpperCase() || "C"}
@@ -247,13 +299,16 @@ export function NihongStoreOrderCard({
             </div>
           </div>
 
-          {/* WhatsApp Direct Button */}
+          {/* WhatsApp Action Button with Template Picker */}
           {order.noTelponPelanggan && (
             <button
               type="button"
-              onClick={() => onWhatsAppChat(order)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onWhatsAppChat(order);
+              }}
               className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-extrabold transition-all active:scale-95 shrink-0 shadow-2xs"
-              title="Hubungi pemesan via WhatsApp"
+              title="Kirim pesan WhatsApp dengan template cerdas"
             >
               <MessageCircle size={12} className="text-white" />
               <span>WA</span>
@@ -262,7 +317,7 @@ export function NihongStoreOrderCard({
         </div>
 
         {/* ── 3. Product Items Summary ── */}
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 flex-1">
           <div className="flex items-center justify-between text-[11px] px-0.5 text-slate-500 font-bold">
             <span>Titipan ({order.items.length} item · {totalItemCount} pcs)</span>
             <div className="flex items-center gap-2.5">
@@ -295,10 +350,11 @@ export function NihongStoreOrderCard({
               return (
                 <div
                   key={idx}
-                  className={`flex items-start gap-2.5 p-2 rounded-xl border text-xs transition-all ${
+                  onClick={() => onOpenDetail(order)}
+                  className={`flex items-start gap-2.5 p-2 rounded-xl border text-xs transition-all cursor-pointer ${
                     isOos
                       ? "bg-slate-50/80 border-slate-200 opacity-70"
-                      : "bg-white border-slate-100 shadow-2xs"
+                      : "bg-white border-slate-100 hover:border-slate-200 shadow-2xs"
                   }`}
                 >
                   {it.imageUrl ? (
@@ -349,7 +405,7 @@ export function NihongStoreOrderCard({
                     </div>
 
                     {it.catatan && (
-                      <p className="text-[10px] text-amber-700 italic pt-0.5">
+                      <p className="text-[10px] text-amber-700 italic pt-0.5 truncate">
                         Catatan: {it.catatan}
                       </p>
                     )}
@@ -380,14 +436,21 @@ export function NihongStoreOrderCard({
                 {order.assignedScheduleDate ? `(${formatDate(order.assignedScheduleDate)})` : ""}
               </span>
             </div>
-            <span className="text-[9px] font-black bg-purple-200/80 text-purple-950 px-1.5 py-0.5 rounded shrink-0">
-              Terjadwal
-            </span>
+
+            <button
+              type="button"
+              onClick={handleNavigateToPreOrder}
+              className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 bg-purple-200/80 hover:bg-purple-300 px-2 py-1 rounded-lg flex items-center gap-0.5 transition-colors shrink-0"
+              title="Buka data Pre-Order jadwal terkait"
+            >
+              <span>Pre-Order</span>
+              <ChevronRight size={12} />
+            </button>
           </div>
         )}
 
-        {/* ── 5. Bottom Row: Weight + Est. Price & 50:50 Buttons ── */}
-        <div className="pt-2.5 border-t border-slate-100 space-y-2">
+        {/* ── 5. Bottom Row: Weight + Est. Price & Action Buttons ── */}
+        <div className="pt-2.5 border-t border-slate-100 space-y-2 mt-auto">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-600">
               <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md text-[11px] font-extrabold text-slate-700">
@@ -415,11 +478,11 @@ export function NihongStoreOrderCard({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => onUpdateStatus(order)}
+              onClick={() => onOpenDetail(order)}
               className="w-full justify-center px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95"
             >
-              <RefreshCw size={12} className="text-slate-500" />
-              <span>Ubah Status</span>
+              <Eye size={13} className="text-slate-500" />
+              <span>Detail & Linimasa</span>
             </button>
 
             {isInbox ? (
@@ -434,11 +497,11 @@ export function NihongStoreOrderCard({
             ) : (
               <button
                 type="button"
-                onClick={() => onManageItems(order)}
+                onClick={() => onUpdateStatus(order)}
                 className="w-full justify-center px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5"
               >
-                <Layers size={12} className="text-amber-500" />
-                <span>Kelola Stok</span>
+                <RefreshCw size={12} className="text-blue-600" />
+                <span>Ubah Status</span>
               </button>
             )}
           </div>

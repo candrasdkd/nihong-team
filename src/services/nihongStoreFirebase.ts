@@ -58,10 +58,21 @@ export const storeDb: Firestore = getFirestore(storeApp);
 export async function loginNihongStoreAdmin(email: string, password: string): Promise<Auth> {
   const storeAuth = getAuth(storeApp);
   const credential = await signInWithEmailAndPassword(storeAuth, email, password);
-  const adminSnapshot = await getDoc(doc(storeDb, "admins", credential.user.uid));
-  if (!adminSnapshot.exists()) {
-    await signOutStoreAuth(storeAuth);
-    throw new Error("Akun belum diberi akses admin ke Firebase NihongStore.");
+  try {
+    const adminSnapshot = await getDoc(doc(storeDb, "admins", credential.user.uid));
+    if (!adminSnapshot.exists()) {
+      throw new Error(
+        `Login berhasil, tetapi akun ${email} (UID: ${credential.user.uid}) belum terdaftar di koleksi 'admins/${credential.user.uid}' pada Firestore nihongstore-6210b.`
+      );
+    }
+  } catch (err: any) {
+    if (err?.message?.includes("admins/")) throw err;
+    if (err?.code === "permission-denied" || err?.message?.includes("permission")) {
+      throw new Error(
+        `Akses Firestore ditolak untuk ${email} (UID: ${credential.user.uid}). Pastikan UID ini terdaftar di koleksi 'admins' pada Firestore nihongstore-6210b.`
+      );
+    }
+    throw err;
   }
   return storeAuth;
 }
@@ -73,14 +84,33 @@ export async function logoutNihongStoreAdmin(): Promise<void> {
 /** Memastikan secondary session masih aktif dan terdaftar sebagai admin. */
 export async function ensureStoreAuth(): Promise<Auth> {
   const storeAuth = getAuth(storeApp);
-  try { await storeAuth.authStateReady(); } catch { /* Continue with current user state. */ }
+  try {
+    await storeAuth.authStateReady();
+  } catch {
+    /* Continue with current user state. */
+  }
   const user = storeAuth.currentUser;
-  if (!user) throw new Error("Login NihongStore diperlukan. Silakan keluar lalu masuk kembali.");
+  if (!user) {
+    throw new Error(
+      "Sesi login NihongStore belum aktif di browser ini. Silakan klik 'Hubungkan Sesi NihongStore' atau keluar lalu masuk kembali."
+    );
+  }
 
-  const adminSnapshot = await getDoc(doc(storeDb, "admins", user.uid));
-  if (!adminSnapshot.exists()) {
-    await signOutStoreAuth(storeAuth);
-    throw new Error("Akun belum diberi akses admin ke Firebase NihongStore.");
+  try {
+    const adminSnapshot = await getDoc(doc(storeDb, "admins", user.uid));
+    if (!adminSnapshot.exists()) {
+      throw new Error(
+        `Akun ${user.email} (UID: ${user.uid}) belum terdaftar di koleksi 'admins/${user.uid}' pada Firestore nihongstore-6210b.`
+      );
+    }
+  } catch (err: any) {
+    if (err?.message?.includes("admins/")) throw err;
+    if (err?.code === "permission-denied" || err?.message?.includes("permission")) {
+      throw new Error(
+        `Akses Firestore ditolak untuk ${user.email} (UID: ${user.uid}). Pastikan dokumen 'admins/${user.uid}' ada di Firestore nihongstore-6210b.`
+      );
+    }
+    throw err;
   }
   return storeAuth;
 }
@@ -92,7 +122,8 @@ export async function ensureStoreAuth(): Promise<Auth> {
 export function listenNihongStoreOrders(
   statusFilter: string,
   cb: (rows: NihongStoreOrder[]) => void,
-  limitCount: number = 50
+  limitCount: number = 50,
+  onError?: (err: Error) => void
 ) {
   let q = query(
     collection(storeDb, COL_NIHONGSTORE),
@@ -123,11 +154,13 @@ export function listenNihongStoreOrders(
       },
       (err) => {
         console.warn("[NihongStore] Error in snapshot listener:", err);
+        onError?.(err);
         cb([]);
       }
     );
   }).catch((err) => {
     console.warn("[NihongStore] Secondary admin session unavailable:", err);
+    onError?.(err);
     cb([]);
   });
   return () => {
@@ -394,16 +427,50 @@ export async function assignNihongStoreOrderToSchedule(
 
   // 2. Resolve Customer ID di DB Internal (nihong-4b93e)
   let customerId = options?.customerId || order.idPelanggan || "";
-  let customerName = order.namaPelanggan;
-  let customerPhone = order.noTelponPelanggan;
+  let customerName = order.namaPelanggan.trim();
+  let customerPhone = order.noTelponPelanggan ? order.noTelponPelanggan.trim() : "";
 
   if (!customerId) {
     const customersRef = collection(db, "customers");
-    const qCust = query(customersRef, where("nama", "==", customerName));
-    const snapCust = await getDocs(qCust);
+    let foundCustomerId = "";
 
-    if (!snapCust.empty) {
-      customerId = snapCust.docs[0].id;
+    // 2a. Coba cari berdasarkan nomor telepon jika tersedia (dengan variasi 08xx & 628xx)
+    if (customerPhone) {
+      const cleanDigits = customerPhone.replace(/[^0-9]/g, "");
+      const phoneVariations: string[] = [customerPhone];
+      if (cleanDigits) {
+        phoneVariations.push(cleanDigits);
+        if (cleanDigits.startsWith("0")) {
+          phoneVariations.push("62" + cleanDigits.slice(1));
+          phoneVariations.push("+62" + cleanDigits.slice(1));
+        } else if (cleanDigits.startsWith("62")) {
+          phoneVariations.push("0" + cleanDigits.slice(2));
+          phoneVariations.push("+" + cleanDigits);
+        }
+      }
+
+      // Query customers dengan salah satu variasi nomor
+      for (const p of Array.from(new Set(phoneVariations))) {
+        const qPhone = query(customersRef, where("telpon", "==", p));
+        const snapPhone = await getDocs(qPhone);
+        if (!snapPhone.empty) {
+          foundCustomerId = snapPhone.docs[0].id;
+          break;
+        }
+      }
+    }
+
+    // 2b. Jika belum ditemukan berdasarkan nomor telepon, cari berdasarkan nama
+    if (!foundCustomerId && customerName) {
+      const qCust = query(customersRef, where("nama", "==", customerName));
+      const snapCust = await getDocs(qCust);
+      if (!snapCust.empty) {
+        foundCustomerId = snapCust.docs[0].id;
+      }
+    }
+
+    if (foundCustomerId) {
+      customerId = foundCustomerId;
     } else {
       const newCustRef = await addDoc(customersRef, {
         nama: customerName,
