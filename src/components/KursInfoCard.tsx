@@ -86,6 +86,8 @@ export function KursInfoCard({ globalJastipYen = 1000 }: { globalJastipYen?: num
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">¥</span>
             <input
               type="number"
+              inputMode="numeric"
+              data-keyboard-type="numeric"
               value={yenInput}
               onChange={handleYenChange}
               className="w-full rounded-input border border-surface-border bg-white py-2.5 pl-8 pr-3 text-sm font-bold text-brand-navyDark transition-shadow focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/10"

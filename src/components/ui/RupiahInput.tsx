@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from "react";
 import { Input } from "./Input";
 
 const formatJPY = (n: number) => {
@@ -17,23 +17,35 @@ const formatIDR = (n: number) => {
   }).format(Math.max(0, Math.floor(n || 0)));
 };
 
-export function RupiahInput({
-  label,
-  value,
-  onChange,
-  disabled,
-  className,
-  currency = "IDR",
-  placeholder,
-}: {
-  label: string;
-  value: number;
-  onChange: (val: number) => void;
-  disabled?: boolean;
-  className?: string;
-  currency?: "IDR" | "JPY";
-  placeholder?: string;
-}) {
+export const RupiahInput = forwardRef<
+  HTMLInputElement,
+  {
+    label?: string;
+    value: number;
+    onChange: (val: number) => void;
+    disabled?: boolean;
+    className?: string;
+    currency?: "IDR" | "JPY";
+    placeholder?: string;
+    id?: string;
+  }
+>(function RupiahInput(
+  {
+    label = "",
+    value,
+    onChange,
+    disabled,
+    className,
+    currency = "IDR",
+    placeholder,
+    ...props
+  },
+  forwardedRef
+) {
+  const internalRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(forwardedRef, () => internalRef.current as HTMLInputElement);
+
   const fmt = (n: number) => {
     if (currency === "JPY") return formatJPY(n);
     return formatIDR(n);
@@ -42,21 +54,75 @@ export function RupiahInput({
   const [text, setText] = useState<string>(value ? fmt(value) : "");
 
   useEffect(() => {
-    setText(value ? fmt(value) : "");
+    const formatted = value ? fmt(value) : "";
+    setText(formatted);
+    if (internalRef.current && internalRef.current.value !== formatted) {
+      internalRef.current.value = formatted;
+    }
   }, [value, currency]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow navigation, modifier shortcuts, backspace, delete, tab, enter
+    if (
+      e.key === "Backspace" ||
+      e.key === "Delete" ||
+      e.key === "Tab" ||
+      e.key === "Enter" ||
+      e.key === "Escape" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "Home" ||
+      e.key === "End" ||
+      e.key === "PageUp" ||
+      e.key === "PageDown" ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    // Block any non-digit character
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleBeforeInput = (e: React.FormEvent<HTMLInputElement> & { data?: string | null }) => {
+    if (e.data && !/^\d+$/.test(e.data)) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData?.getData("text") || "";
+    // If the pasted string contains no digits at all, block paste
+    if (!/\d/.test(pasted)) {
+      e.preventDefault();
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value ?? "";
     const digits = raw.replace(/[^\d]/g, "");
 
-    if (!digits) {
+    if (!digits || Number(digits) === 0) {
       setText("");
+      if (internalRef.current) {
+        internalRef.current.value = "";
+      }
       onChange(0);
       return;
     }
 
     const n = Number(digits);
-    setText(fmt(n));
+    const formatted = fmt(n);
+    setText(formatted);
+    if (internalRef.current) {
+      internalRef.current.value = formatted;
+    }
     onChange(n);
   };
 
@@ -64,13 +130,21 @@ export function RupiahInput({
 
   return (
     <Input
+      ref={internalRef}
       label={label}
       type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      data-keyboard-type="numeric"
       value={text}
+      onKeyDown={handleKeyDown}
+      onBeforeInput={handleBeforeInput}
+      onPaste={handlePaste}
       onChange={handleChange}
       disabled={disabled}
       placeholder={activePlaceholder}
       className={className}
+      {...props}
     />
   );
-}
+});

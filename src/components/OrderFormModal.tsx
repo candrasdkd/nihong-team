@@ -532,6 +532,8 @@ export function OrderFormModal({
                         <Input
                           type="number"
                           step="0.01"
+                          inputMode="decimal"
+                          data-keyboard-type="numeric"
                           value={toStr(jumlahKg)}
                           onChange={(e) => setJumlahKg(num(e.target.value))}
                           required

@@ -283,6 +283,8 @@ export function ScheduleFormModal({ initial, jastipers, onClose, onSubmit }: Sch
                 <label className={labelClass}>Slot Berat (Kg) *</label>
                 <input
                   type="number"
+                  inputMode="decimal"
+                  data-keyboard-type="numeric"
                   value={slotBeratKg}
                   onChange={(e) => setSlotBeratKg(e.target.value)}
                   placeholder="Contoh: 50"

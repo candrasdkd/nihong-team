@@ -385,6 +385,8 @@ export function AssignScheduleModal({
                       type="number"
                       step="0.1"
                       min="0.1"
+                      inputMode="decimal"
+                      data-keyboard-type="numeric"
                       value={totalKg}
                       onChange={(e) => setTotalKg(e.target.value)}
                       placeholder="0.5"
