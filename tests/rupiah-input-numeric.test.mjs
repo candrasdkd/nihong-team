@@ -12,9 +12,8 @@ const orderFormModal = await readFile(
   "utf8"
 );
 
-test("RupiahInput enforces numeric keyboard and blocks letter inputs", () => {
-  assert.match(rupiahInput, /inputMode="numeric"/);
-  assert.match(rupiahInput, /pattern="\[0-9\]\*"/);
+test("RupiahInput enforces decimal numeric keyboard with comma support and blocks letter inputs", () => {
+  assert.match(rupiahInput, /inputMode="decimal"/);
   assert.match(rupiahInput, /data-keyboard-type="numeric"/);
   assert.match(rupiahInput, /handleKeyDown/);
   assert.match(rupiahInput, /handleBeforeInput/);

@@ -452,7 +452,7 @@ function VirtualKeyboard({
 
   const renderNumeric = () => (
     <div className="grid grid-cols-3 gap-1.5 max-w-sm mx-auto">
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((key) => (
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "."].map((key) => (
         <button
           key={key}
           onMouseDown={(e) => handleKeyPress(key, e)}
@@ -469,7 +469,7 @@ function VirtualKeyboard({
       </button>
       <button
         onMouseDown={(e) => handleKeyPress("DONE", e)}
-        className="col-span-3 h-9 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs rounded-lg shadow transition-all active:scale-95 flex items-center justify-center"
+        className="col-span-2 h-9 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs rounded-lg shadow transition-all active:scale-95 flex items-center justify-center"
       >
         Selesai ✓
       </button>
