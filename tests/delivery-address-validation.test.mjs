@@ -32,6 +32,7 @@ const {
   formatJapanPostalCode,
   getIndonesiaDeliveryAddress,
   getJapanDeliveryAddress,
+  isDeliveryAddressComplete,
   JAPAN_DELIVERY_TIME_OPTIONS,
   validateJapanDeliveryAddress,
 } = require(
@@ -131,4 +132,42 @@ test("does not prefill a new delivery address from the general customer profile"
     noHpAktif: "",
     jamPenerimaPaket: "",
   });
+});
+
+test("marks only complete delivery addresses as filled", () => {
+  const customer = {
+    nama: "CUSTOMER TEST",
+    alamatPengirimanIndonesia: {
+      namaPenerima: "Budi",
+      alamatPenerima: "Jl. Melati 10",
+      kodePos: "40123",
+      noHp: "081234567890",
+    },
+    alamatPengirimanJepang: {
+      namaPenerima: "Taro Yamada",
+      alamatPenerimaRomaji: "1-2-3 Shibuya, Tokyo",
+      alamatPenerimaKanji: "",
+      kodePos: "1500002",
+      noHpAktif: "090-1234-5678",
+      jamPenerimaPaket: "18:00–20:00",
+    },
+  };
+
+  assert.equal(isDeliveryAddressComplete(customer, "indonesia"), true);
+  assert.equal(isDeliveryAddressComplete(customer, "japan"), true);
+
+  assert.equal(isDeliveryAddressComplete({
+    ...customer,
+    alamatPengirimanIndonesia: {
+      ...customer.alamatPengirimanIndonesia,
+      kodePos: "",
+    },
+  }, "indonesia"), false);
+  assert.equal(isDeliveryAddressComplete({
+    ...customer,
+    alamatPengirimanJepang: {
+      ...customer.alamatPengirimanJepang,
+      jamPenerimaPaket: "",
+    },
+  }, "japan"), false);
 });

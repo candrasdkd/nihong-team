@@ -29,6 +29,7 @@ import {
   getIndonesiaDeliveryAddress,
   getJapanDeliveryAddress,
   inferDeliveryCountry,
+  isDeliveryAddressComplete,
   printDeliveryAddressBatch,
 } from "../utils/deliveryAddress";
 import { buildPublicUrl } from "../utils/publicUrl";
@@ -60,7 +61,7 @@ type BookingColumn = {
 
 const BOOKING_COLUMN_WIDTHS_STORAGE_KEY = "nihong:booking-detail:column-widths";
 const BOOKING_COLUMN_WIDTHS_VERSION_KEY = "nihong:booking-detail:column-widths-version";
-const BOOKING_COLUMN_WIDTHS_VERSION = 3;
+const BOOKING_COLUMN_WIDTHS_VERSION = 5;
 
 const BOOKING_COLUMNS: readonly BookingColumn[] = [
   { key: "number", label: "#", defaultWidth: 36, minWidth: 32, rotatedWidth: "4%", align: "center" },
@@ -269,6 +270,34 @@ function ResizableBookingTableHeader({
         ))}
       </tr>
     </thead>
+  );
+}
+
+function DeliveryAddressStatusIcon({
+  complete,
+  country,
+}: {
+  complete: boolean;
+  country: "indonesia" | "japan";
+}) {
+  const destination = country === "japan" ? "Jepang" : "Indonesia";
+  const label = complete ? "Alamat terisi" : "Alamat belum lengkap";
+
+  return (
+    <span
+      aria-label={`${label} untuk pengiriman ${destination}`}
+      title={`${label} untuk pengiriman ${destination}`}
+      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+        complete
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
+      }`}
+    >
+      {complete
+        ? <CheckCircle2 size={10} strokeWidth={2.75} />
+        : <AlertCircle size={10} strokeWidth={2.75} />}
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
 
@@ -1205,9 +1234,7 @@ export function PreOrderDetailPage({
       return;
     }
 
-    const hasExistingAddress = country === "japan"
-      ? !!customer?.alamatPengirimanJepang?.namaPenerima
-      : !!customer?.alamatPengirimanIndonesia?.namaPenerima;
+    const hasExistingAddress = isDeliveryAddressComplete(customer, country);
 
     const whatsappMessage = hasExistingAddress
       ? `Halo ${po.namaPelanggan} \u{1F44B}\n\nKami ingin memastikan data alamat pengiriman domestik di ${destination} kamu sudah benar.\n\nSilakan cek melalui link berikut, dan update jika ada yang perlu diperbaiki:\n\n${shareUrl}\n\nTerima kasih! \u{1F64F}`
@@ -1582,9 +1609,14 @@ export function PreOrderDetailPage({
                         const totalItems = po.items.length;
                         const isKomplit = totalItems > 0 && checkedCount === totalItems;
                         const isSaving = savingCell?.startsWith(po.id);
-                        const customerPhone = customers.find((customer) => customer.id === po.idPelanggan)?.telpon
-                          || po.noTelponPelanggan;
+                        const customer = customers.find((customer) => customer.id === po.idPelanggan);
+                        const customerPhone = customer?.telpon || po.noTelponPelanggan;
                         const hasWhatsAppPhone = !!normalizeWhatsAppPhone(customerPhone);
+                        const deliveryCountry = inferDeliveryCountry(po.rute);
+                        const hasCompleteDeliveryAddress = isDeliveryAddressComplete(
+                          customer,
+                          deliveryCountry,
+                        );
 
                         return (
                           <tr
@@ -1621,29 +1653,49 @@ export function PreOrderDetailPage({
                             {/* Pelanggan */}
                             <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
                               {isRotated ? (
-                                <div
-                                  onClick={() => !isSelesai && setCustomerPickPO(po)}
-                                  className="cursor-pointer font-extrabold text-slate-800 break-words whitespace-normal leading-tight block min-h-[22px] hover:bg-rose-50 hover:ring-1 hover:ring-rose-200 rounded px-1 py-0.5 transition-all w-full"
-                                  title={isSelesai ? undefined : "Klik untuk ganti pelanggan"}
-                                >
-                                  {po.namaPelanggan || "—"}
+                                <div className="flex min-w-0 items-center gap-1">
+                                  <div
+                                    onClick={() => !isSelesai && setCustomerPickPO(po)}
+                                    className="min-w-0 flex-1 cursor-pointer font-extrabold text-slate-800 break-words whitespace-normal leading-tight block min-h-[22px] hover:bg-rose-50 hover:ring-1 hover:ring-rose-200 rounded px-1 py-0.5 transition-all"
+                                    title={isSelesai ? undefined : "Klik untuk ganti pelanggan"}
+                                  >
+                                    {po.namaPelanggan || "—"}
+                                  </div>
+                                  <DeliveryAddressStatusIcon
+                                    complete={hasCompleteDeliveryAddress}
+                                    country={deliveryCountry}
+                                  />
                                 </div>
                               ) : (
                                 isSelesai ? (
-                                  <span
-                                    style={{ fontSize: "var(--table-fs)" }}
-                                    className="font-extrabold text-slate-800 truncate block"
-                                  >
-                                    {po.namaPelanggan || "—"}
-                                  </span>
+                                  <div className="flex min-w-0 items-center gap-1">
+                                    <span
+                                      style={{ fontSize: "var(--table-fs)" }}
+                                      className="min-w-0 flex-1 font-extrabold text-slate-800 truncate block"
+                                    >
+                                      {po.namaPelanggan || "—"}
+                                    </span>
+                                    <DeliveryAddressStatusIcon
+                                      complete={hasCompleteDeliveryAddress}
+                                      country={deliveryCountry}
+                                    />
+                                  </div>
                                 ) : (
-                                  <CustomerDropdownCell
-                                    po={po}
-                                    customers={customers}
-                                    onSelect={(c) => handleCustomerChange(po.id, c)}
-                                    style={{ fontSize: "var(--table-fs)" }}
-                                    isRotated={!isRotated}
-                                  />
+                                  <div className="flex min-w-0 items-center gap-1">
+                                    <div className="min-w-0 flex-1">
+                                      <CustomerDropdownCell
+                                        po={po}
+                                        customers={customers}
+                                        onSelect={(c) => handleCustomerChange(po.id, c)}
+                                        style={{ fontSize: "var(--table-fs)" }}
+                                        isRotated={!isRotated}
+                                      />
+                                    </div>
+                                    <DeliveryAddressStatusIcon
+                                      complete={hasCompleteDeliveryAddress}
+                                      country={deliveryCountry}
+                                    />
+                                  </div>
                                 )
                               )}
                             </td>

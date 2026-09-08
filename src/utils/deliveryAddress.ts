@@ -165,6 +165,27 @@ export function validateJapanDeliveryAddress(
   return errors;
 }
 
+export function isDeliveryAddressComplete(
+  customer: Customer | null | undefined,
+  country: DeliveryCountry,
+) {
+  if (country === "japan") {
+    return Object.keys(
+      validateJapanDeliveryAddress(getJapanDeliveryAddress(customer)),
+    ).length === 0;
+  }
+
+  const address = cleanIndonesiaDeliveryAddress(
+    getIndonesiaDeliveryAddress(customer),
+  );
+  return Boolean(
+    address.namaPenerima
+      && address.alamatPenerima
+      && address.kodePos
+      && address.noHp,
+  );
+}
+
 export function formatDeliveryAddress(
   country: "indonesia",
   address: IndonesiaDeliveryAddress,

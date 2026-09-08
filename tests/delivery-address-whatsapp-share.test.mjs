@@ -27,13 +27,36 @@ test("link and WhatsApp icons use separate delivery-address actions", () => {
   assert.match(preOrderDetailPage, /title="Kirim form alamat via WhatsApp"/);
 });
 
-test("WhatsApp action is hidden without a customer phone and completed rows have no redundant badge", () => {
+test("WhatsApp action is hidden without a customer phone and address status stays compact", () => {
   assert.match(
     preOrderDetailPage,
     /const hasWhatsAppPhone = !!normalizeWhatsAppPhone\(customerPhone\)/,
   );
   assert.match(preOrderDetailPage, /hasWhatsAppPhone && \(/);
+  assert.match(preOrderDetailPage, /complete \? "Alamat terisi" : "Alamat belum lengkap"/);
+  assert.match(preOrderDetailPage, /function DeliveryAddressStatusIcon/);
+  assert.match(preOrderDetailPage, /className="sr-only">\{label\}/);
   assert.doesNotMatch(preOrderDetailPage, /Sudah dipindahkan/);
+});
+
+test("address status icon is rendered with the customer instead of inside actions", () => {
+  const customerCellStart = preOrderDetailPage.indexOf("{/* Pelanggan */}");
+  const customerCellEnd = preOrderDetailPage.indexOf("{/* Total Berat */}", customerCellStart);
+  const actionCellStart = preOrderDetailPage.indexOf("{/* Aksi */}");
+  const actionCellEnd = preOrderDetailPage.indexOf("</tr>", actionCellStart);
+
+  assert.notEqual(customerCellStart, -1);
+  assert.notEqual(customerCellEnd, -1);
+  assert.notEqual(actionCellStart, -1);
+  assert.notEqual(actionCellEnd, -1);
+  assert.match(
+    preOrderDetailPage.slice(customerCellStart, customerCellEnd),
+    /DeliveryAddressStatusIcon/,
+  );
+  assert.doesNotMatch(
+    preOrderDetailPage.slice(actionCellStart, actionCellEnd),
+    /DeliveryAddressStatusIcon/,
+  );
 });
 
 test("copy and WhatsApp browser APIs start before awaiting network work", () => {
