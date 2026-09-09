@@ -66,6 +66,14 @@ function prepareForWrite(
     catatan: raw.catatan ?? "",
     tipeNominal: raw.tipeNominal ?? "IDR",
     imageUrl: raw.imageUrl ?? "",
+    dpNominal: Number(raw.dpNominal ?? 0),
+    dpTanggal: raw.dpTanggal ?? "",
+    dpMetode: raw.dpMetode ?? "",
+    dpCatatan: raw.dpCatatan ?? "",
+    pelunasanNominal: Number(raw.pelunasanNominal ?? 0),
+    pelunasanTanggal: raw.pelunasanTanggal ?? "",
+    pelunasanMetode: raw.pelunasanMetode ?? "",
+    pelunasanCatatan: raw.pelunasanCatatan ?? "",
     updatedAt: serverTimestamp(), // Menggunakan timestamp server untuk audit log
     // createdAt di-set saat create pertama kali
   };
@@ -415,6 +423,14 @@ export function fromExtended(ui: ExtendedOrder): OrderDoc {
     catatan: ui.catatan,
     tipeNominal: ui.tipeNominal,
     imageUrl: ui.imageUrl,
+    dpNominal: ui.dpNominal,
+    dpTanggal: ui.dpTanggal,
+    dpMetode: ui.dpMetode,
+    dpCatatan: ui.dpCatatan,
+    pelunasanNominal: ui.pelunasanNominal,
+    pelunasanTanggal: ui.pelunasanTanggal,
+    pelunasanMetode: ui.pelunasanMetode,
+    pelunasanCatatan: ui.pelunasanCatatan,
   };
 }
 
@@ -552,11 +568,14 @@ export function subscribeMonthlySummaries(onData: (rows: any[]) => void) {
 
 
 /**
- * Mendengarkan pesanan aktif saja (status "Belum Membayar") secara real-time.
+ * Mendengarkan pesanan aktif saja (status "Belum Membayar", "DP Terbayar", "Menunggu Pelunasan") secara real-time.
  * Digunakan pada boot-up aplikasi (App.tsx) untuk notifikasi lokal.
  */
 export function subscribeActiveOrders(cb: (rows: OrderDoc[]) => void): Unsubscribe {
-  const qy = query(ORDERS, where("status", "==", "Belum Membayar"));
+  const qy = query(
+    ORDERS,
+    where("status", "in", ["Belum Membayar", "DP Terbayar", "Menunggu Pelunasan"])
+  );
   return onSnapshot(qy, (snap) => {
     const rows: OrderDoc[] = snap.docs.map((d) => ({
       ...(d.data() as OrderDoc),
@@ -564,4 +583,38 @@ export function subscribeActiveOrders(cb: (rows: OrderDoc[]) => void): Unsubscri
     }));
     cb(rows);
   });
+}
+
+/**
+ * Memperbarui status pembayaran pesanan (DP & Pelunasan) secara fleksibel.
+ */
+export async function updateOrderPayment(
+  orderId: string,
+  data: {
+    status: OrderStatus;
+    dpNominal?: number;
+    dpTanggal?: string;
+    dpMetode?: string;
+    dpCatatan?: string;
+    pelunasanNominal?: number;
+    pelunasanTanggal?: string;
+    pelunasanMetode?: string;
+    pelunasanCatatan?: string;
+  }
+) {
+  const docRef = doc(db, "orders", orderId);
+  const updatePayload: Record<string, any> = {
+    status: data.status,
+    updatedAt: serverTimestamp(),
+  };
+  if (data.dpNominal !== undefined) updatePayload.dpNominal = Number(data.dpNominal || 0);
+  if (data.dpTanggal !== undefined) updatePayload.dpTanggal = data.dpTanggal;
+  if (data.dpMetode !== undefined) updatePayload.dpMetode = data.dpMetode;
+  if (data.dpCatatan !== undefined) updatePayload.dpCatatan = data.dpCatatan;
+  if (data.pelunasanNominal !== undefined) updatePayload.pelunasanNominal = Number(data.pelunasanNominal || 0);
+  if (data.pelunasanTanggal !== undefined) updatePayload.pelunasanTanggal = data.pelunasanTanggal;
+  if (data.pelunasanMetode !== undefined) updatePayload.pelunasanMetode = data.pelunasanMetode;
+  if (data.pelunasanCatatan !== undefined) updatePayload.pelunasanCatatan = data.pelunasanCatatan;
+
+  await setDoc(docRef, updatePayload, { merge: true });
 }

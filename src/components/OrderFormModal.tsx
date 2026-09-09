@@ -325,6 +325,14 @@ export function OrderFormModal({
         kgCeil: ceilKg,
         tipeNominal: currency,
         imageUrl: imageUrls,
+        dpNominal: (initial as any)?.dpNominal ?? 0,
+        dpTanggal: (initial as any)?.dpTanggal ?? "",
+        dpMetode: (initial as any)?.dpMetode ?? "",
+        dpCatatan: (initial as any)?.dpCatatan ?? "",
+        pelunasanNominal: (initial as any)?.pelunasanNominal ?? 0,
+        pelunasanTanggal: (initial as any)?.pelunasanTanggal ?? "",
+        pelunasanMetode: (initial as any)?.pelunasanMetode ?? "",
+        pelunasanCatatan: (initial as any)?.pelunasanCatatan ?? "",
         _computed: { unitPriceAtSave: unitPrice },
       };
       await Promise.resolve(onSubmit(payload as Order));
@@ -521,9 +529,21 @@ export function OrderFormModal({
                     <div className={`px-4 py-2 text-xs font-bold rounded-xl border flex items-center justify-center shadow-sm transition-all shrink-0 select-none ${
                       status === "Selesai"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                        : status === "DP Terbayar"
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200/60"
+                        : status === "Menunggu Pelunasan"
+                        ? "bg-purple-50 text-purple-700 border-purple-200/60"
                         : "bg-amber-50 text-amber-700 border-amber-200/60"
                     }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "Selesai" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                        status === "Selesai"
+                          ? "bg-emerald-500"
+                          : status === "DP Terbayar"
+                          ? "bg-indigo-500"
+                          : status === "Menunggu Pelunasan"
+                          ? "bg-purple-500"
+                          : "bg-amber-500 animate-pulse"
+                      }`}></span>
                       {status === "Belum Membayar" ? "Belum Bayar" : status}
                     </div>
                   </div>

@@ -16,7 +16,6 @@ import logoImage from "../assets/nihong.png";
 const BANK_ACCOUNTS = [
   { bank: "BCA", number: "0800826764", name: "DIN MIZWAR ULYA SYEKH KHODIR" },
   { bank: "MANDIRI", number: "700012366782", name: "DIN MIZWAR ULYA SYEKH KHODIR" },
-  { bank: "YUCHO JAPAN", number: "14080-56667651", name: "ディン　ミズワル　ウルヤ　シェフ　コディル" },
 ];
 
 // --- HELPER FUNCTIONS ---
@@ -33,15 +32,37 @@ function compute(o: ExtendedOrder, unitPrice: number) {
   return { kg, jastipMarkup, ongkirMarkup, lineTotal, keuntungan, currency };
 }
 
-const getStatusBadge = (status: string) => {
-  const s = status?.toLowerCase() || "";
-  if (s.includes("selesai") || s.includes("lunas") || s.includes("diterima")) {
-    return { text: "LUNAS", bgColor: "#059669", textColor: "#fff" };
-  } else if (s.includes("batal")) {
+const getStatusBadge = (orderOrStatus: ExtendedOrder | string, grandTotal = 0) => {
+  const s = (typeof orderOrStatus === "string" ? orderOrStatus : String(orderOrStatus.status || "")).toLowerCase();
+
+  if (s.includes("batal")) {
     return { text: "DIBATALKAN", bgColor: "#dc2626", textColor: "#fff" };
-  } else {
-    return { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
   }
+
+  // Jika order object diteruskan, cek apakah sudah lunas sepenuhnya
+  if (typeof orderOrStatus !== "string") {
+    const order = orderOrStatus;
+    const dpNominal = Number(order.dpNominal || 0);
+    const pelunasanNominal = Number(order.pelunasanNominal || 0);
+    const totalPaid = dpNominal + pelunasanNominal;
+    const remaining = Math.max(0, grandTotal - totalPaid);
+
+    // Jika masih ada sisa pembayaran (mau DP ataupun menunggu pelunasan), invoice fokus TAGIHAN
+    if (remaining > 0 && (dpNominal > 0 || grandTotal > 0)) {
+      return { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
+    }
+
+    if ((grandTotal > 0 && remaining === 0 && (dpNominal > 0 || pelunasanNominal > 0)) || (order.status === "Selesai" && dpNominal === 0)) {
+      return { text: "LUNAS", bgColor: "#059669", textColor: "#fff" };
+    }
+  }
+
+  if (s.includes("selesai") || s.includes("lunas")) {
+    return { text: "LUNAS", bgColor: "#059669", textColor: "#fff" };
+  }
+
+  // Mau DP ataupun nunggu pelunasan, stempel fokus TAGIHAN
+  return { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
 };
 
 function getFlagComponent(flagEmoji?: string, size = "4.2mm") {
@@ -579,32 +600,99 @@ const InvoicePaper = React.forwardRef(
             </div>
 
             {/* Right: Totals + Stamp */}
-            <div style={{ width: "65mm", flexShrink: 0 }}>
+            <div style={{ width: "66mm", flexShrink: 0 }}>
               {/* Summary Box */}
               <div style={{
                 background: "#f8fafc",
                 border: "1px solid #e2e8f0",
                 borderRadius: "2mm",
                 overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
               }}>
-                <div style={{ padding: "3mm 4mm", borderBottom: "1px solid #e2e8f0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "2.8mm", color: "#64748b", fontWeight: 500 }}>Subtotal</span>
-                    <span style={{ fontSize: "3mm", fontFamily: "monospace", color: "#334155", fontWeight: 600 }}>
-                      {formatCurrency(totals.subtotal, totals.currency)}
-                    </span>
-                  </div>
-                </div>
-                <div style={{
-                  padding: "4mm",
-                  background: NAVY,
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                }}>
-                  <span style={{ fontSize: "3.5mm", fontWeight: 800, color: "#fff", letterSpacing: "1px" }}>TOTAL</span>
-                  <span style={{ fontSize: "4.5mm", fontWeight: 900, color: GOLD, fontFamily: "monospace" }}>
-                    {formatCurrency(grandTotal, totals.currency)}
-                  </span>
-                </div>
+                {Number(order.dpNominal || 0) > 0 ? (
+                  <>
+                    <div style={{ padding: "2.8mm 4mm", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "2.7mm", color: "#64748b", fontWeight: 600 }}>Total Pesanan</span>
+                      <span style={{ fontSize: "3.2mm", fontFamily: "monospace", color: NAVY, fontWeight: 700 }}>
+                        {formatCurrency(grandTotal, totals.currency)}
+                      </span>
+                    </div>
+                    <div style={{ padding: "2.5mm 4mm", borderBottom: "1px solid #e2e8f0", background: "#f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: "2.6mm", color: "#334155", fontWeight: 700 }}>DP Terbayar</span>
+                        {order.dpMetode && (
+                          <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{order.dpMetode}</span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
+                        - {formatCurrency(order.dpNominal, totals.currency)}
+                      </span>
+                    </div>
+                    {Number(order.pelunasanNominal || 0) > 0 && (
+                      <div style={{ padding: "2.5mm 4mm", borderBottom: "1px solid #e2e8f0", background: "#f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span style={{ fontSize: "2.6mm", color: "#334155", fontWeight: 700 }}>Pelunasan Terbayar</span>
+                          {order.pelunasanMetode && (
+                            <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{order.pelunasanMetode}</span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
+                          - {formatCurrency(order.pelunasanNominal, totals.currency)}
+                        </span>
+                      </div>
+                    )}
+                    {(() => {
+                      const totalPaid = Number(order.dpNominal || 0) + Number(order.pelunasanNominal || 0);
+                      const remaining = Math.max(0, grandTotal - totalPaid);
+                      const isLunas = remaining === 0 && grandTotal > 0;
+
+                      return (
+                        <div style={{
+                          padding: "3.5mm 4mm",
+                          background: isLunas ? "#065f46" : NAVY,
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                        }}>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "3mm", fontWeight: 800, color: "#fff", letterSpacing: "0.5px" }}>
+                              {isLunas ? "TOTAL LUNAS" : "SISA PELUNASAN"}
+                            </span>
+                            {!isLunas && (
+                              <span style={{ fontSize: "1.9mm", color: "rgba(255,255,255,0.7)", marginTop: "0.2mm" }}>
+                                Menunggu Pembayaran
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: "4.2mm", fontWeight: 900, color: isLunas ? "#a7f3d0" : GOLD, fontFamily: "monospace" }}>
+                            {formatCurrency(isLunas ? 0 : remaining, totals.currency)}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ padding: "3mm 4mm", borderBottom: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "2.8mm", color: "#64748b", fontWeight: 500 }}>Subtotal</span>
+                        <span style={{ fontSize: "3mm", fontFamily: "monospace", color: "#334155", fontWeight: 600 }}>
+                          {formatCurrency(totals.subtotal, totals.currency)}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{
+                      padding: "4mm",
+                      background: badge.text === "LUNAS" ? "#065f46" : NAVY,
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                    }}>
+                      <span style={{ fontSize: "3.5mm", fontWeight: 800, color: "#fff", letterSpacing: "1px" }}>
+                        {badge.text === "LUNAS" ? "TOTAL (LUNAS)" : "TOTAL"}
+                      </span>
+                      <span style={{ fontSize: "4.5mm", fontWeight: 900, color: badge.text === "LUNAS" ? "#a7f3d0" : GOLD, fontFamily: "monospace" }}>
+                        {formatCurrency(grandTotal, totals.currency)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Signature + Stamp Area */}
@@ -642,7 +730,7 @@ const InvoicePaper = React.forwardRef(
                   pointerEvents: "none",
                 }}>
                   <div style={{
-                    fontSize: "14mm",
+                    fontSize: "13mm",
                     fontWeight: 900,
                     color: badge.bgColor,
                     letterSpacing: "4px",
@@ -769,7 +857,7 @@ export function InvoiceModal({
 
   const grandTotal = totals.subtotal;
   const displayCurrency = totals.currency || "IDR";
-  const badge = getStatusBadge(String(order.status));
+  const badge = getStatusBadge(order, grandTotal);
 
   async function downloadPDF() {
     if (!hiddenPrintRef.current) return;

@@ -1,4 +1,8 @@
-export type OrderStatus = "Belum Membayar" | "Selesai";
+export type OrderStatus =
+  | "Belum Membayar"
+  | "DP Terbayar"
+  | "Menunggu Pelunasan"
+  | "Selesai";
 
 export type TabId =
   | "home"
@@ -24,6 +28,14 @@ export interface Order {
   status?: OrderStatus;
   tipeNominal?: string;
   imageUrl?: string | string[];
+  dpNominal?: number;
+  dpTanggal?: string;
+  dpMetode?: string;
+  dpCatatan?: string;
+  pelunasanNominal?: number;
+  pelunasanTanggal?: string;
+  pelunasanMetode?: string;
+  pelunasanCatatan?: string;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -96,10 +108,18 @@ export type OrderDoc = {
   hargaOngkirMarkup: number;
   totalPembayaran: number;
   totalKeuntungan: number;
-  status: OrderStatus; // 'Belum Membayar' | 'Selesai'
+  status: OrderStatus;
   tipeNominal?: string;
   catatan?: string;
   imageUrl?: string;
+  dpNominal?: number;
+  dpTanggal?: string;
+  dpMetode?: string;
+  dpCatatan?: string;
+  pelunasanNominal?: number;
+  pelunasanTanggal?: string;
+  pelunasanMetode?: string;
+  pelunasanCatatan?: string;
   createdAt?: any;
   updatedAt?: any;
 };

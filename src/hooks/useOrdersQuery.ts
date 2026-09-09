@@ -97,15 +97,25 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
   const metrics = useMemo(() => {
     let totalKg = 0;
     let unpaidCount = 0;
+    let pureUnpaidCount = 0;
+    let dpCount = 0;
+    let waitingPelunasanCount = 0;
     let paidCount = 0;
 
     orders.forEach((o) => {
       const comp = compute(o, unitPrice);
       totalKg += comp.kg;
-      if (o.status === "Belum Membayar") {
-        unpaidCount++;
-      } else {
+      if (o.status === "Selesai") {
         paidCount++;
+      } else {
+        unpaidCount++;
+        if (o.status === "DP Terbayar") {
+          dpCount++;
+        } else if (o.status === "Menunggu Pelunasan") {
+          waitingPelunasanCount++;
+        } else {
+          pureUnpaidCount++;
+        }
       }
     });
 
@@ -113,6 +123,9 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
       totalOrders: orders.length,
       totalKg: Math.round(totalKg * 10) / 10,
       unpaidCount,
+      pureUnpaidCount,
+      dpCount,
+      waitingPelunasanCount,
       paidCount,
       unpaidPercent: orders.length > 0 ? Math.round((unpaidCount / orders.length) * 100) : 0,
       paidPercent: orders.length > 0 ? Math.round((paidCount / orders.length) * 100) : 0,

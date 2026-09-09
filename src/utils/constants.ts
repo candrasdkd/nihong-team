@@ -15,6 +15,8 @@ export const CATEGORY_OPTIONS = [
 
 export const ORDER_STATUSES = [
   "Belum Membayar",
+  "DP Terbayar",
+  "Menunggu Pelunasan",
   "Selesai",
 ] as const;
 

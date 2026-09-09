@@ -26,10 +26,11 @@ import {
   Plus, FileText, ChevronDown, Search, Box, Trash2, Pencil,
   AlertCircle, CheckCircle2, Download, Scale, ShoppingBag, 
   DollarSign, TrendingUp, Wallet, ClipboardList, HelpCircle,
-  ArrowUpDown, Package
+  ArrowUpDown, Package, CreditCard
 } from "lucide-react";
 import { exportOrdersToExcel } from "../utils/exportExcel";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { PaymentTrackerModal } from "../components/PaymentTrackerModal";
 
 // ===== IMAGE PREVIEW MODAL =====
 function ImagePreview({
@@ -175,30 +176,47 @@ function ImagePreview({
 
 // ===== UI SUB-COMPONENTS =====
 
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status, onClick }: { status: string; onClick?: () => void }) {
   const isUnpaid = status === "Belum Membayar";
+  const isDp = status === "DP Terbayar";
+  const isWaitingPelunasan = status === "Menunggu Pelunasan";
+  const isDone = status === "Selesai";
+
+  let badgeClass = "bg-amber-50/80 text-amber-700 border-amber-200/60";
+  let dotPing = "bg-amber-400";
+  let dotBg = "bg-amber-500";
+  let text = "Belum Bayar";
+
+  if (isDp) {
+    badgeClass = "bg-indigo-50/80 text-indigo-700 border-indigo-200/60";
+    dotPing = "bg-indigo-400";
+    dotBg = "bg-indigo-500";
+    text = "DP Terbayar";
+  } else if (isWaitingPelunasan) {
+    badgeClass = "bg-purple-50/80 text-purple-700 border-purple-200/60";
+    dotPing = "bg-purple-400";
+    dotBg = "bg-purple-500";
+    text = "Tunggu Pelunasan";
+  } else if (isDone) {
+    badgeClass = "bg-emerald-50/80 text-emerald-700 border-emerald-200/60";
+    dotPing = "bg-emerald-400";
+    dotBg = "bg-emerald-500";
+    text = "Selesai";
+  }
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
-        isUnpaid
-          ? "bg-amber-50/70 text-amber-700 border-amber-200/50"
-          : "bg-emerald-50/70 text-emerald-700 border-emerald-200/50"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${badgeClass} ${
+        onClick ? "cursor-pointer hover:shadow-xs hover:scale-105 active:scale-95" : ""
       }`}
+      title={onClick ? "Klik untuk kelola pembayaran" : undefined}
     >
       <span className="relative flex h-1.5 w-1.5">
-        {isUnpaid ? (
-          <>
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-          </>
-        ) : (
-          <>
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-          </>
-        )}
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dotPing} opacity-75`}></span>
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotBg}`}></span>
       </span>
-      {isUnpaid ? "Belum Bayar" : "Selesai"}
+      {text}
     </span>
   );
 }
@@ -323,6 +341,8 @@ export function OrdersPage({
     handleSubmitOrder,
   } = useOrders({ customers, unitPrice });
 
+  const [paymentModalOrder, setPaymentModalOrder] = useState<ExtendedOrder | null>(null);
+
   // Auto-open create form when triggered by SpeedDialFAB
   useEffect(() => {
     if (formTrigger > 0) {
@@ -333,9 +353,9 @@ export function OrdersPage({
   }, [formTrigger, onFormTriggerConsumed]);
 
   const handleShareAdminRekap = () => {
-    const unpaidList = sortedOrders.filter((o) => o.status === "Belum Membayar");
+    const unpaidList = sortedOrders.filter((o) => o.status !== "Selesai");
     if (unpaidList.length === 0) {
-      alert("Tidak ada pesanan belum bayar untuk direkap.");
+      alert("Tidak ada pesanan belum lunas untuk direkap.");
       return;
     }
 
@@ -345,17 +365,22 @@ export function OrdersPage({
       year: "numeric",
     });
 
-    let message = `*REKAP JASTIP BELUM BAYAR* 📦\nTanggal: ${todayStr}\n\n`;
+    let message = `*REKAP JASTIP BELUM LUNAS* 📦\nTanggal: ${todayStr}\n\n`;
     let totalUnpaidAmount = 0;
 
     unpaidList.forEach((o, i) => {
       const d = compute(o, unitPrice);
-      totalUnpaidAmount += d.totalPembayaran;
-      const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
-      message += `${i + 1}. *${o.namaPelanggan}* (${formatAndAddYear(o.tanggal)}) - ${formattedPrice} (${o.namaBarang})\n`;
+      const dp = Number(o.dpNominal || 0);
+      const sisa = Math.max(0, d.totalPembayaran - dp - Number(o.pelunasanNominal || 0));
+      totalUnpaidAmount += sisa;
+
+      const formattedTotal = formatCurrency(d.totalPembayaran, d.currency);
+      const statusNote = dp > 0 ? ` [DP: ${formatCurrency(dp, d.currency)}, Sisa: ${formatCurrency(sisa, d.currency)}]` : ` [Total: ${formattedTotal}]`;
+
+      message += `${i + 1}. *${o.namaPelanggan}* (${formatAndAddYear(o.tanggal)}) - ${statusNote} (${o.namaBarang})\n`;
     });
 
-    message += `\n*Total Belum Bayar:* ${formatCurrency(totalUnpaidAmount, "IDR")}`;
+    message += `\n*Total Tagihan Belum Lunas:* ${formatCurrency(totalUnpaidAmount, "IDR")}`;
 
     // Copy to clipboard
     navigator.clipboard.writeText(message).then(() => {
@@ -450,15 +475,25 @@ export function OrdersPage({
               >
                 Semua
               </button>
-              {ORDER_STATUSES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-input text-xs font-bold whitespace-nowrap transition-all duration-200 min-h-[36px] ${statusFilter === s ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                  {s === "Belum Membayar" ? "Belum Bayar" : "Selesai"}
-                </button>
-              ))}
+              {ORDER_STATUSES.map((s) => {
+                const label =
+                  s === "Belum Membayar"
+                    ? "Belum Bayar"
+                    : s === "DP Terbayar"
+                    ? "DP Terbayar"
+                    : s === "Menunggu Pelunasan"
+                    ? "Tunggu Pelunasan"
+                    : "Selesai";
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-input text-xs font-bold whitespace-nowrap transition-all duration-200 min-h-[36px] ${statusFilter === s ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -630,6 +665,7 @@ export function OrdersPage({
                         openPreview(src, cust?.telpon, o.namaPelanggan);
                       }}
                       onShowDetail={() => setSelectedOrderDetail(o)}
+                      onPayment={() => setPaymentModalOrder(o)}
                     />
                   ))
                 )}
@@ -664,6 +700,7 @@ export function OrdersPage({
                 openPreview(src, cust?.telpon, o.namaPelanggan);
               }}
               onShowDetail={() => setSelectedOrderDetail(o)}
+              onPayment={() => setPaymentModalOrder(o)}
             />
           ))}
           {displayedOrders.length === 0 && (
@@ -777,6 +814,9 @@ export function OrdersPage({
             const cust = customers.find(c => c.nama === selectedOrderDetail.namaPelanggan);
             openPreview(src, cust?.telpon, selectedOrderDetail.namaPelanggan);
           }}
+          onPayment={() => {
+            setPaymentModalOrder(selectedOrderDetail);
+          }}
         />
       )}
 
@@ -857,6 +897,21 @@ export function OrdersPage({
           />
         )}
       </AnimatePresence>
+
+      {/* Split Payment Tracker Modal */}
+      {paymentModalOrder && (
+        <PaymentTrackerModal
+          isOpen={Boolean(paymentModalOrder)}
+          onClose={() => setPaymentModalOrder(null)}
+          order={paymentModalOrder}
+          unitPrice={unitPrice}
+          customerPhone={customers.find((c) => c.nama === paymentModalOrder.namaPelanggan)?.telpon}
+          onPaymentUpdated={() => {
+            // refresh trigger
+          }}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }
@@ -874,6 +929,7 @@ function ExpandableRow({
   onDelete,
   onPreview,
   onShowDetail,
+  onPayment,
 }: any) {
   const d = compute(order, unitPrice);
   const [expandedItems, setExpandedItems] = useState(false);
@@ -980,8 +1036,13 @@ function ExpandableRow({
         </td>
         
         {/* Status */}
-        <td className="px-6 py-4 align-middle">
-          <StatusPill status={String(order.status)} />
+        <td className="px-6 py-4 align-middle" onClick={(e) => e.stopPropagation()}>
+          <StatusPill status={String(order.status)} onClick={onPayment} />
+          {Number(order.dpNominal || 0) > 0 && order.status !== "Selesai" && (
+            <div className="text-[10px] text-indigo-600 font-extrabold mt-1">
+              DP: {formatCurrency(order.dpNominal, d.currency)}
+            </div>
+          )}
         </td>
         
         {/* Tagihan */}
@@ -1026,6 +1087,13 @@ function ExpandableRow({
         {/* Aksi */}
         <td className="px-6 py-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center items-center gap-1 transition-all duration-200">
+            <button
+              onClick={onPayment}
+              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+              title="Catat Pembayaran (DP & Pelunasan)"
+            >
+              <CreditCard size={14} className="stroke-[2.5]" />
+            </button>
             <button
               onClick={onEdit}
               className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
@@ -1143,6 +1211,7 @@ function MobileCard({
   onDelete,
   onPreview,
   onShowDetail,
+  onPayment,
 }: any) {
   const d = compute(order, unitPrice);
   const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
@@ -1202,7 +1271,12 @@ function MobileCard({
 
       {/* Right Column: Status, Price, Profit, and Actions */}
       <div className="flex flex-col items-end justify-between self-stretch shrink-0">
-        <StatusPill status={order.status} />
+        <StatusPill status={order.status} onClick={onPayment} />
+        {Number(order.dpNominal || 0) > 0 && order.status !== "Selesai" && (
+          <span className="text-[9px] font-extrabold text-indigo-600 mt-0.5">
+            DP: {formatCurrency(order.dpNominal, d.currency)}
+          </span>
+        )}
 
         <div className="my-1 text-right">
           <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
@@ -1214,6 +1288,13 @@ function MobileCard({
 
         {/* Action icons */}
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onPayment}
+            className="p-0.5 text-slate-400 hover:text-amber-600 transition-colors"
+            title="Catat Pembayaran"
+          >
+            <CreditCard size={12} className="stroke-[2.5]" />
+          </button>
           <button
             onClick={onEdit}
             className="p-0.5 text-slate-400 hover:text-blue-600 transition-colors"
@@ -1245,6 +1326,7 @@ interface OrderDetailModalProps {
   onDelete: () => void;
   onInvoice: () => void;
   onPreview: (src: string | string[]) => void;
+  onPayment: () => void;
 }
 
 function OrderDetailModal({
@@ -1256,6 +1338,7 @@ function OrderDetailModal({
   onDelete,
   onInvoice,
   onPreview,
+  onPayment,
 }: OrderDetailModalProps) {
   const d = compute(order, unitPrice);
   const cust = customers.find((c) => c.nama === order.namaPelanggan);
@@ -1468,6 +1551,50 @@ function OrderDetailModal({
                 </div>
               </div>
 
+              {/* Payment Breakdown Card */}
+              <div className="bg-slate-50/80 border border-slate-200/80 p-4 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                    <CreditCard size={14} className="text-amber-500" />
+                    Status & Rincian Pembayaran
+                  </span>
+                  <button
+                    onClick={onPayment}
+                    className="text-[11px] font-extrabold text-amber-700 bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Kelola Pembayaran</span>
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 font-bold block">DP Masuk</span>
+                    <span className="font-extrabold text-amber-600">
+                      {order.dpNominal ? formatCurrency(order.dpNominal, d.currency) : "-"}
+                    </span>
+                    {order.dpMetode && (
+                      <span className="text-[9px] text-slate-400 block truncate">{order.dpMetode}</span>
+                    )}
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 font-bold block">Pelunasan</span>
+                    <span className="font-extrabold text-emerald-600">
+                      {order.pelunasanNominal ? formatCurrency(order.pelunasanNominal, d.currency) : "-"}
+                    </span>
+                    {order.pelunasanMetode && (
+                      <span className="text-[9px] text-slate-400 block truncate">{order.pelunasanMetode}</span>
+                    )}
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 col-span-2 sm:col-span-1">
+                    <span className="text-[10px] text-slate-400 font-bold block">Sisa Tagihan</span>
+                    <span className="font-extrabold text-slate-800">
+                      {formatCurrency(Math.max(0, d.totalPembayaran - Number(order.dpNominal || 0) - Number(order.pelunasanNominal || 0)), d.currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Breakdown Detail */}
               <div className="bg-slate-50/30 border border-slate-100 p-4 rounded-2xl space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-xs">
@@ -1564,6 +1691,14 @@ function OrderDetailModal({
                 </button>
               )}
               
+              <button
+                onClick={onPayment}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-amber-500/15 active:scale-95"
+              >
+                <CreditCard size={14} />
+                <span>Pembayaran</span>
+              </button>
+
               <button
                 onClick={onInvoice}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
