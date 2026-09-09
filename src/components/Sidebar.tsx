@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   PackageSearch,
   Inbox,
+  Search,
 } from "lucide-react";
 import logo from "../assets/nihong.png";
 import { listenUnassignedNihongStoreCount } from "../services/nihongStoreFirebase";
@@ -34,6 +35,7 @@ const SUB_MENU_ITEMS = [
   { id: "inbox",      label: "Inbox Pesanan", icon: Inbox },
   { id: "customers",  label: "Pelanggan",     icon: Users },
   { id: "jastipers",  label: "Jastiper",      icon: UserRound },
+  { id: "jastiper-search", label: "Cari Jastiper", icon: Search },
   { id: "schedules",  label: "Jadwal",        icon: Calendar },
   { id: "preorders",  label: "Booking",       icon: ShoppingBag },
 ];

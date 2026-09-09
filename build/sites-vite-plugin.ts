@@ -1,6 +1,6 @@
-import { access, cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Plugin } from "vite";
+import { build, type Plugin } from "vite";
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -12,36 +12,23 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-const staticWorker = `const worker = {
-  async fetch(request, env) {
-    const response = await env.ASSETS.fetch(request);
-    if (response.status !== 404 || request.method !== "GET") return response;
-
-    const accept = request.headers.get("accept") || "";
-    if (!accept.includes("text/html")) return response;
-
-    const fallbackUrl = new URL("/index.html", request.url);
-    return env.ASSETS.fetch(new Request(fallbackUrl, request));
-  },
-};
-
-export default worker;
-`;
-
 export function sites(): Plugin {
   let root = process.cwd();
+  let isBuild = false;
 
   return {
     name: "nihong-sites-output",
-    apply: "build",
     enforce: "post",
     configResolved(config) {
       root = config.root;
+      isBuild = config.command === "build";
     },
     async buildStart() {
+      if (!isBuild) return;
       await rm(resolve(root, "dist"), { recursive: true, force: true });
     },
     async closeBundle() {
+      if (!isBuild) return;
       const dist = resolve(root, "dist");
       const clientDirectory = resolve(dist, "client");
       const metadataDirectory = resolve(dist, ".openai");
@@ -61,7 +48,18 @@ export function sites(): Plugin {
       await rm(metadataDirectory, { recursive: true, force: true });
       await mkdir(metadataDirectory, { recursive: true });
       await mkdir(resolve(dist, "server"), { recursive: true });
-      await writeFile(resolve(dist, "server", "index.js"), staticWorker, "utf8");
+      await build({
+        configFile: false,
+        root,
+        logLevel: "warn",
+        build: {
+          ssr: resolve(root, "server/worker.ts"),
+          outDir: resolve(dist, "server"),
+          emptyOutDir: false,
+          target: "es2022",
+          rollupOptions: { output: { entryFileNames: "index.js" } },
+        },
+      });
 
       if (await exists(hostingConfig)) {
         await cp(hostingConfig, resolve(metadataDirectory, "hosting.json"));

@@ -45,4 +45,21 @@ test("build output supports both Vercel and Sites", async () => {
   assert.deepEqual(vercelConfig.rewrites, [
     { source: "/(.*)", destination: "/index.html" },
   ]);
+  const spaRoute = new RegExp(`^${vercelConfig.rewrites[0].source}$`);
+  assert.equal(spaRoute.test("/cari-jastiper"), true);
+});
+
+test("Sites worker serves static assets and keeps SPA navigation", async () => {
+  const { default: worker } = await import(new URL("../dist/server/index.js", import.meta.url));
+  let assetCalls = 0;
+  const env = { ASSETS: { fetch: async (request) => {
+    assetCalls++;
+    return new URL(request.url).pathname === "/index.html" ? new Response("app") : new Response("missing", { status: 404 });
+  } } };
+  const notFound = await worker.fetch(new Request("https://nihong.example/api/unknown"), env);
+  assert.equal(notFound.status, 404);
+  assert.equal(assetCalls, 0);
+  const page = await worker.fetch(new Request("https://nihong.example/cari-jastiper", { headers: { Accept: "text/html" } }), env);
+  assert.equal(await page.text(), "app");
+  assert.equal(assetCalls, 2);
 });

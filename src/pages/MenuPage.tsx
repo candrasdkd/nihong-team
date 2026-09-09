@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import {
   UserRound, Calendar, ShoppingBag, Users, Plane,
-  ArrowRight, Inbox,
+  ArrowRight, Inbox, Search,
 } from "lucide-react";
 import { TabId } from "../types";
 
@@ -11,6 +11,16 @@ interface MenuPageProps {
 }
 
 const MENU_ITEMS = [
+  {
+    id: "jastiper-search" as TabId,
+    label: "Cari Jastiper",
+    description: "Cari penawaran jastip Osaka di Threads yang diunggah hari ini",
+    icon: Search,
+    gradient: "from-brand-navy to-brand-navyLight",
+    bg: "bg-brand-mist",
+    iconColor: "text-brand-navy",
+    accent: "ring-brand-navy/10",
+  },
   {
     id: "inbox" as TabId,
     label: "Inbox NihongStore",

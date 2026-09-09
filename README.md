@@ -90,6 +90,16 @@ server development Vite.
 
 ---
 
+## Radar Jastip & Titipan Threads
+
+Tab **Cari Jastiper** tersedia di sidebar desktop dan Menu ponsel, pada
+`/cari-jastiper` (atau `/jastiper-search`).
+
+- Menyediakan kartu topik emas Threads (`JASTIP-JEPANG-TRUSTED`, `jastip osaka`, `bagasi jepang`, dll.) yang langsung membuka pencarian Threads dengan filter terbaru (`&filter=recent`).
+- Generator template chat DM siap salin untuk mempercepat transaksi dan tanya sisa bagasi ke jastiper.
+
+Validasi: `yarn build` dan `node --test tests/deployment-output.test.mjs`.
+
 ## 📜 License
 
 MIT License © 2025 NihongTeam

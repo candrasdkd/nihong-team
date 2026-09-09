@@ -18,6 +18,7 @@ const LedgerPage = React.lazy(() => import("./pages/LedgerPage").then(m => ({ de
 const LoginPage = React.lazy(() => import("./pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const MenuPage = React.lazy(() => import("./pages/MenuPage").then(m => ({ default: m.MenuPage })));
 const JastipersPage = React.lazy(() => import("./pages/JastipersPage").then(m => ({ default: m.JastipersPage })));
+const JastiperSearchPage = React.lazy(() => import("./pages/JastiperSearchPage").then(m => ({ default: m.JastiperSearchPage })));
 const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
 const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
 const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ default: m.InboxPage })));
@@ -388,6 +389,7 @@ const router = createBrowserRouter([
       { path: "customers", element: <CustomersRoute /> },
       { path: "cash", element: <LedgerRoute /> },
       { path: "jastipers", element: <JastipersRoute /> },
+      { path: "jastiper-search", element: <JastiperSearchPage /> },
       { path: "schedules", element: <SchedulesRoute /> },
       { path: "preorders", element: <PreOrdersRoute /> },
       { path: "inbox", element: <InboxRoute /> },
