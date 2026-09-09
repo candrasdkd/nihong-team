@@ -179,7 +179,6 @@ function ImagePreview({
 function StatusPill({ status, onClick }: { status: string; onClick?: () => void }) {
   const isUnpaid = status === "Belum Membayar";
   const isDp = status === "DP Terbayar";
-  const isWaitingPelunasan = status === "Menunggu Pelunasan";
   const isDone = status === "Selesai";
 
   let badgeClass = "bg-amber-50/80 text-amber-700 border-amber-200/60";
@@ -192,11 +191,6 @@ function StatusPill({ status, onClick }: { status: string; onClick?: () => void 
     dotPing = "bg-indigo-400";
     dotBg = "bg-indigo-500";
     text = "DP Terbayar";
-  } else if (isWaitingPelunasan) {
-    badgeClass = "bg-purple-50/80 text-purple-700 border-purple-200/60";
-    dotPing = "bg-purple-400";
-    dotBg = "bg-purple-500";
-    text = "Tunggu Pelunasan";
   } else if (isDone) {
     badgeClass = "bg-emerald-50/80 text-emerald-700 border-emerald-200/60";
     dotPing = "bg-emerald-400";
@@ -481,8 +475,6 @@ export function OrdersPage({
                     ? "Belum Bayar"
                     : s === "DP Terbayar"
                     ? "DP Terbayar"
-                    : s === "Menunggu Pelunasan"
-                    ? "Tunggu Pelunasan"
                     : "Selesai";
                 return (
                   <button
@@ -1356,7 +1348,12 @@ function OrderDetailModal({
   const handleWhatsAppChat = () => {
     const firstName = order.namaPelanggan.split(" ")[0] || "Kak";
     const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
-    const statusStr = order.status === "Belum Membayar" ? "belum lunas" : "lunas";
+    const statusStr =
+      order.status === "Belum Membayar"
+        ? "belum bayar"
+        : order.status === "DP Terbayar"
+        ? "dp terbayar"
+        : "lunas";
     const message = `Halo ${firstName} 👋\n\nKami ingin mengonfirmasi pesanan kamu dari *Nihong Jastip*:\n\n` +
       `📦 *Nomor Order:* #${order.no}\n` +
       `🛍️ *Barang:* ${order.namaBarang}\n` +

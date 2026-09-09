@@ -394,8 +394,13 @@ export type ExtendedOrder = OrderDoc & {
 };
 
 export function toExtended(doc: OrderDoc): ExtendedOrder {
+  let status = doc.status;
+  if ((status as any) === "Menunggu Pelunasan") {
+    status = "DP Terbayar";
+  }
   return {
     ...doc,
+    status,
     tanggal: doc.tanggal,
     namaPelanggan: doc.namaPelanggan,
   };
@@ -568,13 +573,13 @@ export function subscribeMonthlySummaries(onData: (rows: any[]) => void) {
 
 
 /**
- * Mendengarkan pesanan aktif saja (status "Belum Membayar", "DP Terbayar", "Menunggu Pelunasan") secara real-time.
+ * Mendengarkan pesanan aktif saja (status "Belum Membayar", "DP Terbayar") secara real-time.
  * Digunakan pada boot-up aplikasi (App.tsx) untuk notifikasi lokal.
  */
 export function subscribeActiveOrders(cb: (rows: OrderDoc[]) => void): Unsubscribe {
   const qy = query(
     ORDERS,
-    where("status", "in", ["Belum Membayar", "DP Terbayar", "Menunggu Pelunasan"])
+    where("status", "in", ["Belum Membayar", "DP Terbayar"])
   );
   return onSnapshot(qy, (snap) => {
     const rows: OrderDoc[] = snap.docs.map((d) => ({

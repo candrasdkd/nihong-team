@@ -99,7 +99,6 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     let unpaidCount = 0;
     let pureUnpaidCount = 0;
     let dpCount = 0;
-    let waitingPelunasanCount = 0;
     let paidCount = 0;
 
     orders.forEach((o) => {
@@ -111,8 +110,6 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
         unpaidCount++;
         if (o.status === "DP Terbayar") {
           dpCount++;
-        } else if (o.status === "Menunggu Pelunasan") {
-          waitingPelunasanCount++;
         } else {
           pureUnpaidCount++;
         }
@@ -125,7 +122,6 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
       unpaidCount,
       pureUnpaidCount,
       dpCount,
-      waitingPelunasanCount,
       paidCount,
       unpaidPercent: orders.length > 0 ? Math.round((unpaidCount / orders.length) * 100) : 0,
       paidPercent: orders.length > 0 ? Math.round((paidCount / orders.length) * 100) : 0,

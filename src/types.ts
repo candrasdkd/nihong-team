@@ -1,7 +1,6 @@
 export type OrderStatus =
   | "Belum Membayar"
   | "DP Terbayar"
-  | "Menunggu Pelunasan"
   | "Selesai";
 
 export type TabId =

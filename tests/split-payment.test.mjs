@@ -33,8 +33,7 @@ test('split payment calculation: 50% DP, 30% DP, and remaining balance consisten
 
 // 2. Test status transitions
 test('order status transitions according to payment stage', () => {
-  function determineStatus(total, dp, pelunasan, manualStatus) {
-    if (manualStatus === "Menunggu Pelunasan") return "Menunggu Pelunasan";
+  function determineStatus(total, dp, pelunasan) {
     const totalPaid = Number(dp || 0) + Number(pelunasan || 0);
     if (totalPaid >= total && total > 0) return "Selesai";
     if (Number(dp || 0) > 0) return "DP Terbayar";
@@ -47,9 +46,6 @@ test('order status transitions according to payment stage', () => {
 
   // DP paid
   assert.equal(determineStatus(total, 500000, 0), "DP Terbayar");
-
-  // Item arrived in ID, waiting pelunasan
-  assert.equal(determineStatus(total, 500000, 0, "Menunggu Pelunasan"), "Menunggu Pelunasan");
 
   // Pelunasan completed
   assert.equal(determineStatus(total, 500000, 500000), "Selesai");

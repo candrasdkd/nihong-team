@@ -88,9 +88,7 @@ export function PaymentTrackerModal({
       setPelunasanCatatan(order.pelunasanCatatan || "");
 
       // Auto-select tab based on order status
-      if (order.status === "DP Terbayar" || order.status === "Menunggu Pelunasan") {
-        setActiveTab("pelunasan");
-      } else if (order.status === "Selesai") {
+      if (order.status === "DP Terbayar" || order.status === "Selesai") {
         setActiveTab("pelunasan");
       } else {
         setActiveTab("dp");
@@ -176,20 +174,18 @@ export function PaymentTrackerModal({
   };
 
   // Submit Pelunasan handler
-  const handleSavePelunasan = async (forceLunas = true) => {
+  const handleSavePelunasan = async () => {
     if (!order.id) return;
     const amountToPay = pelunasanNominal > 0 ? pelunasanNominal : remainingBalance;
-    if (amountToPay <= 0 && forceLunas) {
+    if (amountToPay <= 0) {
       showToast?.("Nominal pelunasan tidak boleh 0", "warning");
       return;
     }
 
     setLoading(true);
     try {
-      const nextStatus: OrderStatus = forceLunas ? "Selesai" : "Menunggu Pelunasan";
-
       await updateOrderPayment(order.id, {
-        status: nextStatus,
+        status: "Selesai",
         pelunasanNominal: amountToPay,
         pelunasanTanggal,
         pelunasanMetode,
@@ -197,9 +193,7 @@ export function PaymentTrackerModal({
       });
 
       showToast?.(
-        forceLunas
-          ? "Pelunasan berhasil dicatat! Status pesanan kini Selesai (Lunas)."
-          : "Status diperbarui menjadi Menunggu Pelunasan.",
+        "Pelunasan berhasil dicatat! Status pesanan kini Selesai.",
         "success"
       );
       onPaymentUpdated?.();
@@ -207,24 +201,6 @@ export function PaymentTrackerModal({
     } catch (err: any) {
       console.error(err);
       showToast?.(err?.message || "Gagal menyimpan pelunasan", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Quick switch status to "Menunggu Pelunasan"
-  const handleSetWaitingPelunasan = async () => {
-    if (!order.id) return;
-    setLoading(true);
-    try {
-      await updateOrderPayment(order.id, {
-        status: "Menunggu Pelunasan",
-      });
-      showToast?.("Status pesanan diubah ke Menunggu Pelunasan", "info");
-      onPaymentUpdated?.();
-      onClose();
-    } catch (err: any) {
-      showToast?.(err?.message || "Gagal update status", "error");
     } finally {
       setLoading(false);
     }
@@ -617,22 +593,14 @@ export function PaymentTrackerModal({
 
                 {/* Actions */}
                 <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSetWaitingPelunasan}
-                    disabled={loading}
-                    className="px-4 py-2.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-xs font-bold hover:bg-purple-100 transition-colors"
-                  >
-                    Tandai "Menunggu Pelunasan"
-                  </button>
                   <Button
                     type="button"
-                    onClick={() => handleSavePelunasan(true)}
+                    onClick={handleSavePelunasan}
                     disabled={loading || (pelunasanNominal <= 0 && remainingBalance <= 0)}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200"
                   >
                     <CheckCircle2 size={15} />
-                    <span>{loading ? "Menyimpan..." : "Set Lunas (Selesai 100%)"}</span>
+                    <span>{loading ? "Menyimpan..." : "Set Lunas (Selesai)"}</span>
                   </Button>
                 </div>
               </div>

@@ -625,7 +625,7 @@ const InvoicePaper = React.forwardRef(
                         )}
                       </div>
                       <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
-                        - {formatCurrency(order.dpNominal, totals.currency)}
+                        ✓ {formatCurrency(order.dpNominal, totals.currency)}
                       </span>
                     </div>
                     {Number(order.pelunasanNominal || 0) > 0 && (
@@ -637,7 +637,7 @@ const InvoicePaper = React.forwardRef(
                           )}
                         </div>
                         <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
-                          - {formatCurrency(order.pelunasanNominal, totals.currency)}
+                          ✓ {formatCurrency(order.pelunasanNominal, totals.currency)}
                         </span>
                       </div>
                     )}
