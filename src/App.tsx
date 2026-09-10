@@ -25,6 +25,7 @@ const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ defa
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
 const SharedLedgerPage = React.lazy(() => import("./pages/SharedLedgerPage").then(m => ({ default: m.SharedLedgerPage })));
 const SharedDeliveryAddressPage = React.lazy(() => import("./pages/SharedDeliveryAddressPage").then(m => ({ default: m.SharedDeliveryAddressPage })));
+const SharedBookingProductsPage = React.lazy(() => import("./pages/SharedBookingProductsPage").then(m => ({ default: m.SharedBookingProductsPage })));
 
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -404,6 +405,11 @@ export default function App() {
   const shareScheduleId = searchParams.get("share");
   const shareLedger = searchParams.get("share_ledger");
   const deliveryShareToken = searchParams.get("delivery");
+  const productShareToken = searchParams.get("products");
+
+  if (productShareToken !== null) {
+    return <Suspense fallback={<PageSkeleton />}><SharedBookingProductsPage shareToken={productShareToken} /></Suspense>;
+  }
 
   if (deliveryShareToken) {
     return (

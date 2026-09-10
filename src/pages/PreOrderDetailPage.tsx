@@ -21,6 +21,7 @@ import {
 import { DepartureSchedule, PreOrder, Customer, PreOrderItem } from "../types";
 import { PreOrderFormModal } from "../components/PreOrder/PreOrderFormModal";
 import { ConvertPreOrderModal } from "../components/PreOrder/ConvertPreOrderModal";
+import { BookingProductShare } from "../components/PreOrder/BookingProductShare";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { usePreOrderDetail, EditingCell } from "../hooks/usePreOrderDetail";
 import { updatePreOrder } from "../services/preOrdersFirebase";
@@ -872,12 +873,14 @@ function ItemsEditModal({
   onToggleCheck,
   onSaveItems,
   isRotated = false,
+  canShare = false,
 }: {
   po: PreOrder;
   onClose: () => void;
   onToggleCheck: (po: PreOrder, idx: number) => void;
   onSaveItems: (poId: string, items: PreOrderItem[]) => Promise<void>;
   isRotated?: boolean;
+  canShare?: boolean;
 }) {
   const [localItems, setLocalItems] = useState<PreOrderItem[]>(() =>
     po.items.map((i) => ({ ...i }))
@@ -957,6 +960,8 @@ function ItemsEditModal({
             </div>
           </div>
         </div>
+
+        {canShare && <BookingProductShare bookingId={po.id} />}
 
         {/* Items list */}
         <div className="px-5 py-3 flex-1 overflow-y-auto">
@@ -1971,6 +1976,7 @@ export function PreOrderDetailPage({
             {viewItemsPO && (
               <ItemsEditModal
                 po={viewItemsPO}
+                canShare={!isShareMode}
                 onClose={() => { setViewItemsPO(null); setFocusedInput(null); }}
                 onToggleCheck={handleToggleItemCheck}
                 onSaveItems={async (poId, items) => {

@@ -202,6 +202,7 @@ export interface PreOrder {
   nihongStoreOrderNo?: string;
   deliveryAddressShareToken?: string;
   deliveryAddressShareCreatedAt?: any;
+  productShareToken?: string;
   createdAt?: any;
   updatedAt?: any;
 }
