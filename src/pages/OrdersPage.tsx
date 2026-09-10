@@ -31,6 +31,8 @@ import {
 import { exportOrdersToExcel } from "../utils/exportExcel";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { PaymentTrackerModal } from "../components/PaymentTrackerModal";
+import { OrderPaymentSummary } from "../components/OrderPaymentSummary";
+import { getPaymentSummary } from "../utils/payment";
 
 // ===== IMAGE PREVIEW MODAL =====
 function ImagePreview({
@@ -177,41 +179,38 @@ function ImagePreview({
 // ===== UI SUB-COMPONENTS =====
 
 function StatusPill({ status, onClick }: { status: string; onClick?: () => void }) {
-  const isUnpaid = status === "Belum Membayar";
   const isDp = status === "DP Terbayar";
   const isDone = status === "Selesai";
 
   let badgeClass = "bg-amber-50/80 text-amber-700 border-amber-200/60";
-  let dotPing = "bg-amber-400";
   let dotBg = "bg-amber-500";
   let text = "Belum Bayar";
 
   if (isDp) {
     badgeClass = "bg-indigo-50/80 text-indigo-700 border-indigo-200/60";
-    dotPing = "bg-indigo-400";
     dotBg = "bg-indigo-500";
     text = "DP Terbayar";
   } else if (isDone) {
     badgeClass = "bg-emerald-50/80 text-emerald-700 border-emerald-200/60";
-    dotPing = "bg-emerald-400";
     dotBg = "bg-emerald-500";
     text = "Selesai";
   }
 
   return (
-    <span
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${badgeClass} ${
-        onClick ? "cursor-pointer hover:shadow-xs hover:scale-105 active:scale-95" : ""
+    <button
+      type="button"
+      disabled={!onClick}
+      onClick={(event) => { event.stopPropagation(); onClick?.(); }}
+      className={`inline-flex w-max shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs leading-4 font-bold border transition-all ${badgeClass} ${
+        onClick ? "cursor-pointer hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-offset-2" : ""
       }`}
       title={onClick ? "Klik untuk kelola pembayaran" : undefined}
     >
-      <span className="relative flex h-1.5 w-1.5">
-        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dotPing} opacity-75`}></span>
+      <span className="relative flex h-1.5 w-1.5 shrink-0">
         <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotBg}`}></span>
       </span>
       {text}
-    </span>
+    </button>
   );
 }
 
@@ -1030,16 +1029,12 @@ function ExpandableRow({
         {/* Status */}
         <td className="px-6 py-4 align-middle" onClick={(e) => e.stopPropagation()}>
           <StatusPill status={String(order.status)} onClick={onPayment} />
-          {Number(order.dpNominal || 0) > 0 && order.status !== "Selesai" && (
-            <div className="text-[10px] text-indigo-600 font-extrabold mt-1">
-              DP: {formatCurrency(order.dpNominal, d.currency)}
-            </div>
-          )}
         </td>
         
         {/* Tagihan */}
         <td className="px-6 py-4 align-middle text-right text-xs sm:text-sm">
           <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
+          <OrderPaymentSummary order={order} total={d.totalPembayaran} currency={d.currency} compact compactAlign="right" />
         </td>
         
         {/* Profit */}
@@ -1194,116 +1189,114 @@ function ExpandableRow({
   );
 }
 
+interface MobileCardProps {
+  order: ExtendedOrder;
+  unitPrice: number;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPreview: (src: string | string[]) => void;
+  onShowDetail: () => void;
+  onPayment: () => void;
+}
+
 function MobileCard({
-  order,
-  unitPrice,
-  isSelected,
-  onToggleSelect,
-  onEdit,
-  onDelete,
-  onPreview,
-  onShowDetail,
-  onPayment,
-}: any) {
+  order, unitPrice, isSelected, onToggleSelect, onEdit, onDelete,
+  onPreview, onShowDetail, onPayment,
+}: MobileCardProps) {
   const d = compute(order, unitPrice);
+  const payment = getPaymentSummary(order, d.totalPembayaran);
   const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
-  
+  const showPaymentDetails = order.status !== "Selesai" && (payment.paid > 0 || order.status === "DP Terbayar");
+
   return (
-    <div
+    <article
       onClick={onShowDetail}
-      className={`bg-white rounded-xl p-3 border shadow-xs transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer ${
-        isSelected ? "border-blue-500 ring-2 ring-blue-500/5 bg-blue-50/10" : "border-slate-100"
+      aria-label={`Pesanan ${order.namaPelanggan}`}
+      className={`min-w-0 space-y-3 rounded-2xl border bg-white p-4 shadow-sm transition-colors ${
+        isSelected ? "border-blue-500 ring-2 ring-blue-500/10" : "border-slate-200/80"
       }`}
     >
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        {/* Checkbox */}
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onToggleSelect}
-          onClick={(e) => e.stopPropagation()}
-          className="rounded w-4 h-4 border-slate-300 text-blue-600 cursor-pointer shrink-0 focus:ring-blue-500"
-        />
-
-        {/* Thumbnail Image */}
+      <div className="flex items-start gap-3">
         {hasImg ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onPreview(order.imageUrl!); }}
-            className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200/60 shrink-0 relative bg-slate-50"
-          >
-            <img
-              src={Array.isArray(order.imageUrl) ? order.imageUrl[0] : order.imageUrl}
-              className="w-full h-full object-cover"
-              alt=""
-            />
+          <button type="button" aria-label={`Lihat foto ${order.namaBarang}`}
+            onClick={(event) => { event.stopPropagation(); onPreview(order.imageUrl!); }}
+            className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy">
+            <img src={Array.isArray(order.imageUrl) ? order.imageUrl[0] : order.imageUrl} className="h-full w-full object-cover" alt="" />
           </button>
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border border-slate-200/40">
-            <Box size={14} />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-mist text-brand-navy">
+            <Box size={21} />
           </div>
         )}
-
-        {/* Details */}
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <span className="font-extrabold text-slate-800 text-xs truncate block">
-            {order.namaPelanggan}
-          </span>
-          
-          <div className="text-[10px] text-slate-500 font-medium truncate">
-            {order.namaBarang}
-          </div>
-
-          <div className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
-            <span className="text-blue-600 font-extrabold">{d.kg} Kg</span>
-            <span>&bull;</span>
-            <span>{formatAndAddYear(order.tanggal)}</span>
-          </div>
-        </div>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onShowDetail(); }}
+          aria-label={`Lihat detail pesanan ${order.namaPelanggan}`}
+          className="min-h-12 min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy">
+          <span className="block break-words text-base font-bold leading-snug text-slate-900">{order.namaPelanggan}</span>
+          <span className="mt-1 line-clamp-2 break-words text-sm leading-snug text-slate-500">{order.namaBarang}</span>
+        </button>
+        <label className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-slate-50" onClick={(event) => event.stopPropagation()}>
+          <input type="checkbox" checked={isSelected} onChange={onToggleSelect}
+            aria-label={`Pilih pesanan ${order.namaPelanggan}`}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+        </label>
       </div>
 
-      {/* Right Column: Status, Price, Profit, and Actions */}
-      <div className="flex flex-col items-end justify-between self-stretch shrink-0">
-        <StatusPill status={order.status} onClick={onPayment} />
-        {Number(order.dpNominal || 0) > 0 && order.status !== "Selesai" && (
-          <span className="text-[9px] font-extrabold text-indigo-600 mt-0.5">
-            DP: {formatCurrency(order.dpNominal, d.currency)}
-          </span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-slate-500">
+        <span>{formatAndAddYear(order.tanggal)}</span>
+        <span aria-hidden="true" className="text-slate-300">·</span>
+        <span className="font-semibold text-slate-600">{d.kg} kg</span>
+        {order.no && <span title={order.no} className="ml-auto max-w-full truncate text-slate-400">#{order.no}</span>}
+      </div>
+
+      <div className="space-y-3 rounded-xl bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm text-slate-500">Total tagihan</span>
+          <StatusPill status={order.status || "Belum Membayar"} onClick={onPayment} />
+        </div>
+        <p className="break-words text-2xl font-bold leading-tight tracking-tight text-brand-navy tabular-nums">
+          {formatCurrency(d.totalPembayaran, d.currency)}
+        </p>
+        {showPaymentDetails && (
+          <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3 border-t border-slate-200/80 pt-3">
+            <div className="min-w-0">
+              <dt className="text-xs text-slate-500">DP masuk</dt>
+              <dd className="mt-1 break-words text-sm font-semibold leading-snug text-indigo-700 tabular-nums">
+                {payment.dp > 0 ? formatCurrency(payment.dp, d.currency) : "Belum dicatat"}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-slate-500">Sisa tagihan</dt>
+              <dd className="mt-1 break-words text-sm font-bold leading-snug text-slate-800 tabular-nums">{formatCurrency(payment.remaining, d.currency)}</dd>
+            </div>
+          </dl>
         )}
-
-        <div className="my-1 text-right">
-          <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
-          <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 justify-end mt-0.5">
-            <span>Profit:</span>
-            <span>{formatCurrency(d.totalKeuntungan, d.currency)}</span>
-          </div>
-        </div>
-
-        {/* Action icons */}
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={onPayment}
-            className="p-0.5 text-slate-400 hover:text-amber-600 transition-colors"
-            title="Catat Pembayaran"
-          >
-            <CreditCard size={12} className="stroke-[2.5]" />
-          </button>
-          <button
-            onClick={onEdit}
-            className="p-0.5 text-slate-400 hover:text-blue-600 transition-colors"
-            title="Edit"
-          >
-            <Pencil size={12} className="stroke-[2.5]" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-0.5 text-slate-400 hover:text-rose-600 transition-colors"
-            title="Hapus"
-          >
-            <Trash2 size={12} className="stroke-[2.5]" />
-          </button>
-        </div>
+        {order.status === "Selesai" && payment.dp > 0 && (
+          <p className="flex flex-wrap justify-between gap-x-2 gap-y-1 border-t border-slate-200/80 pt-2 text-xs leading-5">
+            <span className="text-slate-500">DP tercatat</span>
+            <span className="font-medium text-indigo-700 tabular-nums">{formatCurrency(payment.dp, d.currency)}</span>
+          </p>
+        )}
       </div>
-    </div>
+
+      <div className="flex flex-wrap justify-between gap-2 px-1 text-xs">
+        <span className="text-slate-500">Profit pesanan</span>
+        <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(d.totalKeuntungan, d.currency)}</span>
+      </div>
+
+      <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+        <Button variant="secondary" onClick={onPayment} className="min-w-0 flex-1 !px-3 shadow-none">
+          <CreditCard size={17} className="shrink-0" />Pembayaran
+        </Button>
+        <Button variant="outline" size="icon" onClick={onEdit} aria-label={`Edit pesanan ${order.namaPelanggan}`} title="Edit pesanan" className="shrink-0">
+          <Pencil size={17} />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={onDelete} aria-label={`Hapus pesanan ${order.namaPelanggan}`} title="Hapus pesanan" className="shrink-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+          <Trash2 size={17} />
+        </Button>
+      </div>
+    </article>
   );
 }
 
@@ -1548,48 +1541,17 @@ function OrderDetailModal({
                 </div>
               </div>
 
-              {/* Payment Breakdown Card */}
-              <div className="bg-slate-50/80 border border-slate-200/80 p-4 rounded-2xl space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard size={14} className="text-amber-500" />
-                    Status & Rincian Pembayaran
-                  </span>
-                  <button
-                    onClick={onPayment}
-                    className="text-[11px] font-extrabold text-amber-700 bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Kelola Pembayaran</span>
-                    <ChevronRight size={12} />
-                  </button>
+              {/* Payment records and transfer notes */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h4 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                    <CreditCard size={17} className="text-brand-navy" />Pembayaran
+                  </h4>
+                  <Button variant="outline" size="sm" onClick={onPayment}>
+                    Kelola pembayaran<ChevronRight size={15} />
+                  </Button>
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-                  <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-bold block">DP Masuk</span>
-                    <span className="font-extrabold text-amber-600">
-                      {order.dpNominal ? formatCurrency(order.dpNominal, d.currency) : "-"}
-                    </span>
-                    {order.dpMetode && (
-                      <span className="text-[9px] text-slate-400 block truncate">{order.dpMetode}</span>
-                    )}
-                  </div>
-                  <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-bold block">Pelunasan</span>
-                    <span className="font-extrabold text-emerald-600">
-                      {order.pelunasanNominal ? formatCurrency(order.pelunasanNominal, d.currency) : "-"}
-                    </span>
-                    {order.pelunasanMetode && (
-                      <span className="text-[9px] text-slate-400 block truncate">{order.pelunasanMetode}</span>
-                    )}
-                  </div>
-                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 col-span-2 sm:col-span-1">
-                    <span className="text-[10px] text-slate-400 font-bold block">Sisa Tagihan</span>
-                    <span className="font-extrabold text-slate-800">
-                      {formatCurrency(Math.max(0, d.totalPembayaran - Number(order.dpNominal || 0) - Number(order.pelunasanNominal || 0)), d.currency)}
-                    </span>
-                  </div>
-                </div>
+                <OrderPaymentSummary order={order} total={d.totalPembayaran} currency={d.currency} />
               </div>
 
               {/* Breakdown Detail */}

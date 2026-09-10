@@ -1,20 +1,24 @@
 // src/components/PaymentTrackerModal.tsx
 import React, { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  X,
   CreditCard,
   CheckCircle2,
   MessageCircle,
   Copy,
   Check,
   Send,
+  ChevronDown,
 } from "lucide-react";
-import { ExtendedOrder, OrderStatus } from "../types";
+import { ExtendedOrder } from "../types";
 import { formatCurrency } from "../utils/format";
 import { compute, toInputDate } from "../utils/helpers";
 import { updateOrderPayment } from "../services/ordersFirebase";
 import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
+import { Select } from "./ui/Select";
+import { Modal } from "./ui/Modal";
+import { OrderPaymentSummary } from "./OrderPaymentSummary";
+import { getPaymentSummary } from "../utils/payment";
 
 interface PaymentTrackerModalProps {
   isOpen: boolean;
@@ -94,12 +98,15 @@ export function PaymentTrackerModal({
         setActiveTab("dp");
       }
     }
-  }, [order]);
+  }, [order, isOpen]);
 
-  // Current balance calculations
-  const totalPaid = Number(dpNominal || 0) + Number(pelunasanNominal || 0);
-  const remainingBalance = Math.max(0, total - totalPaid);
-  const percentPaid = total > 0 ? Math.min(100, Math.round((totalPaid / total) * 100)) : 0;
+  // Saved records stay stable while the active form previews its own changes.
+  const saved = getPaymentSummary(order || {}, total);
+  const remainingBalance = saved.remaining;
+  const settlementTarget = Math.max(0, total - saved.dp);
+  const draft = getPaymentSummary(activeTab === "dp"
+    ? { dpNominal, pelunasanNominal: saved.settlement }
+    : { dpNominal: saved.dp, pelunasanNominal }, total);
 
   // Phone normalization for WhatsApp
   const cleanPhone = useMemo(() => {
@@ -116,16 +123,16 @@ export function PaymentTrackerModal({
     if (!order) return { dp: "", pelunasan: "", lunas: "" };
     const name = order.namaPelanggan || "Kak";
     const no = order.no || order.id;
-    const remainingAfterDp = Math.max(0, total - Number(dpNominal || 0));
+    const remainingAfterDp = Math.max(0, total - saved.dp);
 
-    const dpText = `Halo Kak ${name}, salam dari Tim *Nihong Jastip*! 🙏🇯🇵\n\nKami mengonfirmasi bahwa pembayaran *DP* untuk pesanan *#${no}* telah kami terima dengan rincian sbb:\n\n📦 *Barang:* ${order.namaBarang || "-"}\n📊 *Total Tagihan:* ${formatCurrency(total, currency)}\n💰 *DP Diterima:* *${formatCurrency(dpNominal, currency)}* (${dpMetode})\n⏳ *Sisa Pelunasan:* ${formatCurrency(remainingAfterDp, currency)}\n\nBarang titipan Kakak sedang dalam proses belanja handcarry oleh tim kami di Jepang. Kami akan update kembali saat barang tiba di Indonesia ya. Terima kasih banyak! ✨`;
+    const dpText = `Halo Kak ${name}, salam dari Tim *Nihong Jastip*! 🙏🇯🇵\n\nKami mengonfirmasi bahwa pembayaran *DP* untuk pesanan *#${no}* telah kami terima dengan rincian sbb:\n\n📦 *Barang:* ${order.namaBarang || "-"}\n📊 *Total Tagihan:* ${formatCurrency(total, currency)}\n💰 *DP Diterima:* *${formatCurrency(saved.dp, currency)}* (${order.dpMetode || "Metode belum dicatat"})\n⏳ *Sisa Pelunasan:* ${formatCurrency(remainingAfterDp, currency)}\n\nBarang titipan Kakak sedang dalam proses belanja handcarry oleh tim kami di Jepang. Kami akan update kembali saat barang tiba di Indonesia ya. Terima kasih banyak! ✨`;
 
-    const pelunasanText = `Halo Kak ${name}, kabar gembira dari Tim *Nihong Jastip*! 📦🎉\n\nBarang titipan Kakak (*#${no}*) telah *tiba di Indonesia* dan siap dipacking untuk pengiriman lokal.\n\n📊 *Rincian Tagihan Pelunasan:*\n• Total Pesanan: ${formatCurrency(total, currency)}\n• DP yang Masuk: ${formatCurrency(dpNominal, currency)}\n• *Sisa Pelunasan: ${formatCurrency(remainingBalance > 0 ? remainingBalance : remainingAfterDp, currency)}*\n\nMohon konfirmasi transfer ke rekening Nihong Team agar paket Kakak dapat langsung kami proses kirim hari ini beserta nomor resinya. Terima kasih! 🙏✨`;
+    const pelunasanText = `Halo Kak ${name}, kabar gembira dari Tim *Nihong Jastip*! 📦🎉\n\nBarang titipan Kakak (*#${no}*) telah *tiba di Indonesia* dan siap dipacking untuk pengiriman lokal.\n\n📊 *Rincian Tagihan Pelunasan:*\n• Total Pesanan: ${formatCurrency(total, currency)}\n• DP yang Masuk: ${formatCurrency(saved.dp, currency)}\n• *Sisa Pelunasan: ${formatCurrency(remainingBalance, currency)}*\n\nMohon konfirmasi transfer ke rekening Nihong Team agar paket Kakak dapat langsung kami proses kirim hari ini beserta nomor resinya. Terima kasih! 🙏✨`;
 
     const lunasText = `Halo Kak ${name}, terima kasih banyak dari Tim *Nihong Jastip*! 🌟\n\nPembayaran untuk pesanan *#${no}* telah *LUNAS SEPENUHNYA* (${formatCurrency(total, currency)}).\n\nPaket sedang kami siapkan untuk pengiriman ke alamat Kakak. Nomor resi pengiriman akan segera kami informasikan begitu paket di-pickup ekspedisi. Terima kasih atas kepercayaannya! 🚀📦`;
 
     return { dp: dpText, pelunasan: pelunasanText, lunas: lunasText };
-  }, [order, total, currency, dpNominal, dpMetode, remainingBalance]);
+  }, [order, total, currency, saved.dp, remainingBalance]);
 
   const [selectedWaTemplate, setSelectedWaTemplate] = useState<"dp" | "pelunasan" | "lunas">("dp");
 
@@ -140,14 +147,14 @@ export function PaymentTrackerModal({
   // Submit DP handler
   const handleSaveDp = async () => {
     if (!order.id) return;
-    if (dpNominal <= 0) {
+    if (!Number.isFinite(dpNominal) || dpNominal <= 0) {
       showToast?.("Nominal DP harus lebih dari 0", "warning");
       return;
     }
     setLoading(true);
     try {
-      const isFullyPaid = dpNominal >= total;
-      const nextStatus: OrderStatus = isFullyPaid ? "Selesai" : "DP Terbayar";
+      const nextStatus = getPaymentSummary({ dpNominal, pelunasanNominal: saved.settlement }, total).status;
+      const isFullyPaid = nextStatus === "Selesai";
 
       await updateOrderPayment(order.id, {
         status: nextStatus,
@@ -176,16 +183,17 @@ export function PaymentTrackerModal({
   // Submit Pelunasan handler
   const handleSavePelunasan = async () => {
     if (!order.id) return;
-    const amountToPay = pelunasanNominal > 0 ? pelunasanNominal : remainingBalance;
-    if (amountToPay <= 0) {
+    const amountToPay = pelunasanNominal;
+    if (!Number.isFinite(amountToPay) || amountToPay <= 0) {
       showToast?.("Nominal pelunasan tidak boleh 0", "warning");
       return;
     }
 
     setLoading(true);
     try {
+      const nextStatus = getPaymentSummary({ dpNominal: saved.dp, pelunasanNominal: amountToPay }, total).status;
       await updateOrderPayment(order.id, {
-        status: "Selesai",
+        status: nextStatus,
         pelunasanNominal: amountToPay,
         pelunasanTanggal,
         pelunasanMetode,
@@ -193,7 +201,7 @@ export function PaymentTrackerModal({
       });
 
       showToast?.(
-        "Pelunasan berhasil dicatat! Status pesanan kini Selesai.",
+        nextStatus === "Selesai" ? "Pelunasan berhasil dicatat!" : "Pembayaran dicatat. Masih ada sisa tagihan.",
         "success"
       );
       onPaymentUpdated?.();
@@ -207,12 +215,15 @@ export function PaymentTrackerModal({
   };
 
   // Copy WA text
-  const handleCopyWa = () => {
-    const text = waTemplates[selectedWaTemplate];
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    showToast?.("Template pesan WhatsApp disalin ke clipboard", "info");
+  const handleCopyWa = async () => {
+    try {
+      await navigator.clipboard.writeText(waTemplates[selectedWaTemplate]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      showToast?.("Pesan WhatsApp disalin", "info");
+    } catch {
+      showToast?.("Gagal menyalin pesan. Silakan coba lagi.", "error");
+    }
   };
 
   // Open WA
@@ -224,466 +235,165 @@ export function PaymentTrackerModal({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const isDp = activeTab === "dp";
+  const amount = isDp ? dpNominal : pelunasanNominal;
+  const existingAmount = isDp ? saved.dp : saved.settlement;
+  const methods = Array.from(new Set([...PAYMENT_METHODS, dpMetode, pelunasanMetode]));
+  const closeModal = () => { if (!loading) onClose(); };
+
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
-        />
+    <Modal
+      title="Catat pembayaran"
+      onClose={closeModal}
+      size="4xl"
+      contentClassName="!p-0"
+      footer={activeTab !== "whatsapp" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="hidden text-xs text-slate-500 sm:block">Perubahan dicatat setelah disimpan.</p>
+          <div className="flex w-full justify-end gap-2 sm:w-auto">
+            <Button variant="ghost" onClick={closeModal} disabled={loading}>Batal</Button>
+            <Button
+              variant={isDp ? "secondary" : "success"}
+              onClick={isDp ? handleSaveDp : handleSavePelunasan}
+              disabled={!Number.isFinite(amount) || amount <= 0}
+              isLoading={loading}
+              className="flex-1 sm:flex-none"
+            >
+              {!loading && <Check size={16} />}
+              {isDp ? "Simpan DP" : "Simpan pembayaran"}
+            </Button>
+          </div>
+        </div>
+      ) : undefined}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-100 px-5 py-3 sm:px-6">
+        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">#{order.no || order.id}</span>
+        <p className="min-w-0 break-words text-sm font-semibold text-slate-800">{order.namaPelanggan}</p>
+        <span className="text-xs text-slate-500">{calc.kg} kg</span>
+      </div>
+      <details className="group border-b border-slate-100 bg-slate-50 md:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-navy [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="block text-xs text-slate-500">{order.status === "Selesai" && saved.remaining > 0 ? "Total tagihan" : "Sisa tagihan"}</span>
+            <span className="mt-0.5 block break-words text-xl font-bold text-brand-navy tabular-nums">{formatCurrency(order.status === "Selesai" && saved.remaining > 0 ? total : saved.remaining, currency)}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-navy">
+            Rincian<ChevronDown size={16} className="transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <div className="px-4 pb-4"><OrderPaymentSummary order={order} total={total} currency={currency} /></div>
+      </details>
+      <div className="grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <aside className="hidden bg-slate-50/80 p-6 md:block md:border-r md:border-slate-200">
+          <OrderPaymentSummary order={order} total={total} currency={currency} />
+        </aside>
+        <div className="min-w-0 space-y-4 p-4 sm:space-y-5 sm:p-6">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" aria-label="Jenis pencatatan">
+            {([
+              { id: "dp", label: "Uang muka", icon: CreditCard },
+              { id: "pelunasan", label: "Pelunasan", icon: CheckCircle2 },
+              { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={activeTab === id}
+                disabled={loading}
+                onClick={() => setActiveTab(id)}
+                className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy disabled:opacity-50 ${activeTab === id ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              >
+                <Icon size={16} className="hidden shrink-0 sm:block" />{label}
+              </button>
+            ))}
+          </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: "spring", duration: 0.35 }}
-          className="relative bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-xl w-full overflow-hidden z-10 flex flex-col max-h-[92vh]"
-        >
-          {/* Top accent bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 via-indigo-500 to-emerald-500" />
-
-          {/* Modal Header */}
-          <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
-                <CreditCard size={20} />
-              </div>
+          {activeTab !== "whatsapp" ? (
+            <fieldset disabled={loading} className="min-w-0 space-y-5">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-black text-slate-800 leading-tight">
-                    Catat Pembayaran
-                  </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-                    #{order.no}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-medium">
-                  {order.namaPelanggan} • {calc.kg} Kg
+                <h4 className="text-lg font-bold text-slate-900">{isDp ? (existingAmount > 0 ? "Perbarui uang muka" : "Catat uang muka") : (existingAmount > 0 ? "Perbarui pelunasan" : "Catat pelunasan")}</h4>
+                <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                  {existingAmount > 0 ? "Nominal ini menggantikan catatan sebelumnya." : "Masukkan pembayaran yang sudah diterima."}
                 </p>
               </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          {/* Scrollable Content */}
-          <div className="p-6 overflow-y-auto space-y-5 flex-1">
-            {/* 1. Payment Progress Card */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 sm:p-5 rounded-2xl shadow-md space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                  Total Tagihan
+              {isDp ? (
+                <div className="grid grid-cols-3 gap-2" aria-label="Pilihan nominal DP">
+                  {[30, 50, 100].map((percentage) => {
+                    const value = Math.round(total * percentage / 100);
+                    const selected = dpNominal > 0 && dpNominal === value;
+                    return (
+                      <button key={percentage} type="button" onClick={() => handleQuickDp(percentage)} aria-pressed={selected}
+                        className={`min-w-0 rounded-xl border px-2 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy ${selected ? "border-brand-navy bg-brand-mist text-brand-navy" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}>
+                        <span className="block text-center text-sm font-bold sm:text-left">{percentage === 100 ? "100%" : `DP ${percentage}%`}</span>
+                        <span className="mt-1 hidden break-words text-xs tabular-nums sm:block">{formatCurrency(value, currency)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div>
+                    <p className="text-xs text-slate-500">Total pelunasan setelah DP</p>
+                    <p className="mt-1 text-base font-bold tabular-nums text-slate-800">{formatCurrency(settlementTarget, currency)}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setPelunasanNominal(settlementTarget)} disabled={settlementTarget <= 0}>Isi nominal</Button>
+                </div>
+              )}
+
+              <Input
+                label={`${isDp ? "Nominal DP" : "Nominal pelunasan"} (${currency})`}
+                type="number" min="0" step="any" inputMode="decimal" required
+                value={amount || ""}
+                onChange={(event) => (isDp ? setDpNominal : setPelunasanNominal)(Number(event.target.value) || 0)}
+                placeholder="0"
+                className="!py-3 !text-2xl font-bold tabular-nums"
+                helperText={formatCurrency(amount, currency)}
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input label="Tanggal pembayaran" type="date" value={isDp ? dpTanggal : pelunasanTanggal}
+                  onChange={(event) => (isDp ? setDpTanggal : setPelunasanTanggal)(event.target.value)} className="min-w-0 !text-base sm:!text-sm" />
+                <Select label="Metode pembayaran" value={isDp ? dpMetode : pelunasanMetode}
+                  onChange={(event) => (isDp ? setDpMetode : setPelunasanMetode)(event.target.value)} className="!text-base sm:!text-sm">
+                  {methods.map((method) => <option key={method} value={method}>{method}</option>)}
+                </Select>
+              </div>
+              <label className="block">
+                <span className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2 text-sm font-semibold text-slate-700">
+                  Catatan pembayaran <span className="text-xs font-normal text-slate-400">Opsional</span>
                 </span>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/10 text-white tracking-wider">
-                  Status: {order.status || "Belum Membayar"}
-                </span>
+                <textarea rows={3} value={isDp ? dpCatatan : pelunasanCatatan}
+                  onChange={(event) => (isDp ? setDpCatatan : setPelunasanCatatan)(event.target.value)}
+                  placeholder="Nama pengirim, nomor referensi, atau keterangan transfer…"
+                  className="block w-full resize-y rounded-input border border-surface-border bg-white px-3.5 py-3 text-base leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy/20 sm:text-sm" />
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-slate-200 pt-4" aria-live="polite">
+                <span className="text-sm text-slate-500">Sisa setelah disimpan</span>
+                <span className={`text-base font-bold tabular-nums ${draft.remaining === 0 ? "text-emerald-700" : "text-slate-900"}`}>{formatCurrency(draft.remaining, currency)}</span>
+                {draft.paid > total && <p className="w-full text-xs text-amber-700">Nominal tercatat melebihi tagihan sebesar {formatCurrency(draft.paid - total, currency)}.</p>}
               </div>
-
-              <div className="flex items-baseline justify-between">
-                <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
-                  {formatCurrency(total, currency)}
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-slate-300">
-                    Sisa: {formatCurrency(remainingBalance, currency)}
-                  </span>
-                </div>
+            </fieldset>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-lg font-bold text-slate-900">Pesan pembayaran</h4>
+                <p className="mt-1 text-sm text-slate-500">Rincian pesan mengikuti pembayaran yang tersimpan.</p>
               </div>
-
-              {/* Visual Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="w-full h-2.5 bg-white/15 rounded-full overflow-hidden flex">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500 rounded-full"
-                    style={{ width: `${percentPaid}%` }}
-                  />
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
-                  <span>Terbayar: {formatCurrency(totalPaid, currency)} ({percentPaid}%)</span>
-                  <span>{percentPaid >= 100 ? "✅ Lunas 100%" : `${100 - percentPaid}% Belum`}</span>
-                </div>
-              </div>
-
-              {/* Micro breakdown badges */}
-              <div className="pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-[11px]">
-                <div className="flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded-lg">
-                  <span className="text-slate-400">DP:</span>
-                  <span className="font-bold text-amber-300">
-                    {order.dpNominal ? formatCurrency(order.dpNominal, currency) : "Belum ada"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded-lg">
-                  <span className="text-slate-400">Pelunasan:</span>
-                  <span className="font-bold text-emerald-300">
-                    {order.pelunasanNominal ? formatCurrency(order.pelunasanNominal, currency) : "Belum ada"}
-                  </span>
-                </div>
+              <Select label="Jenis pesan" value={selectedWaTemplate} onChange={(event) => { setSelectedWaTemplate(event.target.value as typeof selectedWaTemplate); setCopied(false); }}>
+                <option value="dp">Konfirmasi DP diterima</option>
+                <option value="pelunasan">Tagihan pelunasan</option>
+                <option value="lunas">Konfirmasi lunas</option>
+              </Select>
+              <textarea aria-label="Pratinjau pesan WhatsApp" readOnly rows={12} value={waTemplates[selectedWaTemplate]}
+                className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-navy/20" />
+              <p className="break-words text-xs text-slate-500">Tujuan: {cleanPhone ? `+${cleanPhone}` : "Pilih penerima di WhatsApp"}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={handleCopyWa} className="flex-1">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Tersalin" : "Salin pesan"}</Button>
+                <Button variant="success" onClick={handleOpenWa} className="flex-1"><Send size={16} />Buka WhatsApp</Button>
               </div>
             </div>
-
-            {/* 2. Mode Tabs */}
-            <div className="flex rounded-2xl bg-slate-100 p-1 border border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setActiveTab("dp")}
-                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === "dp"
-                    ? "bg-white text-amber-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🟡 Catat DP</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("pelunasan")}
-                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === "pelunasan"
-                    ? "bg-white text-emerald-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🟢 Pelunasan</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("whatsapp")}
-                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === "whatsapp"
-                    ? "bg-white text-emerald-600 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <MessageCircle size={14} />
-                <span>WhatsApp</span>
-              </button>
-            </div>
-
-            {/* 3. Tab Content: CATAT DP */}
-            {activeTab === "dp" && (
-              <div className="space-y-4">
-                {/* Quick Presets */}
-                <div>
-                  <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-2">
-                    Preset Cepat DP
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDp(50)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-black transition-all ${
-                        dpNominal === Math.round(total * 0.5) && dpNominal > 0
-                          ? "bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-200"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      DP 50% ({formatCurrency(Math.round(total * 0.5), currency)})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDp(30)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-black transition-all ${
-                        dpNominal === Math.round(total * 0.3) && dpNominal > 0
-                          ? "bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-200"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      DP 30% ({formatCurrency(Math.round(total * 0.3), currency)})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDpNominal(total)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-black transition-all ${
-                        dpNominal === total && dpNominal > 0
-                          ? "bg-emerald-600 text-white border-emerald-700 shadow-sm shadow-emerald-200"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      Lunas 100%
-                    </button>
-                  </div>
-                </div>
-
-                {/* Input Nominal DP */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Nominal DP ({currency}) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
-                      {currency === "JPY" ? "¥" : "Rp"}
-                    </span>
-                    <input
-                      type="number"
-                      value={dpNominal || ""}
-                      onChange={(e) => setDpNominal(Number(e.target.value) || 0)}
-                      placeholder="0"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-medium mt-1">
-                    Terbilang: {formatCurrency(dpNominal, currency)}
-                  </p>
-                </div>
-
-                {/* Tanggal & Metode */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Tanggal Bayar
-                    </label>
-                    <input
-                      type="date"
-                      value={dpTanggal}
-                      onChange={(e) => setDpTanggal(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Metode Pembayaran
-                    </label>
-                    <select
-                      value={dpMetode}
-                      onChange={(e) => setDpMetode(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                    >
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Catatan DP */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Catatan / Referensi Transfer (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={dpCatatan}
-                    onChange={(e) => setDpCatatan(e.target.value)}
-                    placeholder="Misal: Bukti TF dari Kak Ani / Rek BCA"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="pt-2 flex gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={onClose}
-                    disabled={loading}
-                    className="flex-1 text-xs font-bold"
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSaveDp}
-                    disabled={loading || dpNominal <= 0}
-                    className="flex-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-200"
-                  >
-                    <Check size={15} />
-                    <span>{loading ? "Menyimpan..." : "Simpan DP & Set Status"}</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* 4. Tab Content: CATAT PELUNASAN */}
-            {activeTab === "pelunasan" && (
-              <div className="space-y-4">
-                {/* Sisa Alert */}
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-700 tracking-wider block">
-                      Sisa Tagihan yang Harus Dilunasi
-                    </span>
-                    <span className="text-xl font-black text-emerald-700">
-                      {formatCurrency(remainingBalance, currency)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPelunasanNominal(remainingBalance)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-700 shadow-sm"
-                  >
-                    Isi Sisa Penuh
-                  </button>
-                </div>
-
-                {/* Input Pelunasan */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Nominal Pelunasan ({currency}) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
-                      {currency === "JPY" ? "¥" : "Rp"}
-                    </span>
-                    <input
-                      type="number"
-                      value={pelunasanNominal || ""}
-                      onChange={(e) => setPelunasanNominal(Number(e.target.value) || 0)}
-                      placeholder={String(remainingBalance)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-medium mt-1">
-                    Terbilang: {formatCurrency(pelunasanNominal, currency)}
-                  </p>
-                </div>
-
-                {/* Tanggal & Metode */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Tanggal Pelunasan
-                    </label>
-                    <input
-                      type="date"
-                      value={pelunasanTanggal}
-                      onChange={(e) => setPelunasanTanggal(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Metode Pembayaran
-                    </label>
-                    <select
-                      value={pelunasanMetode}
-                      onChange={(e) => setPelunasanMetode(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    >
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Catatan Pelunasan */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Catatan Pelunasan (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={pelunasanCatatan}
-                    onChange={(e) => setPelunasanCatatan(e.target.value)}
-                    placeholder="Misal: Pelunasan via transfer BCA sesudah QC barang"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                  <Button
-                    type="button"
-                    onClick={handleSavePelunasan}
-                    disabled={loading || (pelunasanNominal <= 0 && remainingBalance <= 0)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200"
-                  >
-                    <CheckCircle2 size={15} />
-                    <span>{loading ? "Menyimpan..." : "Set Lunas (Selesai)"}</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* 5. Tab Content: WHATSAPP TEMPLATES */}
-            {activeTab === "whatsapp" && (
-              <div className="space-y-4">
-                {/* Template Switcher */}
-                <div className="flex gap-2 border-b border-slate-100 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedWaTemplate("dp")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      selectedWaTemplate === "dp"
-                        ? "bg-amber-50 text-amber-800 border border-amber-200"
-                        : "text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    1. Bukti Terima DP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedWaTemplate("pelunasan")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      selectedWaTemplate === "pelunasan"
-                        ? "bg-purple-50 text-purple-800 border border-purple-200"
-                        : "text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    2. Tagihan Pelunasan (Barang Tiba)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedWaTemplate("lunas")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      selectedWaTemplate === "lunas"
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    3. Konfirmasi Lunas
-                  </button>
-                </div>
-
-                {/* Message preview */}
-                <div className="relative">
-                  <textarea
-                    readOnly
-                    rows={8}
-                    value={waTemplates[selectedWaTemplate]}
-                    className="w-full text-xs font-mono p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 leading-relaxed resize-none focus:outline-none"
-                  />
-                  <div className="text-[10px] text-slate-400 mt-1 flex justify-between items-center">
-                    <span>Tujuan: {cleanPhone ? `+${cleanPhone}` : "(Nomor HP belum diisi)"}</span>
-                    <span>Format resmi WhatsApp Nihong Jastip</span>
-                  </div>
-                </div>
-
-                {/* WA Actions */}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCopyWa}
-                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                    <span>{copied ? "Tersalin!" : "Salin Pesan"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenWa}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200"
-                  >
-                    <Send size={14} />
-                    <span>Buka WhatsApp</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
+          )}
+        </div>
       </div>
-    </AnimatePresence>
+    </Modal>
   );
 }
