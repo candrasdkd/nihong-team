@@ -999,28 +999,6 @@ function MobileOrderCard({
       .filter(Boolean);
   }, [order.namaBarang]);
 
-  const cust = customers.find((c) => c.nama === order.namaPelanggan);
-  const phone = cust?.telpon;
-
-  const handleWhatsAppChat = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const firstName = order.namaPelanggan.split(" ")[0] || "Kak";
-    const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
-    const statusStr =
-      order.status === "Belum Membayar"
-        ? "belum bayar"
-        : order.status === "DP Terbayar"
-        ? "dp terbayar"
-        : "lunas";
-    const message = `Halo ${firstName} 👋\n\nKami ingin mengonfirmasi pesanan kamu dari *Nihong Jastip*:\n\n` +
-      `📦 *Nomor Order:* #${order.no}\n` +
-      `🛍️ *Barang:* ${order.namaBarang}\n` +
-      `⚖️ *Berat:* ${d.kg} Kg\n` +
-      `📍 *Rute:* ${order.pengiriman || "-"}\n` +
-      `💳 *Total Tagihan:* ${formattedPrice} (${statusStr.toUpperCase()})\n\n` +
-      `Terima kasih banyak ya! Jika ada pertanyaan, hubungi kami saja 😊🙏`;
-    openWhatsApp(phone, message);
-  };
 
   return (
     <div
@@ -1055,13 +1033,19 @@ function MobileOrderCard({
           <StatusPill size="sm" status={String(order.status)} onClick={onPayment} />
         </div>
 
-        {/* Baris 2: Nama Pelanggan & Total Tagihan */}
+        {/* Baris 2: Nama Pelanggan (+ Berat) & Total Tagihan (+ Profit) */}
         <div className="flex items-center justify-between gap-2.5 pt-0.5">
           <div className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer" onClick={onShowDetail}>
             <Avatar name={order.namaPelanggan || ""} size="sm" />
-            <h4 className="font-bold text-xs text-slate-900 tracking-tight truncate min-w-0" title={order.namaPelanggan}>
-              {order.namaPelanggan}
-            </h4>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-bold text-xs text-slate-900 tracking-tight truncate" title={order.namaPelanggan}>
+                {order.namaPelanggan}
+              </h4>
+              <div className="flex items-center gap-1 text-[10.5px] font-semibold text-slate-500 mt-0.5 tabular-nums">
+                <Scale size={11} className="text-slate-400 shrink-0" />
+                <span>{d.kg} kg</span>
+              </div>
+            </div>
           </div>
 
           <div className="text-right shrink-0">
@@ -1087,36 +1071,14 @@ function MobileOrderCard({
             <span>Bayar</span>
           </button>
 
-          {phone ? (
-            <button
-              type="button"
-              onClick={handleWhatsAppChat}
-              className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
-            >
-              <MessageCircle size={12} className="stroke-[2.2]" />
-              <span>WA</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onInvoice}
-              className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
-            >
-              <FileText size={12} className="stroke-[2.2]" />
-              <span>Invoice</span>
-            </button>
-          )}
-
-          {phone && (
-            <button
-              type="button"
-              onClick={onInvoice}
-              title="Invoice"
-              className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 transition-all active:scale-98"
-            >
-              <FileText size={13} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onInvoice}
+            className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
+          >
+            <FileText size={12} className="stroke-[2.2]" />
+            <span>Invoice</span>
+          </button>
 
           <button
             type="button"
@@ -1206,16 +1168,10 @@ function MobileOrderCard({
               </div>
             </div>
 
-            {/* 3. Logistik: Berat Kargo & Rute Pengiriman */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-white p-2 border border-slate-200/70">
-                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Berat Kargo</span>
-                <span className="font-bold text-brand-navy text-[11px] mt-0.5 block">{d.kg} Kg</span>
-              </div>
-              <div className="rounded-xl bg-white p-2 border border-slate-200/70">
-                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Rute Pengiriman</span>
-                <span className="font-semibold text-slate-700 text-[11px] mt-0.5 block truncate">{order.pengiriman || "-"}</span>
-              </div>
+            {/* 3. Logistik: Rute Pengiriman */}
+            <div className="rounded-xl bg-white p-2 border border-slate-200/70 flex items-center justify-between gap-2 text-[11px]">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Rute Pengiriman</span>
+              <span className="font-semibold text-slate-700 truncate">{order.pengiriman || "-"}</span>
             </div>
 
             {/* 4. Catatan Khusus */}
