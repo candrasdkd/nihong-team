@@ -178,31 +178,35 @@ function ImagePreview({
 
 // ===== UI SUB-COMPONENTS =====
 
-function StatusPill({ status, onClick }: { status: string; onClick?: () => void }) {
+function StatusPill({ status, onClick, size = "md" }: { status: string; onClick?: () => void; size?: "sm" | "md" }) {
   const isDp = status === "DP Terbayar";
   const isDone = status === "Selesai";
 
-  let badgeClass = "bg-amber-50/80 text-amber-700 border-amber-200/60";
+  let badgeClass = "bg-amber-50 text-amber-700 border-amber-200/80";
   let dotBg = "bg-amber-500";
   let text = "Belum Bayar";
 
   if (isDp) {
-    badgeClass = "bg-indigo-50/80 text-indigo-700 border-indigo-200/60";
+    badgeClass = "bg-indigo-50 text-indigo-700 border-indigo-200/80";
     dotBg = "bg-indigo-500";
     text = "DP Terbayar";
   } else if (isDone) {
-    badgeClass = "bg-emerald-50/80 text-emerald-700 border-emerald-200/60";
+    badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200/80";
     dotBg = "bg-emerald-500";
     text = "Selesai";
   }
+
+  const sizeClass = size === "sm"
+    ? "px-2 py-0.5 text-[10px]"
+    : "px-2.5 py-0.5 text-[11px]";
 
   return (
     <button
       type="button"
       disabled={!onClick}
       onClick={(event) => { event.stopPropagation(); onClick?.(); }}
-      className={`inline-flex w-max shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs leading-4 font-bold border transition-all ${badgeClass} ${
-        onClick ? "cursor-pointer hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-offset-2" : ""
+      className={`inline-flex w-max shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full leading-tight font-bold border transition-all ${sizeClass} ${badgeClass} ${
+        onClick ? "cursor-pointer hover:shadow-2xs active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy" : ""
       }`}
       title={onClick ? "Klik untuk kelola pembayaran" : undefined}
     >
@@ -214,18 +218,21 @@ function StatusPill({ status, onClick }: { status: string; onClick?: () => void 
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   const initial = name ? name.charAt(0).toUpperCase() : "?";
   const colors = [
-    "from-blue-500 to-indigo-600 text-white shadow-blue-200/50",
-    "from-indigo-500 to-purple-600 text-white shadow-indigo-200/50",
-    "from-purple-500 to-pink-600 text-white shadow-purple-200/50",
-    "from-violet-500 to-fuchsia-600 text-white shadow-violet-200/50",
+    "from-blue-600 to-indigo-700 text-white shadow-blue-500/20",
+    "from-indigo-600 to-purple-700 text-white shadow-indigo-500/20",
+    "from-purple-600 to-pink-700 text-white shadow-purple-500/20",
+    "from-sky-600 to-blue-700 text-white shadow-sky-500/20",
   ];
   const colorIndex = name ? name.length % colors.length : 0;
+  const sizeClass = size === "sm"
+    ? "h-7 w-7 rounded-lg text-[10px]"
+    : "h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-[11px] sm:text-xs";
   return (
     <div
-      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-extrabold bg-gradient-to-br ${colors[colorIndex]} shadow-sm shrink-0 border border-white/20`}
+      className={`flex shrink-0 items-center justify-center bg-gradient-to-br font-black shadow-xs border border-white/20 ${sizeClass} ${colors[colorIndex]}`}
     >
       {initial}
     </div>
@@ -535,10 +542,10 @@ export function OrdersPage({
         </div>
 
         {/* ── Desktop Table View ── */}
-        <div className="bg-surface-card/80 backdrop-blur rounded-card border border-surface-border shadow-card overflow-hidden hidden sm:block">
+        <div className="hidden sm:block bg-surface-card/80 backdrop-blur rounded-card border border-surface-border shadow-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 border-b border-surface-border text-slate-400 uppercase tracking-widest text-[9px] font-extrabold">
+              <thead className="bg-slate-50 border-b border-surface-border text-slate-400 uppercase tracking-widest text-[9px] font-extrabold whitespace-nowrap">
                 <tr>
                   <th className="px-6 py-4 w-4">
                     <input
@@ -651,8 +658,17 @@ export function OrdersPage({
                         setShowForm(true);
                       }}
                       onDelete={() => handleDelete(o.id || "")}
+                      onInvoice={() => {
+                        setShowInvoice({
+                          show: true,
+                          order: o,
+                          itemIds: [o.id || ""],
+                        });
+                      }}
                       onPreview={(src: string | string[]) => {
-                        const cust = customers.find(c => c.nama === o.namaPelanggan);
+                        const cust = customers.find(
+                          (c) => c.nama === o.namaPelanggan,
+                        );
                         openPreview(src, cust?.telpon, o.namaPelanggan);
                       }}
                       onShowDetail={() => setSelectedOrderDetail(o)}
@@ -665,42 +681,78 @@ export function OrdersPage({
           </div>
         </div>
 
-        {/* ── Mobile Card View ── */}
-        <div className="sm:hidden space-y-4">
-          {displayedOrders.map((o) => (
-            <MobileCard
-              key={o.id || ""}
-              order={o}
-              unitPrice={unitPrice}
-              isSelected={selectedIds.includes(o.id || "")}
-              onToggleSelect={() =>
-                setSelectedIds((prev) => {
-                  const id = o.id || "";
-                  return prev.includes(id)
-                    ? prev.filter((x) => x !== id)
-                    : [...prev, id];
-                })
-              }
-              onEdit={() => {
-                setEditing(o);
-                setShowForm(true);
-              }}
-              onDelete={() => handleDelete(o.id || "")}
-              onPreview={(src: string | string[]) => {
-                const cust = customers.find(c => c.nama === o.namaPelanggan);
-                openPreview(src, cust?.telpon, o.namaPelanggan);
-              }}
-              onShowDetail={() => setSelectedOrderDetail(o)}
-              onPayment={() => setPaymentModalOrder(o)}
-            />
-          ))}
-          {displayedOrders.length === 0 && (
-            <div className="py-16 text-center">
-              <div className="inline-block bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3">
-                <Box className="w-6 h-6 text-slate-300" />
-              </div>
-              <p className="text-slate-400 text-sm font-semibold">Tidak ada pesanan.</p>
+        {/* ── Mobile Compact Card View ── */}
+        <div className="sm:hidden space-y-3">
+          {displayedOrders.length > 0 && (
+            <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-500">
+              <span>Menampilkan {displayedOrders.length} pesanan</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const allSelected = displayedOrders.every((o) => selectedIds.includes(o.id || ""));
+                  if (allSelected) {
+                    const displayedSet = new Set(displayedOrders.map((o) => o.id || ""));
+                    setSelectedIds((prev) => prev.filter((id) => !displayedSet.has(id)));
+                  } else {
+                    const newIds = new Set([...selectedIds, ...displayedOrders.map((o) => o.id || "")]);
+                    setSelectedIds(Array.from(newIds));
+                  }
+                }}
+                className="text-[11px] font-extrabold text-brand-navy hover:text-brand-orange transition-colors"
+              >
+                {displayedOrders.every((o) => selectedIds.includes(o.id || ""))
+                  ? "Batal Pilih Semua"
+                  : "Pilih Semua"}
+              </button>
             </div>
+          )}
+
+          {displayedOrders.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center shadow-xs">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <Box size={22} />
+              </div>
+              <p className="text-sm font-bold text-slate-600">Tidak ada pesanan ditemukan</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah filter atau kata kunci pencarian.</p>
+            </div>
+          ) : (
+            displayedOrders.map((o) => (
+              <MobileOrderCard
+                key={o.id || ""}
+                order={o}
+                unitPrice={unitPrice}
+                isSelected={selectedIds.includes(o.id || "")}
+                customers={customers}
+                onToggleSelect={() =>
+                  setSelectedIds((prev) => {
+                    const id = o.id || "";
+                    return prev.includes(id)
+                      ? prev.filter((x) => x !== id)
+                      : [...prev, id];
+                  })
+                }
+                onEdit={() => {
+                  setEditing(o);
+                  setShowForm(true);
+                }}
+                onDelete={() => handleDelete(o.id || "")}
+                onInvoice={() => {
+                  setShowInvoice({
+                    show: true,
+                    order: o,
+                    itemIds: [o.id || ""],
+                  });
+                }}
+                onPreview={(src: string | string[]) => {
+                  const cust = customers.find(
+                    (c) => c.nama === o.namaPelanggan,
+                  );
+                  openPreview(src, cust?.telpon, o.namaPelanggan);
+                }}
+                onShowDetail={() => setSelectedOrderDetail(o)}
+                onPayment={() => setPaymentModalOrder(o)}
+              />
+            ))
           )}
         </div>
 
@@ -907,7 +959,306 @@ export function OrdersPage({
   );
 }
 
-// ===== ROW COMPONENTS =====
+// ===== MOBILE ORDER CARD COMPONENT =====
+
+interface MobileOrderCardProps {
+  order: ExtendedOrder;
+  unitPrice: number;
+  isSelected: boolean;
+  customers: Customer[];
+  onToggleSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onInvoice: () => void;
+  onPreview: (src: string | string[]) => void;
+  onShowDetail: () => void;
+  onPayment: () => void;
+}
+
+function MobileOrderCard({
+  order,
+  unitPrice,
+  isSelected,
+  customers,
+  onToggleSelect,
+  onEdit,
+  onDelete,
+  onInvoice,
+  onPreview,
+  onShowDetail,
+  onPayment,
+}: MobileOrderCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const d = compute(order, unitPrice);
+  const payment = getPaymentSummary(order, d.totalPembayaran);
+
+  const itemsList = useMemo(() => {
+    return (order.namaBarang || "")
+      .split("\n")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }, [order.namaBarang]);
+
+  const cust = customers.find((c) => c.nama === order.namaPelanggan);
+  const phone = cust?.telpon;
+
+  const handleWhatsAppChat = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const firstName = order.namaPelanggan.split(" ")[0] || "Kak";
+    const formattedPrice = formatCurrency(d.totalPembayaran, d.currency);
+    const statusStr =
+      order.status === "Belum Membayar"
+        ? "belum bayar"
+        : order.status === "DP Terbayar"
+        ? "dp terbayar"
+        : "lunas";
+    const message = `Halo ${firstName} 👋\n\nKami ingin mengonfirmasi pesanan kamu dari *Nihong Jastip*:\n\n` +
+      `📦 *Nomor Order:* #${order.no}\n` +
+      `🛍️ *Barang:* ${order.namaBarang}\n` +
+      `⚖️ *Berat:* ${d.kg} Kg\n` +
+      `📍 *Rute:* ${order.pengiriman || "-"}\n` +
+      `💳 *Total Tagihan:* ${formattedPrice} (${statusStr.toUpperCase()})\n\n` +
+      `Terima kasih banyak ya! Jika ada pertanyaan, hubungi kami saja 😊🙏`;
+    openWhatsApp(phone, message);
+  };
+
+  return (
+    <div
+      className={`group relative rounded-2xl bg-white border transition-all duration-200 overflow-hidden ${
+        isSelected
+          ? "border-brand-navy ring-2 ring-brand-navy/20 bg-blue-50/10 shadow-sm"
+          : "border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:border-slate-300"
+      }`}
+    >
+      {/* ── Tampilan Utama Kartu (Card Header, Pelanggan, Tagihan & Aksi) ── */}
+      <div className="p-3 space-y-2">
+        {/* Baris 1: Tanggal & Status (Spacious, Full Width, Never Mepet) */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <label
+              className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded hover:bg-slate-100 transition-colors -ml-0.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="sr-only">Pilih pesanan {order.namaPelanggan}</span>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onToggleSelect}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-brand-navy focus:ring-brand-navy/20 cursor-pointer"
+              />
+            </label>
+            <span className="text-[11px] font-semibold text-slate-500 truncate">
+              {formatAndAddYear(order.tanggal)}
+            </span>
+          </div>
+
+          <StatusPill size="sm" status={String(order.status)} onClick={onPayment} />
+        </div>
+
+        {/* Baris 2: Nama Pelanggan & Total Tagihan */}
+        <div className="flex items-center justify-between gap-2.5 pt-0.5">
+          <div className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer" onClick={onShowDetail}>
+            <Avatar name={order.namaPelanggan || ""} size="sm" />
+            <h4 className="font-bold text-xs text-slate-900 tracking-tight truncate min-w-0" title={order.namaPelanggan}>
+              {order.namaPelanggan}
+            </h4>
+          </div>
+
+          <div className="text-right shrink-0">
+            <div className="font-extrabold text-[13.5px] text-brand-navy tracking-tight tabular-nums">
+              {formatCurrency(d.totalPembayaran, d.currency)}
+            </div>
+            <div className="flex items-center justify-end gap-1 text-[10px] font-bold text-emerald-600 tabular-nums mt-0.5">
+              <span className="text-[8.5px] font-semibold text-slate-400 uppercase tracking-wider">Profit</span>
+              {d.currency === "JPY" ? <FlagJP size="sm" /> : <FlagID size="sm" />}
+              <span>+{formatCurrency(d.totalKeuntungan, d.currency)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Baris 3: Button Actions (Langsung di Kartu Sesuai Permintaan) */}
+        <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onPayment}
+            className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
+          >
+            <CreditCard size={12} className="stroke-[2.2]" />
+            <span>Bayar</span>
+          </button>
+
+          {phone ? (
+            <button
+              type="button"
+              onClick={handleWhatsAppChat}
+              className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
+            >
+              <MessageCircle size={12} className="stroke-[2.2]" />
+              <span>WA</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onInvoice}
+              className="flex-1 flex h-[32px] items-center justify-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-2 text-[11px] font-bold transition-all active:scale-98"
+            >
+              <FileText size={12} className="stroke-[2.2]" />
+              <span>Invoice</span>
+            </button>
+          )}
+
+          {phone && (
+            <button
+              type="button"
+              onClick={onInvoice}
+              title="Invoice"
+              className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 transition-all active:scale-98"
+            >
+              <FileText size={13} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onEdit}
+            title="Edit"
+            className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 transition-all active:scale-98"
+          >
+            <Pencil size={13} />
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus"
+            className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 transition-all active:scale-98"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+
+        {/* Baris 4: Trigger Buka Lebih Banyak Info */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="flex w-full items-center justify-center gap-1 pt-0.5 text-[11px] font-semibold text-slate-400 hover:text-brand-orange transition-colors focus:outline-none"
+          aria-expanded={isExpanded}
+        >
+          <ChevronDown
+            size={13}
+            className={`transition-transform duration-200 ease-out ${
+              isExpanded ? "rotate-180 text-brand-orange" : "text-slate-400"
+            }`}
+          />
+          <span className={isExpanded ? "text-brand-orange font-bold" : ""}>
+            {isExpanded ? "Tutup info detail" : "Buka lebih banyak info"}
+          </span>
+        </button>
+      </div>
+
+      {/* ── Panel Info Lebih Detail (Hanya Info yg Belum Ada di Card) ── */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden border-t border-slate-100 bg-slate-50/60 px-3 py-2.5 space-y-2"
+          >
+            {/* 1. Detail Barang Titipan */}
+            <div className="rounded-xl bg-white p-2 border border-slate-200/70 shadow-2xs">
+              <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                <Package size={11} className="text-brand-orange" />
+                <span>Barang Titipan {itemsList.length > 1 ? `(${itemsList.length})` : ""}</span>
+              </div>
+              {itemsList.length <= 1 ? (
+                <p className="text-[11px] font-medium text-slate-800 break-words leading-snug">
+                  {order.namaBarang || "-"}
+                </p>
+              ) : (
+                <div className="max-h-32 overflow-y-auto space-y-0.5 text-[11px]">
+                  {itemsList.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-1.5 text-slate-700 leading-snug">
+                      <span className="text-brand-orange font-bold text-[9px] mt-0.5">•</span>
+                      <span className="font-medium">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Rincian Pembayaran (DP & Sisa Tagihan) */}
+            <div className="rounded-xl bg-white p-2 border border-slate-200/70 shadow-2xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">DP Masuk</span>
+                  <span className="text-[11px] font-bold text-indigo-700 tabular-nums">
+                    {payment.dp > 0 ? formatCurrency(payment.dp, d.currency) : "Belum dicatat"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Sisa Tagihan</span>
+                  <span className={`text-[11px] font-bold tabular-nums ${payment.remaining > 0 ? "text-amber-700" : "text-emerald-600"}`}>
+                    {payment.remaining > 0 ? formatCurrency(payment.remaining, d.currency) : "LUNAS"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Logistik: Berat Kargo & Rute Pengiriman */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-white p-2 border border-slate-200/70">
+                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Berat Kargo</span>
+                <span className="font-bold text-brand-navy text-[11px] mt-0.5 block">{d.kg} Kg</span>
+              </div>
+              <div className="rounded-xl bg-white p-2 border border-slate-200/70">
+                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Rute Pengiriman</span>
+                <span className="font-semibold text-slate-700 text-[11px] mt-0.5 block truncate">{order.pengiriman || "-"}</span>
+              </div>
+            </div>
+
+            {/* 4. Catatan Khusus */}
+            {order.catatan && (
+              <div className="rounded-xl bg-amber-50/80 border border-amber-200/60 p-2 text-[10.5px] font-medium italic text-amber-900 leading-relaxed">
+                <span className="font-bold not-italic">Catatan:</span> "{order.catatan}"
+              </div>
+            )}
+
+            {/* 5. Foto Barang */}
+            {order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0) && (
+              <button
+                type="button"
+                onClick={() => onPreview(order.imageUrl!)}
+                className="flex h-[32px] w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200/80 bg-white px-2.5 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+              >
+                <Maximize2 size={12} className="text-slate-500" />
+                <span>Lihat Foto Barang</span>
+                {Array.isArray(order.imageUrl) && order.imageUrl.length > 1 && (
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[9.5px] font-bold text-slate-600">
+                    {order.imageUrl.length} foto
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* 6. Tombol Modal Detail Lengkap */}
+            <button
+              type="button"
+              onClick={onShowDetail}
+              className="flex h-[32px] w-full items-center justify-center gap-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold transition-colors"
+            >
+              <Maximize2 size={12} />
+              <span>Buka Detail Penuh</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ===== ROW COMPONENTS (DESKTOP) =====
 
 function ExpandableRow({
   order,
@@ -918,6 +1269,7 @@ function ExpandableRow({
   onToggleSelect,
   onEdit,
   onDelete,
+  onInvoice,
   onPreview,
   onShowDetail,
   onPayment,
@@ -942,24 +1294,38 @@ function ExpandableRow({
             : "hover:bg-slate-50 border-l-transparent"
         }`}
       >
-        <td className="px-6 py-4 align-middle" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onToggleSelect}
-            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-          />
+        <td
+          className={`w-12 px-6 py-4 text-center align-middle transition-colors ${
+            isSelected
+              ? "bg-blue-50/50"
+              : "bg-surface-card group-hover:bg-slate-50"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <label className="flex cursor-pointer items-center justify-center">
+            <span className="sr-only">Pilih pesanan {order.namaPelanggan}</span>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelect}
+              className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
         </td>
         
         {/* Kolom Pelanggan */}
-        <td className="px-6 py-4 align-middle">
-          <div className="flex items-center gap-3">
+        <td
+          className={`min-w-[164px] px-6 py-4 align-middle transition-colors ${
+            isSelected ? "bg-blue-50/50" : "bg-surface-card group-hover:bg-slate-50"
+          }`}
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
             <Avatar name={order.namaPelanggan || ""} />
-            <div>
-              <div className="font-extrabold text-slate-800 text-xs sm:text-sm">
+            <div className="min-w-0">
+              <div className="truncate font-extrabold text-slate-800 text-sm" title={order.namaPelanggan}>
                 {order.namaPelanggan}
               </div>
-              <div className="text-[9px] text-slate-400 font-extrabold font-mono mt-0.5 uppercase tracking-wider">
+              <div className="mt-0.5 truncate font-mono text-[9px] font-extrabold uppercase tracking-wider text-slate-400" title={order.no ? `#${order.no}` : undefined}>
                 #{order.no}
               </div>
             </div>
@@ -967,10 +1333,10 @@ function ExpandableRow({
         </td>
         
         {/* Kolom Detail Barang */}
-        <td className="px-6 py-4 align-middle">
+        <td className="min-w-[240px] px-6 py-4 align-middle">
           {itemsList.length <= 1 ? (
             <div
-              className="text-slate-700 font-bold text-xs sm:text-sm line-clamp-2 max-w-[280px] leading-snug"
+              className="text-slate-700 font-bold text-sm line-clamp-2 max-w-[280px] leading-snug"
               title={order.namaBarang}
             >
               {order.namaBarang}
@@ -992,7 +1358,7 @@ function ExpandableRow({
                       e.stopPropagation();
                       setExpandedItems(false);
                     }}
-                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors pt-0.5"
+                    className="inline-flex items-center pt-0.5 text-[10px] font-bold text-slate-400 transition-colors hover:text-slate-600"
                   >
                     Ciutkan
                   </button>
@@ -1000,7 +1366,7 @@ function ExpandableRow({
               ) : (
                 <>
                   <div
-                    className="text-slate-700 font-bold text-xs sm:text-sm truncate"
+                    className="text-slate-700 font-bold text-sm truncate"
                     title={itemsList[0]}
                   >
                     • {itemsList[0]}
@@ -1011,7 +1377,7 @@ function ExpandableRow({
                       e.stopPropagation();
                       setExpandedItems(true);
                     }}
-                    className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                    className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
                   >
                     + {itemsList.length - 1} item lainnya…
                   </button>
@@ -1027,18 +1393,18 @@ function ExpandableRow({
         </td>
         
         {/* Status */}
-        <td className="px-6 py-4 align-middle" onClick={(e) => e.stopPropagation()}>
+        <td className="min-w-[132px] px-6 py-4 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           <StatusPill status={String(order.status)} onClick={onPayment} />
         </td>
         
         {/* Tagihan */}
-        <td className="px-6 py-4 align-middle text-right text-xs sm:text-sm">
+        <td className="min-w-[156px] px-6 py-4 text-right text-sm whitespace-nowrap">
           <PriceDisplay amount={d.totalPembayaran} currency={d.currency as CurrencyCode} showCurrency size="sm" />
           <OrderPaymentSummary order={order} total={d.totalPembayaran} currency={d.currency} compact compactAlign="right" />
         </td>
         
         {/* Profit */}
-        <td className="px-6 py-4 align-middle text-right font-black text-emerald-600 text-xs sm:text-sm">
+        <td className="min-w-[132px] px-6 py-4 text-right text-sm font-black text-emerald-600 whitespace-nowrap">
           <div className="flex items-center justify-end gap-1.5">
             {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
             <span>{formatCurrency(d.totalKeuntungan, d.currency)}</span>
@@ -1046,11 +1412,12 @@ function ExpandableRow({
         </td>
         
         {/* Foto Thumbnail */}
-        <td className="px-6 py-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
+        <td className="min-w-[68px] px-6 py-4 text-center align-middle" onClick={(e) => e.stopPropagation()}>
           {order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0) ? (
             <button
               onClick={() => onPreview(order.imageUrl!)}
-              className="relative group/img w-9 h-9 rounded-xl overflow-hidden border border-slate-200/80 inline-flex items-center justify-center align-middle shadow-sm bg-slate-50 hover:border-blue-500/50 transition-colors"
+              className="group/img relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 align-middle shadow-sm transition-colors hover:border-blue-500/50"
+              aria-label={`Lihat foto pesanan ${order.namaPelanggan}`}
             >
               <img
                 src={Array.isArray(order.imageUrl) ? order.imageUrl[0] : order.imageUrl}
@@ -1072,35 +1439,48 @@ function ExpandableRow({
         </td>
         
         {/* Aksi */}
-        <td className="px-6 py-4 align-middle text-center" onClick={(e) => e.stopPropagation()}>
-          <div className="flex justify-center items-center gap-1 transition-all duration-200">
+        <td className="min-w-[172px] px-6 py-4 text-center align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-center gap-1 transition-all duration-200">
             <button
               onClick={onPayment}
-              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
               title="Catat Pembayaran (DP & Pelunasan)"
+              aria-label={`Catat pembayaran ${order.namaPelanggan}`}
             >
               <CreditCard size={14} className="stroke-[2.5]" />
             </button>
             <button
+              onClick={onInvoice}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+              title="Buat Invoice"
+              aria-label={`Buat invoice ${order.namaPelanggan}`}
+            >
+              <FileText size={14} className="stroke-[2.5]" />
+            </button>
+            <button
               onClick={onEdit}
-              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
               title="Edit"
+              aria-label={`Edit pesanan ${order.namaPelanggan}`}
             >
               <Pencil size={14} className="stroke-[2.5]" />
             </button>
             <button
               onClick={onDelete}
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
               title="Hapus"
+              aria-label={`Hapus pesanan ${order.namaPelanggan}`}
             >
               <Trash2 size={14} className="stroke-[2.5]" />
             </button>
             <button
               onClick={onToggleExpand}
-              className={`p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200 ${
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700 ${
                 isExpanded ? "rotate-180 text-slate-700 bg-slate-100" : ""
               }`}
               title="Detail Manifest"
+              aria-label={`${isExpanded ? "Tutup" : "Buka"} detail manifest ${order.namaPelanggan}`}
+              aria-expanded={isExpanded}
             >
               <ChevronDown size={14} className="stroke-[2.5]" />
             </button>
@@ -1115,7 +1495,7 @@ function ExpandableRow({
             <motion.div 
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 md:grid-cols-12 gap-5 py-2 pl-6 pr-2 border-l-2 border-slate-200 ml-4"
+              className="grid w-full grid-cols-1 md:grid-cols-12 gap-5 py-2 pl-6 pr-2 ml-4 border-l-2 border-slate-200"
             >
               {/* Kolom Logistik & Rute (3 Kolom) */}
               <div className="md:col-span-3 space-y-3.5">
@@ -1186,117 +1566,6 @@ function ExpandableRow({
         </tr>
       )}
     </>
-  );
-}
-
-interface MobileCardProps {
-  order: ExtendedOrder;
-  unitPrice: number;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onPreview: (src: string | string[]) => void;
-  onShowDetail: () => void;
-  onPayment: () => void;
-}
-
-function MobileCard({
-  order, unitPrice, isSelected, onToggleSelect, onEdit, onDelete,
-  onPreview, onShowDetail, onPayment,
-}: MobileCardProps) {
-  const d = compute(order, unitPrice);
-  const payment = getPaymentSummary(order, d.totalPembayaran);
-  const hasImg = order.imageUrl && (!Array.isArray(order.imageUrl) || order.imageUrl.length > 0);
-  const showPaymentDetails = order.status !== "Selesai" && (payment.paid > 0 || order.status === "DP Terbayar");
-
-  return (
-    <article
-      onClick={onShowDetail}
-      aria-label={`Pesanan ${order.namaPelanggan}`}
-      className={`min-w-0 space-y-3 rounded-2xl border bg-white p-4 shadow-sm transition-colors ${
-        isSelected ? "border-blue-500 ring-2 ring-blue-500/10" : "border-slate-200/80"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        {hasImg ? (
-          <button type="button" aria-label={`Lihat foto ${order.namaBarang}`}
-            onClick={(event) => { event.stopPropagation(); onPreview(order.imageUrl!); }}
-            className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy">
-            <img src={Array.isArray(order.imageUrl) ? order.imageUrl[0] : order.imageUrl} className="h-full w-full object-cover" alt="" />
-          </button>
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-mist text-brand-navy">
-            <Box size={21} />
-          </div>
-        )}
-        <button type="button" onClick={(event) => { event.stopPropagation(); onShowDetail(); }}
-          aria-label={`Lihat detail pesanan ${order.namaPelanggan}`}
-          className="min-h-12 min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy">
-          <span className="block break-words text-base font-bold leading-snug text-slate-900">{order.namaPelanggan}</span>
-          <span className="mt-1 line-clamp-2 break-words text-sm leading-snug text-slate-500">{order.namaBarang}</span>
-        </button>
-        <label className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-slate-50" onClick={(event) => event.stopPropagation()}>
-          <input type="checkbox" checked={isSelected} onChange={onToggleSelect}
-            aria-label={`Pilih pesanan ${order.namaPelanggan}`}
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-slate-500">
-        <span>{formatAndAddYear(order.tanggal)}</span>
-        <span aria-hidden="true" className="text-slate-300">·</span>
-        <span className="font-semibold text-slate-600">{d.kg} kg</span>
-        {order.no && <span title={order.no} className="ml-auto max-w-full truncate text-slate-400">#{order.no}</span>}
-      </div>
-
-      <div className="space-y-3 rounded-xl bg-slate-50 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm text-slate-500">Total tagihan</span>
-          <StatusPill status={order.status || "Belum Membayar"} onClick={onPayment} />
-        </div>
-        <p className="break-words text-2xl font-bold leading-tight tracking-tight text-brand-navy tabular-nums">
-          {formatCurrency(d.totalPembayaran, d.currency)}
-        </p>
-        {showPaymentDetails && (
-          <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3 border-t border-slate-200/80 pt-3">
-            <div className="min-w-0">
-              <dt className="text-xs text-slate-500">DP masuk</dt>
-              <dd className="mt-1 break-words text-sm font-semibold leading-snug text-indigo-700 tabular-nums">
-                {payment.dp > 0 ? formatCurrency(payment.dp, d.currency) : "Belum dicatat"}
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-xs text-slate-500">Sisa tagihan</dt>
-              <dd className="mt-1 break-words text-sm font-bold leading-snug text-slate-800 tabular-nums">{formatCurrency(payment.remaining, d.currency)}</dd>
-            </div>
-          </dl>
-        )}
-        {order.status === "Selesai" && payment.dp > 0 && (
-          <p className="flex flex-wrap justify-between gap-x-2 gap-y-1 border-t border-slate-200/80 pt-2 text-xs leading-5">
-            <span className="text-slate-500">DP tercatat</span>
-            <span className="font-medium text-indigo-700 tabular-nums">{formatCurrency(payment.dp, d.currency)}</span>
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-wrap justify-between gap-2 px-1 text-xs">
-        <span className="text-slate-500">Profit pesanan</span>
-        <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(d.totalKeuntungan, d.currency)}</span>
-      </div>
-
-      <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-        <Button variant="secondary" onClick={onPayment} className="min-w-0 flex-1 !px-3 shadow-none">
-          <CreditCard size={17} className="shrink-0" />Pembayaran
-        </Button>
-        <Button variant="outline" size="icon" onClick={onEdit} aria-label={`Edit pesanan ${order.namaPelanggan}`} title="Edit pesanan" className="shrink-0">
-          <Pencil size={17} />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} aria-label={`Hapus pesanan ${order.namaPelanggan}`} title="Hapus pesanan" className="shrink-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-          <Trash2 size={17} />
-        </Button>
-      </div>
-    </article>
   );
 }
 
