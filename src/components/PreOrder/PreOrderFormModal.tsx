@@ -316,7 +316,7 @@ export function PreOrderFormModal({
           checked: item.checked ?? false
         })),
         totalKg,
-        status,
+        status: initial ? status : "Pending",
         catatan: catatan.trim(),
       });
       handleClose();
@@ -333,6 +333,7 @@ export function PreOrderFormModal({
   const labelClass = isRotated
     ? "text-[9px] font-bold text-slate-500 uppercase tracking-wider"
     : "text-xs font-bold text-slate-500 uppercase tracking-wider";
+  const statusOptions: PreOrderStatus[] = initial ? ["Pending", "Selesai"] : ["Pending"];
 
   // ── Landscape (rotated) layout ────────────────────────────────────────────
   if (isRotated) {
@@ -413,9 +414,21 @@ export function PreOrderFormModal({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelClass}>Status</label>
-                    <select value={status} onChange={(e) => setStatus(e.target.value as PreOrderStatus)} className={fieldClass}>
-                      {(["Pending", "Selesai"] as PreOrderStatus[]).map((s) => (
+                    <div className="flex items-center justify-between">
+                      <label className={labelClass}>Status</label>
+                      {!initial && (
+                        <span className="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded leading-none select-none">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={initial ? status : "Pending"}
+                      onChange={(e) => setStatus(e.target.value as PreOrderStatus)}
+                      disabled={!initial}
+                      className={`${fieldClass} ${!initial ? "cursor-not-allowed bg-slate-100/80 text-slate-500 select-none" : ""}`}
+                    >
+                      {statusOptions.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -693,9 +706,21 @@ export function PreOrderFormModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={labelClass}>Status</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value as PreOrderStatus)} className={fieldClass}>
-                  {(["Pending", "Selesai"] as PreOrderStatus[]).map((s) => (
+                <div className="flex items-center justify-between">
+                  <label className={labelClass}>Status</label>
+                  {!initial && (
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-lg select-none">
+                      Otomatis Pending
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={initial ? status : "Pending"}
+                  onChange={(e) => setStatus(e.target.value as PreOrderStatus)}
+                  disabled={!initial}
+                  className={`${fieldClass} ${!initial ? "cursor-not-allowed bg-slate-100/80 text-slate-500 select-none" : ""}`}
+                >
+                  {statusOptions.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>

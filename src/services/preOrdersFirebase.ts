@@ -68,7 +68,7 @@ export async function addPreOrder(
   const payload = {
     ...data,
     totalKg,
-    status: data.status || "Pending",
+    status: "Pending" as PreOrderStatus,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -174,9 +174,15 @@ export async function convertPreOrderToOrder(
       updatedAt: serverTimestamp(),
     });
 
-    // 2. Update status Pre Order menjadi "Selesai" secara atomik
+    // 2. Centang semua barang dan update status Pre Order menjadi "Selesai" secara atomik
+    const updatedItems = (preOrderData.items || []).map((item) => ({
+      ...item,
+      checked: true,
+    }));
+
     transaction.update(preOrderRef, {
       status: "Selesai" as PreOrderStatus,
+      items: updatedItems,
       convertedOrderId: newOrderRef.id,
       updatedAt: Date.now(),
     });
