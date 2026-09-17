@@ -7,11 +7,13 @@ import { Select } from "../components/ui/Select";
 import { Card } from "../components/ui/Card";
 import { StickyPageHeader } from "../components/ui/StickyPageHeader";
 import { formatIDR } from "../utils/format";
-import { buildPublicUrl } from "../utils/publicUrl";
+import { localDateInput } from "../utils/ledger";
+import { LedgerHistoryModal } from "../components/LedgerHistoryModal";
+import { LedgerShareModal } from "../components/LedgerShareModal";
+import { CapitalReturnModal } from "../components/CapitalReturnModal";
 import {
   type LedgerEntry,
   type LedgerUpsert,
-  type LedgerSummary,
 } from "../services/ledgerFirebase";
 import { useLedger } from "../hooks/useLedger";
 import { LedgerFormModal } from "../components/LedgerFormModal";
@@ -24,7 +26,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Search, Filter,
   Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft,
   X, FileText, Download, Check, Coins, CreditCard, Landmark, CircleDollarSign,
-  Activity, BarChart3, Eye, EyeOff, RotateCw, Share2
+  Activity, BarChart3, Eye, EyeOff, RotateCw, Share2, History
 } from "lucide-react";
 import { exportLedgerToExcel } from "../utils/exportExcel";
 import {
@@ -51,7 +53,7 @@ function endOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
 function formatGroupDate(dateStr: string) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateInput();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = toInputDate(yesterday);
@@ -307,7 +309,10 @@ function CategorySummaryCard({ data }: { data: { kategori: string; total: number
 }
 
 export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTrigger?: number; onFormTriggerConsumed?: () => void }) {
+  const [showHistory, setShowHistory] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const {
+    error, retry,
     q,
     setQ,
     typeFilter,
@@ -322,8 +327,6 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     setRows,
     globalSummary,
     syncingSummary,
-    limitValue,
-    setLimitValue,
     renderLimit,
     setRenderLimit,
     loading,
@@ -373,29 +376,13 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       ? globalSummary.totalKeluar
       : totalKeluar;
 
-  const handleShareReport = () => {
-    const params = new URLSearchParams();
-    params.set("share_ledger", "true");
-    if (dateFrom) params.set("from", dateFrom);
-    if (dateTo) params.set("to", dateTo);
-    if (typeFilter) params.set("type", typeFilter);
-    if (categoryFilter) params.set("category", categoryFilter);
-
-    const shareUrl = buildPublicUrl(
-      window.location.origin,
-      `/?${params.toString()}`,
-      import.meta.env.VITE_PUBLIC_APP_URL,
-    );
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert("Link laporan kas berhasil disalin!");
-    });
-  };
+  const handleShareReport = () => setShowShare(true);
+  const reportFilters = { q, type: typeFilter, category: categoryFilter, from: dateFrom, to: dateTo };
 
   const {
     pending,
     loading: loadingAdvances,
-    confirmModal: advConfirmModal,
-    setConfirmModal: setAdvConfirmModal,
+    error: capitalError, returning, setReturning,
     handleMarkReturned,
   } = useCapitalAdvance();
 
@@ -430,6 +417,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             <Button
               variant="outline"
               onClick={handleShareReport}
+              disabled={loading || !!error}
               className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
             >
               <Share2 className="w-4 h-4 text-indigo-600" />
@@ -438,6 +426,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             <Button
               variant="outline"
               onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
+              disabled={loading || !!error || !filtered.length}
               className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
             >
               <Download className="w-4 h-4 text-emerald-600" />
@@ -455,6 +444,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {(error || capitalError) && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 space-y-2"><p>{error || capitalError}</p>{error && <Button variant="outline" onClick={retry}>Coba lagi</Button>}</div>}
         {/* Capital Advance Tracker Panel */}
         <CapitalAdvanceTracker
           pending={pending}
@@ -462,7 +452,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           onMarkReturned={handleMarkReturned}
         />
         {/* Toolbar & Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-end sm:items-center bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-end lg:items-center bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-slate-100 shadow-sm">
           <div className="relative w-full sm:w-96">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="w-4 h-4" />
@@ -475,7 +465,8 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowHistory(true)} className="min-h-11 flex items-center gap-2"><History className="w-4 h-4" /><span>Riwayat</span></Button>
             {/* Desktop toggle chart */}
             <Button
               variant="outline"
@@ -551,7 +542,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             type="balance"
             sub={
               globalSummary && isViewingFilteredSummary
-                ? `Net flow filter: ${saldo >= 0 ? "+" : ""}${formatIDR(saldo)}`
+                ? `Selisih filter: ${saldo >= 0 ? "+" : ""}${formatIDR(saldo)}`
                 : undefined
             }
           />
@@ -634,7 +625,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                     <input
                       type="checkbox"
                       className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      checked={selectedIds.size === filtered.length && filtered.length > 0}
+                      checked={selectedCount === filtered.length && filtered.length > 0}
                       onChange={toggleSelectAll}
                       disabled={loading}
                     />
@@ -733,7 +724,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                                 <button
                                   onClick={() => handleDelete(r.id)}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="Hapus"
+                                  title="Batalkan transaksi"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -841,7 +832,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                                 handleDelete(r.id);
                               }}
                               className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                              aria-label="Hapus transaksi"
+                              aria-label="Batalkan transaksi"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
@@ -856,21 +847,13 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           </div>
           
           {/* Load More Fallback Button */}
-          {((q.trim() !== "" || isFiltered) ? renderLimit < filtered.length : rows.length >= limitValue) && (
+          {renderLimit < filtered.length && (
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-center">
               <Button
                 variant="outline"
                 disabled={loading}
                 onClick={() => {
-                  if (q.trim() !== "" || isFiltered) {
-                    setRenderLimit((prev) => prev + 50);
-                  } else {
-                    setLimitValue((prev) => {
-                      const next = prev + 50;
-                      setRenderLimit(next);
-                      return next;
-                    });
-                  }
+                  setRenderLimit(previous => previous + 50);
                 }}
                 className="w-full sm:w-auto h-10 px-6 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
               >
@@ -893,6 +876,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             }}
             defaults={{ from: defaultFrom, to: defaultTo, categories }}
             onApply={(p: any) => {
+              if (p.from && p.to && p.from > p.to) { alert("Tanggal awal tidak boleh melebihi tanggal akhir."); return; }
               setTypeFilter(p.type);
               setCategoryFilter(p.category);
               setDateFrom(p.from);
@@ -915,7 +899,12 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       <AnimatePresence>
         {showForm.open && (
           <LedgerFormModal
-            initial={showForm.editing ?? undefined}
+            initial={showForm.editing ? {
+              ...showForm.editing,
+              ...(pending.some(advance => advance.ledgerEntryIdKeluar === showForm.editing?.id) ? {
+                capitalAdvanceId: pending.find(advance => advance.ledgerEntryIdKeluar === showForm.editing?.id)!.id, capitalRole: "expense" as const,
+              } : {}),
+            } : undefined}
             onClose={() => setShowForm({ open: false, editing: null })}
             onSubmit={handleSubmitForm}
           />
@@ -923,7 +912,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       </AnimatePresence>
 
       {/* Mobile Share Report Button */}
-      {filtered.length > 0 && (
+      {!loading && !error && filtered.length > 0 && (
         <button
           onClick={handleShareReport}
           className="sm:hidden fixed bottom-52 right-6 z-35 h-12 w-12 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all animate-in slide-in-from-bottom-5 duration-200"
@@ -934,7 +923,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       )}
 
       {/* Mobile Export Excel Button */}
-      {filtered.length > 0 && (
+      {!loading && !error && filtered.length > 0 && (
         <button
           onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
           className="sm:hidden fixed bottom-36 right-6 z-35 h-12 w-12 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all animate-in slide-in-from-bottom-5 duration-200"
@@ -947,6 +936,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       {/* Mobile Floating Action Button */}
       <button
         onClick={() => setShowForm({ open: true, editing: null })}
+        aria-label="Tambah Transaksi"
         className={`sm:hidden fixed bottom-20 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-all z-35 ${FAB_COLOR_CLASS}`}
       >
         <Plus className="w-6 h-6" />
@@ -954,8 +944,8 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
 
       {/* Selection Summary Bar (Premium Floating Action Dock) */}
       <AnimatePresence>
-        {selectedIds.size > 0 && (
-          <div className="fixed bottom-24 sm:bottom-6 left-0 right-0 z-[80] flex justify-center px-4 pointer-events-none">
+        {selectedCount > 0 && (
+          <div key="ledger-selection" className="fixed bottom-24 sm:bottom-6 left-0 right-0 z-[80] flex justify-center px-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -999,7 +989,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                       className="h-9 px-3 text-xs bg-rose-600 hover:bg-rose-700 text-white border-none flex items-center gap-1.5 shadow-lg shadow-rose-900/30"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Hapus ({selectedCount})</span>
+                      <span>Batalkan ({selectedCount})</span>
                     </Button>
                   </div>
                 </div>
@@ -1010,6 +1000,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
 
         {confirmModal.isOpen && (
           <ConfirmModal
+            key="ledger-confirm"
             isOpen={confirmModal.isOpen}
             onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
             onConfirm={confirmModal.onConfirm}
@@ -1020,17 +1011,9 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           />
         )}
 
-        {advConfirmModal.isOpen && (
-          <ConfirmModal
-            isOpen={advConfirmModal.isOpen}
-            onClose={() => setAdvConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-            onConfirm={advConfirmModal.onConfirm}
-            title={advConfirmModal.title}
-            message={advConfirmModal.message}
-            confirmText={advConfirmModal.confirmText}
-            type={advConfirmModal.type}
-          />
-        )}
+        {returning && <CapitalReturnModal key="capital-return" advance={returning} onClose={() => setReturning(null)} />}
+        {showHistory && <LedgerHistoryModal key="ledger-history" rows={rows} onClose={() => setShowHistory(false)} />}
+        {showShare && <LedgerShareModal key="ledger-share" filters={reportFilters} onClose={() => setShowShare(false)} />}
       </AnimatePresence>
     </div>
   );

@@ -430,7 +430,7 @@ export default function App() {
   if (shareLedger) {
     return (
       <Suspense fallback={<PageSkeleton />}>
-        <SharedLedgerPage />
+        <SharedLedgerPage token={shareLedger} />
       </Suspense>
     );
   }

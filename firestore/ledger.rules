@@ -1,0 +1,45 @@
+// MERGE these matches and the helper into the existing /databases/{database}/documents block.
+// This is a scoped fragment, NOT a replacement for the project's other rules.
+// Provision ledger_admins/{Firebase Auth UID} with { active: true } through the console/Admin SDK.
+function isLedgerAdmin() {
+  return request.auth != null
+    && get(/databases/$(database)/documents/ledger_admins/$(request.auth.uid)).data.active == true;
+}
+match /ledger_admins/{uid} {
+  allow read, write: if false;
+}
+match /ledger/{id} {
+  allow read, create, update: if isLedgerAdmin();
+  allow delete: if false; // Cancellation is a revision, never a hard delete.
+}
+match /capitalAdvances/{id} {
+  allow read, create, update: if isLedgerAdmin();
+  allow delete: if false;
+}
+match /metadata/ledger_summary {
+  allow read, write: if isLedgerAdmin();
+}
+match /ledger_audit/{id} {
+  allow read, create: if isLedgerAdmin();
+  allow update, delete: if false;
+}
+match /ledger_reports/{token} {
+  allow get: if isLedgerAdmin() || (
+    token.matches('^[a-f0-9]{48}$')
+    && resource.data.revoked == false
+    && resource.data.expiresAt > request.time.toMillis()
+  );
+  allow list: if isLedgerAdmin();
+  allow create: if isLedgerAdmin()
+    && token.matches('^[a-f0-9]{48}$')
+    && request.resource.data.keys().hasOnly(['title', 'scope', 'rows', 'capturedAt', 'expiresAt', 'revoked'])
+    && request.resource.data.rows is list
+    && request.resource.data.revoked == false
+    && request.resource.data.expiresAt > request.time.toMillis()
+    && request.resource.data.expiresAt <= request.time.toMillis() + 31 * 86400000;
+  // Published snapshots cannot be expanded or edited. Revocation is permanent.
+  allow update: if isLedgerAdmin()
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked'])
+    && request.resource.data.revoked == true;
+  allow delete: if false;
+}

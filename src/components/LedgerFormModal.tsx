@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import type { LedgerEntry, LedgerUpsert } from "../services/ledgerFirebase";
 import { RupiahInput } from "./ui/RupiahInput";
 import { calculateProfitFromOrders } from "../services/ordersReport";
+import { localDateInput } from "../utils/ledger";
 import { formatIDR } from "../utils/format";
 import {
   Calendar,
@@ -38,7 +39,7 @@ function formatReadableDate(dateString: string): string {
 
 export function LedgerFormModal({
   initial,
-  onClose,
+  onClose: closeModal,
   onSubmit,
 }: {
   initial?: LedgerEntry;
@@ -46,7 +47,7 @@ export function LedgerFormModal({
   onSubmit: (val: LedgerUpsert, opts?: { trackAsCapital?: boolean }) => Promise<void> | void;
 }) {
   const [tanggal, setTanggal] = useState<string>(
-    initial?.tanggal || new Date().toISOString().slice(0, 10)
+    initial?.tanggal || localDateInput()
   );
   const [tipe, setTipe] = useState<"Masuk" | "Keluar">(
     initial?.tipe || "Masuk",
@@ -61,7 +62,9 @@ export function LedgerFormModal({
   const [jumlah, setJumlah] = useState<number>(initial?.jumlah || 0);
   const [catatan, setCatatan] = useState<string>(initial?.catatan || "");
   const [submitting, setSubmitting] = useState(false);
-  const [trackAsCapital, setTrackAsCapital] = useState(false);
+  const [trackAsCapital, setTrackAsCapital] = useState(initial?.capitalRole === "expense");
+  const [error, setError] = useState("");
+  const onClose = () => { if (!submitting) closeModal(); };
 
   // Keuntungan calculator
   const [profitCalcFrom, setProfitCalcFrom] = useState("");
@@ -131,6 +134,8 @@ export function LedgerFormModal({
   }
 
   async function handleSubmit() {
+    if (submitting) return;
+    setError("");
     if (!tanggal) {
       alert("Tanggal wajib diisi");
       return;
@@ -141,7 +146,7 @@ export function LedgerFormModal({
       );
       return;
     }
-    if (jumlah === 0 || isNaN(Number(jumlah))) {
+    if (!Number.isSafeInteger(jumlah) || jumlah <= 0) {
       alert(
         "Jumlah tidak valid atau nol. Jika ini adalah keuntungan bulanan, pastikan Anda sudah menghitungnya.",
       );
@@ -155,13 +160,15 @@ export function LedgerFormModal({
         tipe,
         kategori: kategori || null,
         keterangan: keterangan || null,
-        metode: tipe === "Masuk" ? null : (metode || null),
+        metode: metode || null,
         jumlah: Number(jumlah),
         catatan: catatan || null,
         createdAt: initial?.createdAt ?? Date.now(),
       };
       await onSubmit(val, { trackAsCapital });
-      onClose();
+      closeModal();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Transaksi gagal disimpan. Coba lagi.");
     } finally {
       setSubmitting(false);
     }
@@ -245,8 +252,10 @@ export function LedgerFormModal({
               <div className="flex bg-slate-100 p-1 rounded-xl relative">
                 <button
                   type="button"
+                  disabled={!!initial?.capitalAdvanceId}
                   onClick={() => {
                     setTipe("Masuk");
+                    setTrackAsCapital(false);
                     setKategori("");
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg z-10 transition-all flex items-center justify-center gap-1.5 ${tipe === "Masuk" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
@@ -333,7 +342,7 @@ export function LedgerFormModal({
                         value={profitCalcFrom}
                         onChange={(e) => setProfitCalcFrom(e.target.value)}
                         style={{ WebkitAppearance: "none", appearance: "none" }}
-                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-10 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[40px]"
+                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-11 text-base focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[44px]"
                       />
                     </div>
                     <div className="space-y-1">
@@ -343,7 +352,7 @@ export function LedgerFormModal({
                         value={profitCalcTo}
                         onChange={(e) => setProfitCalcTo(e.target.value)}
                         style={{ WebkitAppearance: "none", appearance: "none" }}
-                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-10 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[40px]"
+                        className="w-full bg-white border border-amber-200/70 text-slate-800 rounded-xl px-3 h-11 text-base focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 min-h-[44px]"
                       />
                     </div>
                   </div>
@@ -424,9 +433,9 @@ export function LedgerFormModal({
               </div>
             </div>
 
-            {/* Metode Pembayaran (Only for Keluar) */}
+            {/* Payment method is recorded for both incoming and outgoing cash. */}
             <AnimatePresence initial={false}>
-              {tipe === "Keluar" && (
+              {(tipe === "Keluar" || tipe === "Masuk") && (
                 <motion.div
                   initial={isSmall ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0 }}
                   animate={isSmall ? { opacity: 1 } : { opacity: 1, height: "auto", marginTop: 16 }}
@@ -450,17 +459,18 @@ export function LedgerFormModal({
                     </Select>
                   </div>
                   {/* Baru: Checkbox Modal Tracker */}
-                  <div className="mt-3.5 pt-1">
+                  {tipe === "Keluar" && <div className="mt-3.5 pt-1">
                     <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-600 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={trackAsCapital}
+                        disabled={!!initial?.capitalAdvanceId}
                         onChange={(e) => setTrackAsCapital(e.target.checked)}
                         className="rounded border-slate-300 text-rose-600 focus:ring-rose-500/20 h-4 w-4 cursor-pointer"
                       />
                       <span>Catat sebagai Modal Belanja (perlu ditrack pengembaliannya)</span>
                     </label>
-                  </div>
+                  </div>}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -514,6 +524,8 @@ export function LedgerFormModal({
 
         </div>
 
+        {error && <p role="alert" className="px-5 pb-3 text-sm text-rose-700">{error}</p>}
+        {initial?.capitalRole === "return" && <p className="px-5 pb-3 text-sm text-brand-navy">Untuk mengoreksi pengembalian modal, batalkan transaksi melalui Riwayat lalu catat ulang.</p>}
         {/* Footer */}
         <div className="sticky bottom-0 z-10 bg-slate-50 border-t border-slate-100 px-5 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
           <Button
@@ -525,7 +537,7 @@ export function LedgerFormModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || initial?.capitalRole === "return"}
             className={`text-white font-bold px-6 h-11 rounded-xl text-xs shadow-lg transition-all duration-300 flex items-center gap-2 ${themePrimaryButton}`}
           >
             {submitting ? (

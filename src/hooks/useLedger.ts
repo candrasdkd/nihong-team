@@ -5,12 +5,12 @@ import {
   createLedgerEntry,
   updateLedgerEntry,
   deleteLedgerEntry,
-  subscribeLedgerSummary,
+  voidLedgerEntries,
   recalculateLedgerSummary,
   type LedgerEntry,
   type LedgerUpsert,
-  type LedgerSummary,
 } from "../services/ledgerFirebase";
+import { filterLedger, summarizeLedger, visibleSelectedIds } from "../utils/ledger";
 import { MONTH_LABEL_ID } from "../utils/helpers";
 
 export function useLedger() {
@@ -29,38 +29,19 @@ export function useLedger() {
 
   // ===== Data =====
   const [rows, setRows] = useState<LedgerEntry[]>([]);
-  const [globalSummary, setGlobalSummary] = useState<LedgerSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const globalSummary = useMemo(() => summarizeLedger(rows), [rows]);
   const [syncingSummary, setSyncingSummary] = useState(false);
-  const [limitValue, setLimitValue] = useState(50);
   const [renderLimit, setRenderLimit] = useState(50);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showCharts, setShowCharts] = useState(true);
 
-  // Subscribe to global cash balance summary
-  useEffect(() => {
-    const unsub = subscribeLedgerSummary((summary) => {
-      setGlobalSummary(summary);
-    });
-    return () => unsub();
-  }, []);
-
-  // ===== Local text search =====
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      const matchesText =
-        !s ||
-        [r.keterangan, r.kategori, r.metode, r.catatan, r.tanggal].some((v) =>
-          String(v ?? "")
-            .toLowerCase()
-            .includes(s),
-        );
-      const matchesType = !typeFilter || r.tipe === typeFilter;
-      const matchesCategory = !categoryFilter || r.kategori === categoryFilter;
-      return matchesText && matchesType && matchesCategory;
-    });
-  }, [rows, q, typeFilter, categoryFilter]);
+  // One private subscription supplies complete charts and reports.
+  // Pagination limits rendering only; exporting never depends on how far the user scrolled.
+  const filtered = useMemo(() => filterLedger(rows, {
+    q, type: typeFilter, category: categoryFilter, from: dateFrom, to: dateTo,
+  }), [rows, q, typeFilter, categoryFilter, dateFrom, dateTo]);
 
   const displayedRows = useMemo(() => {
     return filtered.slice(0, renderLimit);
@@ -68,48 +49,28 @@ export function useLedger() {
 
   // Reset limits when filters change
   useEffect(() => {
-    setLimitValue(50);
     setRenderLimit(50);
+    setSelectedIds(new Set());
   }, [q, typeFilter, categoryFilter, dateFrom, dateTo]);
 
   const isFiltered = typeFilter !== "" || categoryFilter !== "" || dateFrom !== "" || dateTo !== "";
 
-  // Auto load more when scrolling near bottom
   useEffect(() => {
-    function handleScroll() {
-      if (loading) return;
-
-      const threshold = 150; // px from bottom
-      const isNearBottom =
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - threshold;
-        
-      if (!isNearBottom) return;
-
-      const isSearching = q.trim() !== "";
-      if (isSearching || isFiltered) {
-        if (renderLimit < filtered.length) {
-          setRenderLimit((prev) => prev + 50);
-        }
-      } else {
-        if (rows.length >= limitValue) {
-          setLimitValue((prev) => {
-            const next = prev + 50;
-            setRenderLimit(next);
-            return next;
-          });
-        }
+    const handleScroll = () => {
+      if (!loading && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 150) {
+        setRenderLimit(previous => Math.min(previous + 50, Math.max(50, filtered.length)));
       }
-    }
-    
+    };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [rows.length, filtered.length, limitValue, renderLimit, loading, q, isFiltered]);
+  }, [loading, filtered.length]);
 
   async function handleRecalculate() {
     setSyncingSummary(true);
     try {
       await recalculateLedgerSummary();
+      setRows(await fetchLedger());
+      setError(null);
       alert("Saldo kas berhasil disinkronisasi ulang!");
     } catch (err) {
       console.error("Gagal melakukan sinkronisasi:", err);
@@ -121,7 +82,7 @@ export function useLedger() {
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => r.kategori && set.add(r.kategori));
+    rows.forEach((r) => !r.voidedAt && r.kategori && set.add(r.kategori));
     return Array.from(set).sort();
   }, [rows]);
 
@@ -147,7 +108,7 @@ export function useLedger() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filtered.length && filtered.length > 0) {
+    if (visibleSelectedIds(filtered, selectedIds).length === filtered.length && filtered.length > 0) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filtered.map(r => r.id)));
@@ -241,66 +202,21 @@ export function useLedger() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [filtered]);
 
-  // ===== Fetch + Realtime =====
+  // ===== Realtime =====
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-
-    async function go() {
-      const isSearching = q.trim() !== "";
-      const isFiltered = typeFilter !== "" || categoryFilter !== "" || dateFrom !== "" || dateTo !== "";
-      setLoading(true);
-      try {
-        const queryLimit = (isSearching || isFiltered) ? undefined : limitValue;
-        const data = await fetchLedger({
-          from: dateFrom,
-          to: dateTo,
-          type: typeFilter || undefined,
-          category: categoryFilter || undefined,
-          limit: queryLimit,
-          order: { field: "tanggal", direction: "desc" },
-        });
-        const sortedData = [...data].sort((a, b) => {
-          const dateCompare = b.tanggal.localeCompare(a.tanggal);
-          if (dateCompare !== 0) return dateCompare;
-          return (b.createdAt ?? 0) - (a.createdAt ?? 0);
-        });
-        if (!cancelled) setRows(sortedData);
-      } catch (err) {
-        console.error("[useLedger] Error in fetchLedger:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-      
-      unsub = subscribeLedger(
-        {
-          from: dateFrom,
-          to: dateTo,
-          type: typeFilter || undefined,
-          category: categoryFilter || undefined,
-          limit: (q.trim() !== "" || isFiltered) ? undefined : limitValue,
-          order: { field: "tanggal", direction: "desc" },
-        },
-        (live) => {
-          const sortedLive = [...live].sort((a, b) => {
-            const dateCompare = b.tanggal.localeCompare(a.tanggal);
-            if (dateCompare !== 0) return dateCompare;
-            return (b.createdAt ?? 0) - (a.createdAt ?? 0);
-          });
-          if (!cancelled) setRows(sortedLive);
-        },
-        (err) => {
-          console.error("[useLedger] Error in subscribeLedger:", err);
-        }
-      );
-    }
-
-    go();
-    return () => {
-      cancelled = true;
-      if (unsub) unsub();
-    };
-  }, [dateFrom, dateTo, typeFilter, categoryFilter, limitValue, q]);
+    setLoading(true);
+    setError(null);
+    return subscribeLedger({}, live => {
+      setRows(live);
+      setLoading(false);
+      setError(null);
+    }, err => {
+      setLoading(false);
+      setError("Data kas gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
+      console.error("[useLedger]", err);
+    });
+  }, [reloadKey]);
 
   // ===== CRUD modal state =====
   const [showForm, setShowForm] = useState<{
@@ -325,42 +241,31 @@ export function useLedger() {
 
   async function handleDelete(id: string) {
     setConfirmModal({
-      isOpen: true,
-      title: "Hapus Transaksi",
-      message: "Apakah Anda yakin ingin menghapus transaksi ini secara permanen dari kas?",
-      confirmText: "Hapus",
-      type: "danger",
+      isOpen: true, title: "Batalkan Transaksi", type: "warning", confirmText: "Batalkan Transaksi",
+      message: "Transaksi dikeluarkan dari saldo, tetapi tetap tersimpan dan bisa dipulihkan melalui Riwayat.",
       onConfirm: async () => {
-        await deleteLedgerEntry(id);
+        try { await deleteLedgerEntry(id); }
+        catch (error) { alert(error instanceof Error ? error.message : "Pembatalan gagal."); throw error; }
       },
     });
   }
 
   async function handleBulkDelete() {
-    if (selectedIds.size === 0) return;
+    // Freeze precisely the selection shown by the UI at confirmation time.
+    const ids = visibleSelectedIds(filtered, selectedIds);
+    if (!ids.length) return;
     setConfirmModal({
-      isOpen: true,
-      title: "Hapus Transaksi Terpilih",
-      message: `Apakah Anda yakin ingin menghapus ${selectedIds.size} transaksi terpilih secara permanen?`,
-      confirmText: "Hapus Semua",
-      type: "danger",
+      isOpen: true, title: "Batalkan Transaksi Terpilih", type: "warning", confirmText: "Batalkan Transaksi",
+      message: `Batalkan ${ids.length} transaksi terpilih? Seluruh perubahan disimpan bersamaan dan dapat dipulihkan melalui Riwayat.`,
       onConfirm: async () => {
-        setLoading(true);
-        try {
-          await Promise.all(Array.from(selectedIds).map((id) => deleteLedgerEntry(id)));
-          setSelectedIds(new Set());
-        } catch (error) {
-          console.error("Gagal menghapus transaksi terpilih:", error);
-          alert("Terjadi kesalahan saat menghapus beberapa transaksi.");
-        } finally {
-          setLoading(false);
-        }
+        try { await voidLedgerEntries(ids); setSelectedIds(new Set()); }
+        catch (error) { alert(error instanceof Error ? error.message : "Pembatalan gagal."); throw error; }
       },
     });
   }
 
   async function handleSubmitForm(val: LedgerUpsert, opts?: { trackAsCapital?: boolean }) {
-    if (showForm.editing?.id) await updateLedgerEntry(showForm.editing.id, val);
+    if (showForm.editing?.id) await updateLedgerEntry(showForm.editing.id, val, { ...opts, expectedRevision: showForm.editing.revision || 0 });
     else await createLedgerEntry(val, opts);
   }
 
@@ -372,6 +277,7 @@ export function useLedger() {
   ].filter(Boolean).length;
 
   return {
+    error, retry: () => setReloadKey(value => value + 1),
     q,
     setQ,
     typeFilter,
@@ -387,8 +293,6 @@ export function useLedger() {
     setRows,
     globalSummary,
     syncingSummary,
-    limitValue,
-    setLimitValue,
     renderLimit,
     setRenderLimit,
     loading,

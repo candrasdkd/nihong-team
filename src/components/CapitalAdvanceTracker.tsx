@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type CapitalAdvance } from "../services/capitalAdvanceFirebase";
 import { formatIDR } from "../utils/format";
-import { formatAndAddYear } from "../utils/helpers";
+import { formatLedgerDate, getReturnedAmount } from "../utils/ledger";
 import { Coins, Calendar, FileText, CheckCircle2, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 
 interface CapitalAdvanceTrackerProps {
@@ -18,7 +18,7 @@ export function CapitalAdvanceTracker({
 }: CapitalAdvanceTrackerProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const totalPendingAmount = pending.reduce((sum, item) => sum + item.jumlah, 0);
+  const totalPendingAmount = pending.reduce((sum, item) => sum + item.jumlah - getReturnedAmount(item), 0);
 
   if (pending.length === 0 && !loading) {
     return null;
@@ -36,13 +36,13 @@ export function CapitalAdvanceTracker({
             <Coins className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800 flex flex-wrap items-center gap-2">
               <span>Modal Belanja Belum Kembali</span>
-              <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+              <span className="bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                 {pending.length} Transaksi
               </span>
             </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5 font-medium truncate">
+            <p className="text-sm text-slate-500 mt-1 leading-relaxed">
               Total modal aktif yang belum kembali: <span className="font-bold text-rose-600 font-mono">{formatIDR(totalPendingAmount)}</span>
             </p>
           </div>
@@ -85,18 +85,19 @@ export function CapitalAdvanceTracker({
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <span className="text-sm font-black font-mono text-slate-800">
-                            {formatIDR(adv.jumlah)}
+                            {formatIDR(adv.jumlah - getReturnedAmount(adv))}
                           </span>
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/50">
                             <AlertCircle className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
-                            Belum Kembali
+                            {getReturnedAmount(adv) > 0 ? "Kembali Sebagian" : "Belum Kembali"}
                           </span>
                         </div>
 
                         <div className="space-y-1.5 text-xs text-slate-600">
+                          <p>Modal {formatIDR(adv.jumlah)} · Kembali {formatIDR(getReturnedAmount(adv))}</p>
                           <div className="flex items-center gap-1.5 text-slate-400">
                             <Calendar className="w-3.5 h-3.5" />
-                            <span className="font-medium text-[11px]">{formatAndAddYear(adv.tanggalKeluar)}</span>
+                            <span className="font-medium text-[11px]">{formatLedgerDate(adv.tanggalKeluar)}</span>
                           </div>
                           {adv.keterangan ? (
                             <div className="flex items-start gap-1.5 text-slate-600">
@@ -115,10 +116,10 @@ export function CapitalAdvanceTracker({
                       <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-end">
                         <button
                           onClick={() => onMarkReturned(adv)}
-                          className="px-3.5 py-1.5 text-[11px] font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-100 hover:border-emerald-600 rounded-lg transition-all duration-200 flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                          className="min-h-11 px-3.5 py-2 text-sm font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-100 hover:border-emerald-600 rounded-lg transition-all duration-200 flex items-center gap-1.5 active:scale-95 cursor-pointer"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Tandai Kembali</span>
+                          <span>Catat Pengembalian</span>
                         </button>
                       </div>
                     </motion.div>

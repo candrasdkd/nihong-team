@@ -37,8 +37,9 @@ Aplikasi menyediakan portal mandiri yang dapat diakses langsung oleh pelanggan v
   - Tautan sekali pakai (*single-use*) dengan perlindungan penulisan ulang.
 - **Jadwal & Pre-Order Bersama (`/?share=<scheduleId>`)**:
   - Tautan pratinjau publik untuk mengecek detail jadwal tertentu.
-- **Laporan Kas Bersama (`/?share_ledger=1`)**:
-  - Tautan laporan pembukuan kas terproteksi untuk transparansi operasional.
+- **Laporan Kas Bersama (`/?share_ledger=<token>`)**:
+  - Salinan laporan dengan cakupan tetap, token acak 48 karakter, kedaluwarsa, dan pencabutan akses.
+  - Perlu aktivasi setelah aturan akses Firestore dipasang; lihat [panduan Buku Kas](firestore/LEDGER_SETUP.md). Link publik lama tidak lagi berlaku.
 
 ### 5. 🔍 Radar Jastip & Titipan Threads (`/jastiper-search`)
 - **Pusat Komunitas Utama**: Akses langsung ke topik emas Threads (`#JASTIP-JEPANG-TRUSTED`, `#bagasiindojepang`, `#jastipjepang`, Osaka, Tokyo, dll.) dengan parameter urutan terbaru (`&filter=recent`).
@@ -50,7 +51,10 @@ Aplikasi menyediakan portal mandiri yang dapat diakses langsung oleh pelanggan v
 
 ### 7. 💰 Pembukuan Kas (Ledger)
 - Pencatatan arus kas operasional (pemasukan & pengeluaran).
-- Kategori transaksi spesifik (Ongkir, Pajak, Bagasi Koper, Belanja Toko).
+- Saldo kas keseluruhan dan ekspor lengkap sesuai filter.
+- Modal belanja dengan pengembalian sebagian serta sinkronisasi transaksi asal.
+- Pembatalan dan pemulihan transaksi dengan riwayat sebelum/sesudah.
+- Sinkronisasi saldo yang memeriksa perubahan bersamaan dan tanggal kalender lokal.
 
 ---
 

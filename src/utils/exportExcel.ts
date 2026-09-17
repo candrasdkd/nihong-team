@@ -1,12 +1,13 @@
 import * as XLSX from "xlsx";
 import { LedgerEntry } from "../services/ledgerFirebase";
 import { ExtendedOrder } from "../types";
+import { formatLedgerDate } from "./ledger";
 import { compute } from "./helpers";
 
 export function exportLedgerToExcel(data: LedgerEntry[], filename: string = "Laporan_Kas.xlsx") {
   // Map data to the desired format for Excel
-  const exportData = data.map((entry) => ({
-    Tanggal: entry.tanggal,
+  const exportData = data.filter(entry => !entry.voidedAt).map((entry) => ({
+    Tanggal: formatLedgerDate(entry.tanggal),
     Keterangan: entry.keterangan || "Tanpa Keterangan",
     Kategori: entry.kategori || "-",
     "Tipe Transaksi": entry.tipe === "Masuk" ? "Pemasukan" : "Pengeluaran",
@@ -22,7 +23,7 @@ export function exportLedgerToExcel(data: LedgerEntry[], filename: string = "Lap
   
   // Set column widths for better visibility
   const wscols = [
-    { wch: 12 }, // Tanggal
+    { wch: 23 }, // Tanggal
     { wch: 30 }, // Keterangan
     { wch: 15 }, // Kategori
     { wch: 15 }, // Tipe
@@ -65,7 +66,7 @@ export function exportOrdersToExcel(orders: ExtendedOrder[], unitPrice: number, 
     { wch: 15 }, // Tagihan
     { wch: 15 }, // Profit
     { wch: 10 }, // Currency
-    { wch: 12 }, // Tanggal
+    { wch: 23 }, // Tanggal
   ];
   worksheet["!cols"] = wscols;
 
