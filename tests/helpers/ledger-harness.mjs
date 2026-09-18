@@ -36,6 +36,7 @@ export function ledgerHarness({ publicReportsEnabled = true, authenticated = tru
     limit: count => ({ count }),
     query: (ref, ...constraints) => ({ ...ref, constraints }),
     increment: value => ({ __increment: value }),
+    serverTimestamp: () => Date.now(),
     getDoc: async ref => { reads.push(ref.path); return snapshot(ref.path); },
     getDocs: async ref => {
       reads.push(ref.path);

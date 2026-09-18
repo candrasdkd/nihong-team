@@ -26,6 +26,9 @@ dev-dist
 .env.production.local
 *.local
 
+# Private maintenance backups (customer data, never commit)
+/backups/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

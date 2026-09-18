@@ -28,6 +28,7 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
   // 4. Selection Hook
   const selection = useOrdersSelection({
     orders: query.orders,
+    customers,
     selectedIds,
     setSelectedIds,
     showToast,
@@ -82,7 +83,7 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
     try {
       const dto = fromExtended(val);
       if (editing?.id) {
-        await updateOrder(editing.id, dto, unitPrice);
+        await updateOrder(editing.id, dto, unitPrice, { expectedRevision: editing.revision || 0 });
         showToast("Pesanan berhasil diperbarui", "success");
       } else {
         await createOrder(dto, unitPrice);
@@ -92,11 +93,14 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
       setEditing(null);
     } catch (err: any) {
       showToast(err.message || "Gagal menyimpan pesanan", "error");
+      throw err;
     }
   };
 
   return {
     // Query states
+    error: query.error,
+    retry: query.retry,
     q: query.q,
     setQ: query.setQ,
     statusFilter: query.statusFilter,
@@ -106,8 +110,6 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
     sortOrder: query.sortOrder,
     setSortOrder: query.setSortOrder,
     orders: query.orders,
-    limitValue: query.limitValue,
-    setLimitValue: query.setLimitValue,
     renderLimit: query.renderLimit,
     setRenderLimit: query.setRenderLimit,
     loading: query.loading,

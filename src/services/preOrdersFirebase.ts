@@ -152,6 +152,9 @@ export async function convertPreOrderToOrder(
   preOrderId: string,
   orderPayload: Record<string, any>,
 ) {
+  const totalPembayaran = Number(orderPayload.hargaJastipMarkup || 0) + Number(orderPayload.hargaOngkirMarkup || 0);
+  const totalKeuntungan = totalPembayaran - Number(orderPayload.hargaJastip || 0) - Number(orderPayload.hargaOngkir || 0);
+  const isJpy = orderPayload.tipeNominal === "JPY";
   const newOrderRef = doc(collection(db, "orders"));
   const preOrderRef = doc(db, COL, preOrderId);
   const monthKey = String(orderPayload.tanggal || "").substring(0, 7) || new Date().toISOString().substring(0, 7);
@@ -170,9 +173,12 @@ export async function convertPreOrderToOrder(
     // 1. Tulis dokumen Order baru
     transaction.set(newOrderRef, {
       ...orderPayload,
+      totalPembayaran, totalKeuntungan, revision: 1,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    transaction.set(doc(db, "metadata", "orders_revision"), { revision: increment(1) }, { merge: true });
 
     // 2. Centang semua barang dan update status Pre Order menjadi "Selesai" secara atomik
     const updatedItems = (preOrderData.items || []).map((item) => ({
@@ -192,19 +198,19 @@ export async function convertPreOrderToOrder(
 
     // 3. Update jumlah order bulanan di ringkasan (orderCount +1)
     transaction.set(summaryRef, {
-      revenueIdr: increment(0),
-      revenueJpy: increment(0),
-      profitIdr: increment(0),
-      profitJpy: increment(0),
+      revenueIdr: increment(isJpy ? 0 : totalPembayaran),
+      revenueJpy: increment(isJpy ? totalPembayaran : 0),
+      profitIdr: increment(isJpy ? 0 : totalKeuntungan),
+      profitJpy: increment(isJpy ? totalKeuntungan : 0),
       orderCount: increment(1)
     }, { merge: true });
 
     // 4. Update jumlah order milik customer terkait
     if (idPelanggan) {
-      const customerRef = doc(db, "customers", idPelanggan);
+      const customerRef = doc(db, "customer", idPelanggan);
       transaction.set(customerRef, {
-        totalSpendIdr: increment(0),
-        totalSpendJpy: increment(0),
+        totalSpendIdr: increment(isJpy ? 0 : totalPembayaran),
+        totalSpendJpy: increment(isJpy ? totalPembayaran : 0),
         orderCount: increment(1)
       }, { merge: true });
     }

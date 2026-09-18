@@ -10,6 +10,7 @@ import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { OrderFormModal } from "../components/OrderFormModal";
 import { InvoiceModal } from "../components/InvoiceModal";
+import { buildUnpaidRecap, resolveOrderCustomer } from "../utils/orders";
 import { useOrders } from "../hooks/useOrders";
 import {
   compute,
@@ -297,11 +298,9 @@ export function OrdersPage({
     sortOrder,
     setSortOrder,
     orders,
-    limitValue,
-    setLimitValue,
     renderLimit,
     setRenderLimit,
-    loading,
+    loading, error, retry,
     dateFrom,
     setDateFrom,
     dateTo,
@@ -353,34 +352,9 @@ export function OrdersPage({
   }, [formTrigger, onFormTriggerConsumed]);
 
   const handleShareAdminRekap = () => {
-    const unpaidList = sortedOrders.filter((o) => o.status !== "Selesai");
-    if (unpaidList.length === 0) {
-      alert("Tidak ada pesanan belum lunas untuk direkap.");
-      return;
-    }
-
-    const todayStr = new Date().toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-
-    let message = `*REKAP JASTIP BELUM LUNAS* 📦\nTanggal: ${todayStr}\n\n`;
-    let totalUnpaidAmount = 0;
-
-    unpaidList.forEach((o, i) => {
-      const d = compute(o, unitPrice);
-      const dp = Number(o.dpNominal || 0);
-      const sisa = Math.max(0, d.totalPembayaran - dp - Number(o.pelunasanNominal || 0));
-      totalUnpaidAmount += sisa;
-
-      const formattedTotal = formatCurrency(d.totalPembayaran, d.currency);
-      const statusNote = dp > 0 ? ` [DP: ${formatCurrency(dp, d.currency)}, Sisa: ${formatCurrency(sisa, d.currency)}]` : ` [Total: ${formattedTotal}]`;
-
-      message += `${i + 1}. *${o.namaPelanggan}* (${formatAndAddYear(o.tanggal)}) - ${statusNote} (${o.namaBarang})\n`;
-    });
-
-    message += `\n*Total Tagihan Belum Lunas:* ${formatCurrency(totalUnpaidAmount, "IDR")}`;
+    if (loading || error) return;
+    const message = buildUnpaidRecap(sortedOrders, unitPrice);
+    if (!message) { showToast("Tidak ada pesanan belum lunas untuk direkap.", "info"); return; }
 
     // Copy to clipboard
     navigator.clipboard.writeText(message).then(() => {
@@ -408,12 +382,15 @@ export function OrdersPage({
               <Button onClick={() => { setEditing(null); setShowForm(true); }} variant="primary" className="shadow-lg font-bold">
                 <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Buat Pesanan
               </Button>
-              <Button variant="outline" onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)} className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5">
+              <Button variant="outline" disabled={loading || Boolean(error)} onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)} className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5">
                 <Download className="w-4 h-4 mr-2" /> Export Excel
               </Button>
             </div>
           }
         />
+
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}<button onClick={retry} className="ml-3 min-h-11 font-bold underline">Coba lagi</button></div>}
+        {loading && <p role="status" className="text-sm text-slate-500">Memuat seluruh pesanan...</p>}
 
         {/* ── Mini Stats Grid ── */}
         <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -666,9 +643,7 @@ export function OrdersPage({
                         });
                       }}
                       onPreview={(src: string | string[]) => {
-                        const cust = customers.find(
-                          (c) => c.nama === o.namaPelanggan,
-                        );
+                        const cust = resolveOrderCustomer(o, customers);
                         openPreview(src, cust?.telpon, o.namaPelanggan);
                       }}
                       onShowDetail={() => setSelectedOrderDetail(o)}
@@ -744,9 +719,7 @@ export function OrdersPage({
                   });
                 }}
                 onPreview={(src: string | string[]) => {
-                  const cust = customers.find(
-                    (c) => c.nama === o.namaPelanggan,
-                  );
+                  const cust = resolveOrderCustomer(o, customers);
                   openPreview(src, cust?.telpon, o.namaPelanggan);
                 }}
                 onShowDetail={() => setSelectedOrderDetail(o)}
@@ -757,22 +730,12 @@ export function OrdersPage({
         </div>
 
         {/* Fallback "Muat Lebih Banyak" Button */}
-        {((q.trim() !== "" || sortBy !== "tanggal") ? renderLimit < sortedOrders.length : orders.length >= limitValue) && (
+        {(renderLimit < sortedOrders.length) && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
               onClick={() => {
-                const isSearching = q.trim() !== "";
-                const isSortingNonDate = sortBy !== "tanggal";
-                if (isSearching || isSortingNonDate) {
-                  setRenderLimit((prev) => prev + 50);
-                } else {
-                  setLimitValue((prev) => {
-                    const next = prev + 50;
-                    setRenderLimit(next);
-                    return next;
-                  });
-                }
+                setRenderLimit(previous => previous + 50);
               }}
               disabled={loading}
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center gap-2"
@@ -821,9 +784,8 @@ export function OrdersPage({
           order={showInvoice.order}
           orders={orders}
           itemIds={showInvoice.itemIds}
-          customer={customers.find(
-            (c) => c.nama === showInvoice.order!.namaPelanggan,
-          )}
+          customers={customers}
+          customer={resolveOrderCustomer(showInvoice.order, customers)}
           onClose={() => setShowInvoice({ show: false })}
           unitPrice={unitPrice}
         />
@@ -854,7 +816,7 @@ export function OrdersPage({
             setSelectedOrderDetail(null);
           }}
           onPreview={(src: string | string[]) => {
-            const cust = customers.find(c => c.nama === selectedOrderDetail.namaPelanggan);
+            const cust = resolveOrderCustomer(selectedOrderDetail, customers);
             openPreview(src, cust?.telpon, selectedOrderDetail.namaPelanggan);
           }}
           onPayment={() => {
@@ -917,6 +879,7 @@ export function OrdersPage({
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            disabled={loading || Boolean(error)}
             onClick={handleShareAdminRekap}
             className="fixed right-6 z-40 h-14 w-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-emerald-500/50 cursor-pointer bottom-36 sm:bottom-6"
             title="Share Rekap Admin ke WA"
@@ -948,7 +911,7 @@ export function OrdersPage({
           onClose={() => setPaymentModalOrder(null)}
           order={paymentModalOrder}
           unitPrice={unitPrice}
-          customerPhone={customers.find((c) => c.nama === paymentModalOrder.namaPelanggan)?.telpon}
+          customerPhone={resolveOrderCustomer(paymentModalOrder, customers)?.telpon}
           onPaymentUpdated={() => {
             // refresh trigger
           }}
@@ -1551,7 +1514,7 @@ function OrderDetailModal({
   onPayment,
 }: OrderDetailModalProps) {
   const d = compute(order, unitPrice);
-  const cust = customers.find((c) => c.nama === order.namaPelanggan);
+  const cust = resolveOrderCustomer(order, customers);
   const phone = cust?.telpon;
 
   // Listen to ESC key

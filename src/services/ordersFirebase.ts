@@ -4,6 +4,8 @@ import {
   doc,
   DocumentData,
   getDocs,
+  getDocsFromServer,
+  getDocFromServer,
   limit as qLimit,
   onSnapshot,
   orderBy,
@@ -29,6 +31,9 @@ import {
   startOfMonth,
   toInputDate,
 } from "../utils/helpers";
+
+import { storedOrderTotals } from "../utils/orderRepairs";
+import { getPaymentSummary } from "../utils/payment";
 
 // Referensi ke koleksi utama 'orders' di Firestore
 const ORDERS = collection(db, "orders");
@@ -99,16 +104,17 @@ export async function createOrder(raw: Partial<OrderDoc>, unitPrice: number) {
   const monthKey = String(payload.tanggal || "").substring(0, 7) || new Date().toISOString().substring(0, 7);
   const idPelanggan = String(payload.idPelanggan || "");
   
-  let newId = "";
+  const newDocRef = doc(colRef);
+  const newId = newDocRef.id;
+  payload.revision = 1;
   await runTransaction(db, async (transaction) => {
-    const newDocRef = doc(colRef);
-    newId = newDocRef.id;
     
     // Set timestamp pembuatan
     (payload as any).createdAt = serverTimestamp();
     
     // 1. Simpan dokumen pesanan utama
     transaction.set(newDocRef, payload);
+    transaction.set(doc(db, "metadata", "orders_revision"), { revision: increment(1) }, { merge: true });
     
     // 2. Update ringkasan bulanan (Monthly Summary) secara atomik menggunakan increment
     const summaryRef = doc(db, "orders_monthly_summaries", monthKey);
@@ -122,7 +128,7 @@ export async function createOrder(raw: Partial<OrderDoc>, unitPrice: number) {
     
     // 3. Update total belanja & jumlah order pada dokumen customer terkait
     if (idPelanggan) {
-      const customerRef = doc(db, "customers", idPelanggan);
+      const customerRef = doc(db, "customer", idPelanggan);
       transaction.set(customerRef, {
         totalSpendIdr: increment(isJpy ? 0 : rev),
         totalSpendJpy: increment(isJpy ? rev : 0),
@@ -146,9 +152,9 @@ export async function updateOrder(
   id: string,
   raw: Partial<OrderDoc>,
   unitPrice: number,
+  opts?: { expectedRevision?: number; expectedSnapshot?: string },
 ) {
   const docRef = doc(db, "orders", id);
-  const payload = prepareForWrite(raw, unitPrice);
   
   await runTransaction(db, async (transaction) => {
     // Ambil data lama order untuk perbandingan nominal
@@ -158,11 +164,32 @@ export async function updateOrder(
     }
     
     const oldData = snap.data();
+    if (opts?.expectedRevision !== undefined && (oldData.revision || 0) !== opts.expectedRevision) {
+      throw new Error("Pesanan berubah di perangkat lain. Tutup lalu buka ulang formulir.");
+    }
+    if (opts?.expectedSnapshot !== undefined && JSON.stringify(oldData) !== opts.expectedSnapshot) {
+      throw new Error("Data pesanan berubah sejak pratinjau. Buat pratinjau perbaikan ulang.");
+    }
+    // General order edits must never replace payment records from a stale form.
+    const merged = { ...oldData, ...raw };
+    for (const field of PAYMENT_FIELDS) merged[field] = oldData[field];
+    if ((Number(oldData.dpNominal) > 0 || Number(oldData.pelunasanNominal) > 0) && merged.tipeNominal !== oldData.tipeNominal) {
+      throw new Error("Mata uang tidak dapat diubah setelah pembayaran dicatat.");
+    }
+    const payload = prepareForWrite(merged, unitPrice);
+    if (Number(oldData.dpNominal) > 0 || Number(oldData.pelunasanNominal) > 0) {
+      payload.status = getPaymentSummary(oldData, Number(payload.totalPembayaran)).status;
+    }
+    payload.revision = (oldData.revision || 0) + 1;
     const oldIsJpy = oldData.tipeNominal === "JPY";
-    const oldRev = Number(oldData.totalPembayaran || 0);
-    const oldProf = Number(oldData.totalKeuntungan || 0);
+    const canonicalOld = storedOrderTotals(oldData);
     const oldMonthKey = String(oldData.tanggal || "").substring(0, 7) || new Date().toISOString().substring(0, 7);
     const oldIdPelanggan = String(oldData.idPelanggan || "");
+    const oldMonth = await transaction.get(doc(db, "orders_monthly_summaries", oldMonthKey));
+    const oldCustomer = oldIdPelanggan ? await transaction.get(doc(db, "customer", oldIdPelanggan)) : null;
+    const oldRev = oldMonth.data()?.calculationVersion === 2 ? canonicalOld.totalPembayaran : Number(oldData.totalPembayaran || 0);
+    const oldProf = oldMonth.data()?.calculationVersion === 2 ? canonicalOld.totalKeuntungan : Number(oldData.totalKeuntungan || 0);
+    const customerOldRev = oldCustomer?.data()?.calculationVersion === 2 ? canonicalOld.totalPembayaran : Number(oldData.totalPembayaran || 0);
     
     const newIsJpy = payload.tipeNominal === "JPY";
     const newRev = Number(payload.totalPembayaran || 0);
@@ -172,6 +199,7 @@ export async function updateOrder(
     
     // 1. Update dokumen pesanan utama
     transaction.update(docRef, payload);
+    transaction.set(doc(db, "metadata", "orders_revision"), { revision: increment(1) }, { merge: true });
     
     // 2. Sesuaikan ringkasan bulanan (Monthly Summary)
     if (oldMonthKey === newMonthKey) {
@@ -213,9 +241,9 @@ export async function updateOrder(
     // 3. Sesuaikan statistik total belanja customer
     if (oldIdPelanggan === newIdPelanggan) {
       if (oldIdPelanggan) {
-        const customerRef = doc(db, "customers", oldIdPelanggan);
-        const diffRevIdr = (newIsJpy ? 0 : newRev) - (oldIsJpy ? 0 : oldRev);
-        const diffRevJpy = (newIsJpy ? newRev : 0) - (oldIsJpy ? oldRev : 0);
+        const customerRef = doc(db, "customer", oldIdPelanggan);
+        const diffRevIdr = (newIsJpy ? 0 : newRev) - (oldIsJpy ? 0 : customerOldRev);
+        const diffRevJpy = (newIsJpy ? newRev : 0) - (oldIsJpy ? customerOldRev : 0);
         
         transaction.set(customerRef, {
           totalSpendIdr: increment(diffRevIdr),
@@ -225,15 +253,15 @@ export async function updateOrder(
     } else {
       // Jika pesanan dipindahkan ke customer lain
       if (oldIdPelanggan) {
-        const oldCustomerRef = doc(db, "customers", oldIdPelanggan);
+        const oldCustomerRef = doc(db, "customer", oldIdPelanggan);
         transaction.set(oldCustomerRef, {
-          totalSpendIdr: increment(oldIsJpy ? 0 : -oldRev),
-          totalSpendJpy: increment(oldIsJpy ? -oldRev : 0),
+          totalSpendIdr: increment(oldIsJpy ? 0 : -customerOldRev),
+          totalSpendJpy: increment(oldIsJpy ? -customerOldRev : 0),
           orderCount: increment(-1)
         }, { merge: true });
       }
       if (newIdPelanggan) {
-        const newCustomerRef = doc(db, "customers", newIdPelanggan);
+        const newCustomerRef = doc(db, "customer", newIdPelanggan);
         transaction.set(newCustomerRef, {
           totalSpendIdr: increment(newIsJpy ? 0 : newRev),
           totalSpendJpy: increment(newIsJpy ? newRev : 0),
@@ -273,13 +301,18 @@ export async function deleteOrder(id: string) {
     
     const data = snap.data();
     const isJpy = data.tipeNominal === "JPY";
-    const rev = Number(data.totalPembayaran || 0);
-    const prof = Number(data.totalKeuntungan || 0);
+    const canonical = storedOrderTotals(data);
     const monthKey = String(data.tanggal || "").substring(0, 7) || new Date().toISOString().substring(0, 7);
     const idPelanggan = String(data.idPelanggan || "");
+    const month = await transaction.get(doc(db, "orders_monthly_summaries", monthKey));
+    const customer = idPelanggan ? await transaction.get(doc(db, "customer", idPelanggan)) : null;
+    const rev = month.data()?.calculationVersion === 2 ? canonical.totalPembayaran : Number(data.totalPembayaran || 0);
+    const prof = month.data()?.calculationVersion === 2 ? canonical.totalKeuntungan : Number(data.totalKeuntungan || 0);
+    const customerRev = customer?.data()?.calculationVersion === 2 ? canonical.totalPembayaran : Number(data.totalPembayaran || 0);
     
     // 1. Hapus dokumen order utama
     transaction.delete(docRef);
+    transaction.set(doc(db, "metadata", "orders_revision"), { revision: increment(1) }, { merge: true });
     
     // 2. Kurangi nominal pada ringkasan bulanan
     const summaryRef = doc(ordersSummaryRef, monthKey);
@@ -293,10 +326,10 @@ export async function deleteOrder(id: string) {
     
     // 3. Kurangi total belanja customer
     if (idPelanggan) {
-      const customerRef = doc(db, "customers", idPelanggan);
+      const customerRef = doc(db, "customer", idPelanggan);
       transaction.set(customerRef, {
-        totalSpendIdr: increment(isJpy ? 0 : -rev),
-        totalSpendJpy: increment(isJpy ? -rev : 0),
+        totalSpendIdr: increment(isJpy ? 0 : -customerRev),
+        totalSpendJpy: increment(isJpy ? -customerRev : 0),
         orderCount: increment(-1)
       }, { merge: true });
     }
@@ -310,10 +343,12 @@ export function subscribeOrders(cb: (rows: OrderDoc[]) => void): Unsubscribe;
 export function subscribeOrders(
   opts: SubscribeOpts,
   cb: (rows: OrderDoc[]) => void,
+  onError?: (error: Error) => void,
 ): Unsubscribe;
 export function subscribeOrders(
   optsOrCb: SubscribeOpts | ((rows: OrderDoc[]) => void),
   maybeCb?: (rows: OrderDoc[]) => void,
+  onError?: (error: Error) => void,
 ): Unsubscribe {
   const now = new Date();
   const defaultFrom = toInputDate(
@@ -346,7 +381,7 @@ export function subscribeOrders(
   cons.push(orderBy("tanggal", sort));
 
   // Limit limit query untuk hemat kuota baca Firestore
-  if (Number.isFinite(limit)) cons.push(qLimit(limit));
+  if (typeof limit === "number" && Number.isFinite(limit)) cons.push(qLimit(limit));
 
   const qy = query(ORDERS, ...cons);
   return onSnapshot(qy, (snap) => {
@@ -355,7 +390,7 @@ export function subscribeOrders(
       id: d.id,
     }));
     cb(rows);
-  });
+  }, onError);
 }
 
 /**
@@ -409,6 +444,7 @@ export function toExtended(doc: OrderDoc): ExtendedOrder {
 export function fromExtended(ui: ExtendedOrder): OrderDoc {
   return {
     id: ui.id,
+    revision: ui.revision,
     no: ui.no,
     tanggal: ui.tanggal ?? "",
     idPelanggan: ui.idPelanggan,
@@ -472,80 +508,58 @@ export async function addTipeNominalToAllOrders(tipeNominal: string) {
  * dengan memindai total koleksi orders. Digunakan untuk sinkronisasi awal dashboard (Sync).
  */
 export async function recalculateAllStats() {
-  const ordersSnap = await getDocs(ORDERS);
-  
-  const monthlyStats: Record<string, { revenueIdr: number; revenueJpy: number; profitIdr: number; profitJpy: number; orderCount: number }> = {};
-  const customerStats: Record<string, { totalSpendIdr: number; totalSpendJpy: number; orderCount: number }> = {};
-  
-  // Melakukan pengelompokan (grouping) dan akumulasi data order di memori
-  ordersSnap.forEach((d) => {
-    const data = d.data();
-    const isJpy = data.tipeNominal === "JPY";
-    const rev = Number(data.totalPembayaran || 0);
-    const prof = Number(data.totalKeuntungan || 0);
-    const monthKey = String(data.tanggal || "").substring(0, 7) || new Date().toISOString().substring(0, 7);
-    const idPelanggan = String(data.idPelanggan || "");
-    
-    // Kelompokkan data per Bulan
-    if (!monthlyStats[monthKey]) {
-      monthlyStats[monthKey] = { revenueIdr: 0, revenueJpy: 0, profitIdr: 0, profitJpy: 0, orderCount: 0 };
-    }
-    monthlyStats[monthKey].orderCount += 1;
-    if (isJpy) {
-      monthlyStats[monthKey].revenueJpy += rev;
-      monthlyStats[monthKey].profitJpy += prof;
-    } else {
-      monthlyStats[monthKey].revenueIdr += rev;
-      monthlyStats[monthKey].profitIdr += prof;
-    }
-    
-    // Kelompokkan data per Customer
-    if (idPelanggan) {
-      if (!customerStats[idPelanggan]) {
-        customerStats[idPelanggan] = { totalSpendIdr: 0, totalSpendJpy: 0, orderCount: 0 };
-      }
-      customerStats[idPelanggan].orderCount += 1;
-      if (isJpy) {
-        customerStats[idPelanggan].totalSpendJpy += rev;
-      } else {
-        customerStats[idPelanggan].totalSpendIdr += rev;
+  const revisionRef = doc(db, "metadata", "orders_revision");
+  // Every order mutation increments this revision. A scan can only publish
+  // aggregates while its source revision still matches the server.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const baseline = await getDocFromServer(revisionRef);
+    const revision = baseline.data()?.revision || 0;
+    const [ordersSnap, monthsSnap, customersSnap] = await Promise.all([
+      getDocsFromServer(ORDERS),
+      getDocsFromServer(collection(db, "orders_monthly_summaries")),
+      getDocsFromServer(collection(db, "customer")),
+    ]);
+    const monthly = new Map<string, { revenueIdr: number; revenueJpy: number; profitIdr: number; profitJpy: number; orderCount: number }>();
+    const customers = new Map<string, { totalSpendIdr: number; totalSpendJpy: number; orderCount: number }>();
+    const emptyMonth = () => ({ revenueIdr: 0, revenueJpy: 0, profitIdr: 0, profitJpy: 0, orderCount: 0 });
+    monthsSnap.docs.forEach(item => monthly.set(item.id, emptyMonth()));
+    customersSnap.docs.forEach(item => customers.set(item.id, { totalSpendIdr: 0, totalSpendJpy: 0, orderCount: 0 }));
+    for (const item of ordersSnap.docs) {
+      const row = item.data();
+      const month = String(row.tanggal || "").slice(0, 7);
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error(`Tanggal pesanan ${item.id} tidak valid. Perbaiki tanggal sebelum sinkronisasi.`);
+      const totals = storedOrderTotals(row);
+      if (!Number.isFinite(totals.totalPembayaran) || !Number.isFinite(totals.totalKeuntungan)) throw new Error(`Nominal pesanan ${item.id} tidak valid.`);
+      const stats = monthly.get(month) || emptyMonth();
+      stats.orderCount++;
+      if (row.tipeNominal === "JPY") { stats.revenueJpy += totals.totalPembayaran; stats.profitJpy += totals.totalKeuntungan; }
+      else { stats.revenueIdr += totals.totalPembayaran; stats.profitIdr += totals.totalKeuntungan; }
+      monthly.set(month, stats);
+      const customer = customers.get(row.idPelanggan);
+      if (customer) {
+        customer.orderCount++;
+        if (row.tipeNominal === "JPY") customer.totalSpendJpy += totals.totalPembayaran;
+        else customer.totalSpendIdr += totals.totalPembayaran;
       }
     }
-  });
-  
-  // Satukan semua operasi tulis ke dalam flat array
-  const ops: Array<{ ref: any; data: any; options?: { merge: boolean } }> = [];
-  
-  // 1. Tambahkan ringkasan bulanan ke operasi batch
-  Object.entries(monthlyStats).forEach(([month, stats]) => {
-    const ref = doc(db, "orders_monthly_summaries", month);
-    ops.push({ ref, data: { ...stats, lastUpdated: Date.now() } });
-  });
-  
-  // 2. Tambahkan belanja customer ke operasi batch
-  Object.entries(customerStats).forEach(([custId, stats]) => {
-    const ref = doc(db, "customers", custId);
-    ops.push({ ref, data: stats, options: { merge: true } });
-  });
-
-  // Commit batch per 500 operasi sekaligus
-  const BATCH_LIMIT = 500;
-  for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    const chunk = ops.slice(i, i + BATCH_LIMIT);
-    
-    chunk.forEach((op) => {
-      if (op.options) {
-        batch.set(op.ref, op.data, op.options);
-      } else {
-        batch.set(op.ref, op.data);
+    const operations = [
+      ...[...monthly].map(([id, data]) => ({ ref: doc(db, "orders_monthly_summaries", id), data: { ...data, lastUpdated: Date.now() } })),
+      ...[...customers].map(([id, data]) => ({ ref: doc(db, "customer", id), data })),
+    ];
+    try {
+      for (let index = 0; index < Math.max(operations.length, 1); index += 400) {
+        await runTransaction(db, async transaction => {
+          const current = await transaction.get(revisionRef);
+          if ((current.data()?.revision || 0) !== revision) throw new Error("ORDER_SCAN_CHANGED");
+          for (const operation of operations.slice(index, index + 400)) transaction.set(operation.ref, { ...operation.data, calculationVersion: 2 }, { merge: true });
+        });
       }
-    });
-    
-    await batch.commit();
+      return;
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "ORDER_SCAN_CHANGED") throw error;
+    }
   }
-  
-  console.log("✔ Statistik Dashboard dan data belanja Pelanggan berhasil disinkronisasi.");
+  throw new Error("Pesanan sedang berubah. Coba sinkronisasi lagi setelah aktivitas penyimpanan selesai.");
 }
 
 export function subscribeMonthlySummaries(onData: (rows: any[]) => void) {
@@ -593,33 +607,30 @@ export function subscribeActiveOrders(cb: (rows: OrderDoc[]) => void): Unsubscri
 /**
  * Memperbarui status pembayaran pesanan (DP & Pelunasan) secara fleksibel.
  */
+const PAYMENT_FIELDS = ["dpNominal", "dpTanggal", "dpMetode", "dpCatatan", "pelunasanNominal", "pelunasanTanggal", "pelunasanMetode", "pelunasanCatatan"] as const;
+
 export async function updateOrderPayment(
   orderId: string,
-  data: {
-    status: OrderStatus;
-    dpNominal?: number;
-    dpTanggal?: string;
-    dpMetode?: string;
-    dpCatatan?: string;
-    pelunasanNominal?: number;
-    pelunasanTanggal?: string;
-    pelunasanMetode?: string;
-    pelunasanCatatan?: string;
-  }
+  data: Partial<Pick<OrderDoc, typeof PAYMENT_FIELDS[number]>> & { status?: OrderStatus },
+  expectedRevision?: number,
 ) {
   const docRef = doc(db, "orders", orderId);
-  const updatePayload: Record<string, any> = {
-    status: data.status,
-    updatedAt: serverTimestamp(),
-  };
-  if (data.dpNominal !== undefined) updatePayload.dpNominal = Number(data.dpNominal || 0);
-  if (data.dpTanggal !== undefined) updatePayload.dpTanggal = data.dpTanggal;
-  if (data.dpMetode !== undefined) updatePayload.dpMetode = data.dpMetode;
-  if (data.dpCatatan !== undefined) updatePayload.dpCatatan = data.dpCatatan;
-  if (data.pelunasanNominal !== undefined) updatePayload.pelunasanNominal = Number(data.pelunasanNominal || 0);
-  if (data.pelunasanTanggal !== undefined) updatePayload.pelunasanTanggal = data.pelunasanTanggal;
-  if (data.pelunasanMetode !== undefined) updatePayload.pelunasanMetode = data.pelunasanMetode;
-  if (data.pelunasanCatatan !== undefined) updatePayload.pelunasanCatatan = data.pelunasanCatatan;
-
-  await setDoc(docRef, updatePayload, { merge: true });
+  for (const field of ["dpNominal", "pelunasanNominal"] as const) {
+    const amount = data[field];
+    if (amount !== undefined && (!Number.isSafeInteger(amount) || amount < 0)) throw new Error("Nominal pembayaran harus berupa bilangan bulat nol atau lebih.");
+  }
+  await runTransaction(db, async transaction => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) throw new Error("Pesanan tidak ditemukan.");
+    const current = snap.data();
+    if (expectedRevision !== undefined && (current.revision || 0) !== expectedRevision) {
+      throw new Error("Pembayaran atau pesanan telah berubah. Tutup lalu buka ulang formulir.");
+    }
+    const update: Record<string, any> = { updatedAt: serverTimestamp(), revision: (current.revision || 0) + 1 };
+    for (const field of PAYMENT_FIELDS) if (data[field] !== undefined) update[field] = data[field];
+    const total = Number(current.hargaJastipMarkup || 0) + Number(current.hargaOngkirMarkup || 0);
+    update.status = getPaymentSummary({ ...current, ...update }, total).status;
+    transaction.update(docRef, update);
+    transaction.set(doc(db, "metadata", "orders_revision"), { revision: increment(1) }, { merge: true });
+  });
 }

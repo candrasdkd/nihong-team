@@ -95,7 +95,7 @@ export function computeDerived(input: Partial<OrderDoc>, unitPrice: number) {
   const baseJastip = Number(input.hargaJastip ?? 0);
   const jastipMarkup = Number(input.hargaJastipMarkup ?? 0);
   const ongkirMarkup = Number(input.hargaOngkirMarkup ?? 0);
-  const totalPembayaran = baseJastip + baseOngkir;
+  const totalPembayaran = jastipMarkup + ongkirMarkup;
   const totalKeuntungan =
     jastipMarkup + ongkirMarkup - (baseOngkir + baseJastip);
   return {

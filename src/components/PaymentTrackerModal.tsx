@@ -162,7 +162,7 @@ export function PaymentTrackerModal({
         dpTanggal,
         dpMetode,
         dpCatatan,
-      });
+      }, order.revision || 0);
 
       showToast?.(
         isFullyPaid
@@ -198,7 +198,7 @@ export function PaymentTrackerModal({
         pelunasanTanggal,
         pelunasanMetode,
         pelunasanCatatan,
-      });
+      }, order.revision || 0);
 
       showToast?.(
         nextStatus === "Selesai" ? "Pelunasan berhasil dicatat!" : "Pembayaran dicatat. Masih ada sisa tagihan.",

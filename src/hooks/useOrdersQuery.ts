@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ExtendedOrder } from "../types";
 import { subscribeOrders, toExtended } from "../services/ordersFirebase";
+import { filterOrders } from "../utils/orders";
 import { compute } from "../utils/helpers";
 
 interface UseOrdersQueryProps {
@@ -16,13 +17,17 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
   const [sortBy, setSortBy] = useState<string>(searchParams.get("sortBy") ?? "tanggal");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
-  const [limitValue, setLimitValue] = useState(50);
+  const [allOrders, setAllOrders] = useState<ExtendedOrder[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [renderLimit, setRenderLimit] = useState(50);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [dateFrom, setDateFrom] = useState<string>(searchParams.get("from") ?? "");
   const [dateTo, setDateTo] = useState<string>(searchParams.get("to") ?? "");
+
+  const orders = useMemo(() => filterOrders(allOrders, { q, status: statusFilter, from: dateFrom, to: dateTo }), [allOrders, q, statusFilter, dateFrom, dateTo]);
+  useEffect(() => { onOrdersUpdated?.(orders); }, [orders, onOrdersUpdated]);
 
   // Sync filters to URL search params
   useEffect(() => {
@@ -129,82 +134,37 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
   }, [orders, unitPrice]);
 
   useEffect(() => {
-    setLimitValue(50);
     setRenderLimit(50);
   }, [q, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
 
   useEffect(() => {
     setLoading(true);
-    const isSearching = q.trim() !== "";
-    const isSortingNonDate = sortBy !== "tanggal";
-    const queryLimit = (isSearching || isSortingNonDate) ? undefined : limitValue;
-    const querySort = sortBy === "tanggal" ? (sortOrder as "asc" | "desc") : "desc";
-
-    const unsub = subscribeOrders(
-      {
-        status: statusFilter,
-        fromInput: dateFrom,
-        toInput: dateTo,
-        limit: queryLimit,
-        sort: querySort,
-      },
-      (rows) => {
-        const ex = rows.map(toExtended);
-        const filtered = q ? ex.filter((o) => matchSearch(o, q)) : ex;
-        setOrders(filtered);
-        if (onOrdersUpdated) {
-          onOrdersUpdated(filtered);
-        }
-        setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, [q, statusFilter, dateFrom, dateTo, limitValue, sortBy, sortOrder]);
+    setError(null);
+    // Load the full private dataset once. Filters, exports and sorting share it;
+    // the 50-row limit applies only to rendering.
+    return subscribeOrders({ fromInput: "", toInput: "", limit: null, sort: "desc" }, rows => {
+      setAllOrders(rows.map(toExtended));
+      setLoading(false);
+      setError(null);
+    }, () => {
+      setAllOrders([]);
+      setLoading(false);
+      setError("Pesanan gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
+    });
+  }, [reloadKey]);
 
   useEffect(() => {
     function handleScroll() {
-      if (loading) return;
-
-      const threshold = 150;
-      const isNearBottom =
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - threshold;
-
-      if (!isNearBottom) return;
-
-      const isSearching = q.trim() !== "";
-      const isSortingNonDate = sortBy !== "tanggal";
-
-      if (isSearching || isSortingNonDate) {
-        if (renderLimit < sortedOrders.length) {
-          setRenderLimit((prev) => prev + 50);
-        }
-      } else {
-        if (orders.length >= limitValue) {
-          setLimitValue((prev) => {
-            const next = prev + 50;
-            setRenderLimit(next);
-            return next;
-          });
-        }
+      if (!loading && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 150) {
+        setRenderLimit(previous => Math.min(previous + 50, Math.max(50, sortedOrders.length)));
       }
     }
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [orders.length, sortedOrders.length, limitValue, renderLimit, loading, q, sortBy]);
-
-  function matchSearch(o: ExtendedOrder, query: string) {
-    if (!query) return true;
-    const s = query.trim().toLowerCase();
-    return [o.no, o.namaBarang, o.namaPelanggan, o.catatan].some((field) =>
-      String(field ?? "")
-        .toLowerCase()
-        .includes(s),
-    );
-  }
+  }, [loading, sortedOrders.length]);
 
   return {
+    error, retry: () => setReloadKey(value => value + 1),
     q,
     setQ,
     statusFilter,
@@ -214,8 +174,6 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     sortOrder,
     setSortOrder,
     orders,
-    limitValue,
-    setLimitValue,
     renderLimit,
     setRenderLimit,
     loading,

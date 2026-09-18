@@ -17,12 +17,14 @@ export type TabId =
   | string;
 
 export interface Order {
+  idPelanggan?: string;
   id?: string;
   no: string;
   namaBarang: string;
   kategori?: string;
   tanggal: string;
   namaPelanggan: string;
+  revision?: number;
   jumlahKg: number;
   totalHarga?: number;
   status?: OrderStatus;
@@ -77,7 +79,7 @@ export type SubscribeOpts = {
   fromInput?: string; // yyyy-MM-dd (inklusif, 00:00)
   toInput?: string; // yyyy-MM-dd (inklusif, 23:59:59)
   sort?: "asc" | "desc"; // default 'desc'
-  limit?: number; // default 250
+  limit?: number | null; // default 250; null explicitly requests the complete result
 };
 // ===== Type Definitions =====
 export type ExtendedOrder = Order &
@@ -92,6 +94,7 @@ export type ExtendedOrder = Order &
   }>;
 
 export type OrderDoc = {
+  revision?: number;
   id: string;
   no: string;
   tanggal: string; // format dianjurkan: 'yyyy-MM-dd' agar range query & sorting valid

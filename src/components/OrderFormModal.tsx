@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Customer, Order } from "../types";
+import { resolveOrderCustomer } from "../utils/orders";
 import { todayStr } from "../utils/helpers";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
@@ -86,6 +87,7 @@ export function OrderFormModal({
   const [no] = useState(initial?.no || `ORD-${new Date().getTime()}`);
   const [tanggal, setTanggal] = useState(initial?.tanggal || todayStr());
   const [namaPelanggan, setNamaPelanggan] = useState(initial?.namaPelanggan || "");
+  const [idPelanggan, setIdPelanggan] = useState(() => initial?.idPelanggan || (initial ? resolveOrderCustomer(initial, customers)?.id : "") || "");
   const [jumlahKg, setJumlahKg] = useState<number>(initial?.jumlahKg || 1);
   const [jumlahKgStr, setJumlahKgStr] = useState<string>(() =>
     initial?.jumlahKg != null ? String(initial.jumlahKg) : "1"
@@ -289,8 +291,8 @@ export function OrderFormModal({
     e.preventDefault();
     if (loading) return;
 
-    if (customerEmpty) {
-      alert("Nama Pelanggan wajib diisi.");
+    if (customerEmpty || !idPelanggan) {
+      alert("Pilih pelanggan yang terdaftar agar pesanan terhubung ke pelanggan yang benar.");
       return;
     }
 
@@ -311,6 +313,7 @@ export function OrderFormModal({
         kategori: "",
         tanggal,
         namaPelanggan,
+        idPelanggan,
         jumlahKg: num(jumlahKg),
         totalHarga: baseOngkir,
         status,
@@ -351,7 +354,7 @@ export function OrderFormModal({
       if (c.alamat) parts.push(c.alamat);
       return {
         label: c.nama,
-        value: c.nama,
+        value: c.id || "",
         sublabel: parts.length > 0 ? parts.join(" • ") : undefined,
       };
     });
@@ -562,8 +565,12 @@ export function OrderFormModal({
                   <div>
                     {renderLabel("Nama Pelanggan", namaPelanggan, true)}
                     <SearchableSelect
-                      value={namaPelanggan}
-                      onChange={setNamaPelanggan}
+                      value={idPelanggan}
+                      onChange={id => {
+                        const customer = customers.find(item => item.id === id);
+                        setIdPelanggan(id);
+                        setNamaPelanggan(customer?.nama || "");
+                      }}
                       options={customerOptions}
                       disabled={loading}
                       onAddOption={handleAddCustomer}
@@ -891,6 +898,7 @@ export function OrderFormModal({
               alamatPengirimanJepang: values.alamatPengirimanJepang,
             });
             setNamaPelanggan(newCust.nama);
+            setIdPelanggan(newCust.id || "");
             setCustomerModalOpen(false);
           }}
         />

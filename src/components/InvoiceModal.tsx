@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
 import { Customer, ExtendedOrder } from "../types";
+import { invoiceSelectionError, summarizeInvoice } from "../utils/orders";
+import { formatLedgerDate } from "../utils/ledger";
 import { formatCurrency } from "../utils/format";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
@@ -32,38 +34,9 @@ function compute(o: ExtendedOrder, unitPrice: number) {
   return { kg, jastipMarkup, ongkirMarkup, lineTotal, keuntungan, currency };
 }
 
-const getStatusBadge = (orderOrStatus: ExtendedOrder | string, grandTotal = 0) => {
-  const s = (typeof orderOrStatus === "string" ? orderOrStatus : String(orderOrStatus.status || "")).toLowerCase();
-
-  if (s.includes("batal")) {
-    return { text: "DIBATALKAN", bgColor: "#dc2626", textColor: "#fff" };
-  }
-
-  // Jika order object diteruskan, cek apakah sudah lunas sepenuhnya
-  if (typeof orderOrStatus !== "string") {
-    const order = orderOrStatus;
-    const dpNominal = Number(order.dpNominal || 0);
-    const pelunasanNominal = Number(order.pelunasanNominal || 0);
-    const totalPaid = dpNominal + pelunasanNominal;
-    const remaining = Math.max(0, grandTotal - totalPaid);
-
-    // Jika masih ada sisa pembayaran (mau DP ataupun menunggu pelunasan), invoice fokus TAGIHAN
-    if (remaining > 0 && (dpNominal > 0 || grandTotal > 0)) {
-      return { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
-    }
-
-    if ((grandTotal > 0 && remaining === 0 && (dpNominal > 0 || pelunasanNominal > 0)) || (order.status === "Selesai" && dpNominal === 0)) {
-      return { text: "LUNAS", bgColor: "#059669", textColor: "#fff" };
-    }
-  }
-
-  if (s.includes("selesai") || s.includes("lunas")) {
-    return { text: "LUNAS", bgColor: "#059669", textColor: "#fff" };
-  }
-
-  // Mau DP ataupun nunggu pelunasan, stempel fokus TAGIHAN
-  return { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
-};
+const getStatusBadge = (remaining: number, total: number) => total > 0 && remaining === 0
+  ? { text: "LUNAS", bgColor: "#059669", textColor: "#fff" }
+  : { text: "TAGIHAN", bgColor: "#f59e0b", textColor: "#fff" };
 
 function getFlagComponent(flagEmoji?: string, size = "4.2mm") {
   const style = { width: size, height: size };
@@ -137,7 +110,7 @@ const InvoicePaper = React.forwardRef(
   ({ order, items, customer, totals, grandTotal, badge, unitPrice }: any, ref: any) => {
     const invoiceNo = `INV/${(order as any).no || "NEW"}/${new Date().getFullYear()}`;
     const invoiceDate = order.tanggal
-      ? new Date(order.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+      ? formatLedgerDate(order.tanggal)
       : new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
     return (
@@ -609,7 +582,7 @@ const InvoicePaper = React.forwardRef(
                 overflow: "hidden",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
               }}>
-                {Number(order.dpNominal || 0) > 0 ? (
+                {totals.dp + totals.settlement > 0 ? (
                   <>
                     <div style={{ padding: "2.8mm 4mm", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: "2.7mm", color: "#64748b", fontWeight: 600 }}>Total Pesanan</span>
@@ -620,30 +593,29 @@ const InvoicePaper = React.forwardRef(
                     <div style={{ padding: "2.5mm 4mm", borderBottom: "1px solid #e2e8f0", background: "#f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", flexDirection: "column" }}>
                         <span style={{ fontSize: "2.6mm", color: "#334155", fontWeight: 700 }}>DP Terbayar</span>
-                        {order.dpMetode && (
-                          <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{order.dpMetode}</span>
+                        {totals.dpMetode && (
+                          <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{totals.dpMetode}</span>
                         )}
                       </div>
                       <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
-                        ✓ {formatCurrency(order.dpNominal, totals.currency)}
+                        ✓ {formatCurrency(totals.dp, totals.currency)}
                       </span>
                     </div>
-                    {Number(order.pelunasanNominal || 0) > 0 && (
+                    {totals.settlement > 0 && (
                       <div style={{ padding: "2.5mm 4mm", borderBottom: "1px solid #e2e8f0", background: "#f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
                           <span style={{ fontSize: "2.6mm", color: "#334155", fontWeight: 700 }}>Pelunasan Terbayar</span>
-                          {order.pelunasanMetode && (
-                            <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{order.pelunasanMetode}</span>
+                          {totals.pelunasanMetode && (
+                            <span style={{ fontSize: "2.1mm", color: "#64748b" }}>{totals.pelunasanMetode}</span>
                           )}
                         </div>
                         <span style={{ fontSize: "2.9mm", fontFamily: "monospace", color: "#059669", fontWeight: 700 }}>
-                          ✓ {formatCurrency(order.pelunasanNominal, totals.currency)}
+                          ✓ {formatCurrency(totals.settlement, totals.currency)}
                         </span>
                       </div>
                     )}
                     {(() => {
-                      const totalPaid = Number(order.dpNominal || 0) + Number(order.pelunasanNominal || 0);
-                      const remaining = Math.max(0, grandTotal - totalPaid);
+                      const remaining = totals.remaining;
                       const isLunas = remaining === 0 && grandTotal > 0;
 
                       return (
@@ -807,6 +779,7 @@ export function InvoiceModal({
   onClose,
   unitPrice,
   itemIds,
+  customers = [],
 }: {
   order: ExtendedOrder;
   orders: ExtendedOrder[];
@@ -814,6 +787,7 @@ export function InvoiceModal({
   onClose: () => void;
   unitPrice: number;
   itemIds?: string[];
+  customers?: Customer[];
 }) {
   const hiddenPrintRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -840,24 +814,20 @@ export function InvoiceModal({
       const set = new Set(itemIds);
       return pool.filter((o) => set.has(o.id || ""));
     }
-    return pool.filter((o) => o.namaPelanggan === order.namaPelanggan);
-  }, [orders, itemIds, order.namaPelanggan]);
+    return pool.filter((o) => o.id === order.id);
+  }, [orders, itemIds, order.id]);
 
-  const totals = useMemo(() => {
-    return items.reduce(
-      (acc, it) => {
-        const d = compute(it, unitPrice);
-        acc.subtotal += d.lineTotal;
-        if (!acc.currency) acc.currency = d.currency;
-        return acc;
-      },
-      { subtotal: 0, currency: "" },
-    );
-  }, [items, unitPrice]);
-
+  const selectionError = (itemIds?.length && items.length !== new Set(itemIds).size)
+    ? "Beberapa pesanan tidak tersedia. Tutup lalu pilih ulang invoice."
+    : invoiceSelectionError(items, customers);
+  const totals = useMemo(() => ({
+    ...summarizeInvoice(selectionError ? [] : items, unitPrice),
+    dpMetode: [...new Set(items.filter(item => Number(item.dpNominal) > 0).map(item => item.dpMetode).filter(Boolean))].join(", "),
+    pelunasanMetode: [...new Set(items.filter(item => Number(item.pelunasanNominal) > 0).map(item => item.pelunasanMetode).filter(Boolean))].join(", "),
+  }), [items, unitPrice, selectionError]);
   const grandTotal = totals.subtotal;
-  const displayCurrency = totals.currency || "IDR";
-  const badge = getStatusBadge(order, grandTotal);
+  const displayCurrency = totals.currency;
+  const badge = getStatusBadge(totals.remaining, grandTotal);
 
   async function downloadPDF() {
     if (!hiddenPrintRef.current) return;
@@ -914,6 +884,8 @@ export function InvoiceModal({
     badge,
     unitPrice,
   };
+
+  if (selectionError) return <Modal title="Invoice tidak dapat dibuat" onClose={onClose}><p role="alert" className="text-sm text-rose-700">{selectionError}</p></Modal>;
 
   return (
     <Modal
