@@ -19,10 +19,10 @@ const COL = "departure_schedules";
 
 /**
  * Mendengarkan daftar Jadwal Keberangkatan secara real-time.
- * Diurutkan berdasarkan tanggal keberangkatan terbaru.
+ * Diurutkan berdasarkan tanggal keberangkatan terdekat (ascending).
  */
 export function listenSchedules(cb: (rows: DepartureSchedule[]) => void) {
-  const q = query(collection(db, COL), orderBy("tanggalBerangkat", "desc"));
+  const q = query(collection(db, COL), orderBy("tanggalBerangkat", "asc"));
   return onSnapshot(q, (snap) => {
     const rows = snap.docs.map((d) => ({
       id: d.id,

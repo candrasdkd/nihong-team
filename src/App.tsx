@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "./hooks/useReducedMotion";
 
 // Skeletons
-import { PageSkeleton, DashboardSkeleton, OrdersSkeleton } from "./components/Skeletons";
+import { PageSkeleton, OrdersSkeleton } from "./components/Skeletons";
 
 // Global UI
 import { ToastContainer, useToastManager } from "./components/ui/Toast";
@@ -41,14 +41,9 @@ import { AuthProvider, useAuth } from "./context/authContext";
 import { SettingsProvider, useSettings } from "./context/settingsContext";
 
 // Types & Services
-import { Customer, Order } from "./types";
+import { Customer } from "./types";
 import { listenCustomers } from "./services/customersFirebase";
-import {
-  subscribeActiveOrders,
-  subscribeMonthlySummaries,
-  recalculateAllStats,
-  toExtended
-} from "./services/ordersFirebase";
+import { recalculateAllStats } from "./services/ordersFirebase";
 import { checkAndProcessExpiredSchedules } from "./services/preOrdersFirebase";
 
 
@@ -58,17 +53,8 @@ import logo from "./assets/nihong.png";
 // Route wrapper components
 function DashboardRoute() {
   const navigate = useNavigate();
-  const { orders, customers, monthlySummaries, customersLoading, ordersLoading } = useOutletContext<any>();
-
-  if ((orders.length === 0 || customers.length === 0) && (customersLoading || ordersLoading)) {
-    return <DashboardSkeleton />;
-  }
-
   return (
     <Dashboard
-      activeOrders={orders}
-      monthlySummaries={monthlySummaries}
-      customers={customers}
       onSeeAllOrders={() => navigate("/orders")}
       setActiveFeature={(feature) => navigate(`/${feature}`)}
       onRecalculateStats={recalculateAllStats}
@@ -158,11 +144,8 @@ function AppShell() {
   const [ledgerFormTrigger, setLedgerFormTrigger] = useState(0);
   const [scheduleFormTrigger, setScheduleFormTrigger] = useState(0);
 
-  const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
-  const [ordersLoading, setOrdersLoading] = useState(true);
-  const [monthlySummaries, setMonthlySummaries] = useState<any[]>([]);
 
   // Resolve current active tab key from location path
   const currentTab = location.pathname === "/"
@@ -187,36 +170,13 @@ function AppShell() {
 
   // 🔊 Realtime customers
   useEffect(() => {
-    if (!user || (currentTab !== "home" && currentTab !== "orders")) return;
+    if (!user || currentTab !== "orders") return;
     const unsub = listenCustomers((rows) => {
       setCustomers(rows as Customer[]);
       setCustomersLoading(false);
     });
     return () => unsub();
   }, [user, currentTab]);
-
-  // 🔊 Realtime Active Orders
-  useEffect(() => {
-    if (!user || currentTab !== "home") return;
-    const unsub = subscribeActiveOrders((rows) => {
-      setOrders(rows.map(toExtended) as Order[]);
-      setOrdersLoading(false);
-    });
-    return () => unsub();
-  }, [user, currentTab]);
-
-  // 🔊 Realtime Monthly Order Summaries
-  useEffect(() => {
-    if (!user || currentTab !== "home") return;
-    const unsub = subscribeMonthlySummaries((data) => {
-      setMonthlySummaries(data);
-    });
-    return () => unsub();
-  }, [user, currentTab]);
-
-
-
-
 
   return (
     <motion.div
@@ -268,11 +228,8 @@ function AppShell() {
                 <ErrorBoundary>
                   <Outlet
                     context={{
-                      orders,
                       customers,
-                      monthlySummaries,
                       customersLoading,
-                      ordersLoading,
                       orderFormTrigger,
                       setOrderFormTrigger,
                       preorderFormTrigger,

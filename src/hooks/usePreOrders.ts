@@ -14,7 +14,7 @@ import { PreOrder, DepartureSchedule, Customer } from "../types";
 import { addPreOrder, updatePreOrder, deletePreOrder } from "../services/preOrdersFirebase";
 import { listenSchedules } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
-import { formatDate, formatIDR } from "../utils/format";
+import { formatDate, formatIDR, compareDepartureDates } from "../utils/format";
 
 const COL = "pre_orders";
 
@@ -153,7 +153,12 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
 
   // 4. Listen to other core collections
   useEffect(() => {
-    const unsubS = listenSchedules((rows) => setSchedules(rows));
+    const unsubS = listenSchedules((rows) => {
+      const sorted = [...rows].sort((a, b) =>
+        compareDepartureDates(a.tanggalBerangkat, b.tanggalBerangkat)
+      );
+      setSchedules(sorted);
+    });
     const unsubC = listenCustomers((rows) => setCustomers(rows));
     return () => {
       unsubS();
@@ -210,6 +215,8 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
         });
       }
     });
+
+    list.sort((a, b) => compareDepartureDates(a.date, b.date));
 
     // Check if there are pre-orders with schedules not in the list (or empty idJadwal)
     const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
@@ -269,11 +276,20 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       }
     });
 
-    // Sort schedules inside each jastiper group by date ascending
+    // Sort schedules inside each jastiper group by date ascending (nearest departure date first)
     const result: JastiperGroup[] = Array.from(jastiperMap.values()).map((g) => ({
       ...g,
-      schedules: g.schedules.sort((a, b) => (a.date || "").localeCompare(b.date || "")),
+      schedules: g.schedules.sort((a, b) => compareDepartureDates(a.date, b.date)),
     }));
+
+    // Sort Jastiper groups so that the Jastiper with the nearest departure date comes first
+    result.sort((a, b) => {
+      const earliestA = a.schedules[0]?.date;
+      const earliestB = b.schedules[0]?.date;
+      const cmp = compareDepartureDates(earliestA, earliestB);
+      if (cmp !== 0) return cmp;
+      return a.namaJastiper.localeCompare(b.namaJastiper);
+    });
 
     // 2. Check if there are orphans
     const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));

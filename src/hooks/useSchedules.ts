@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DepartureSchedule, Jastiper } from "../types";
 import { listenSchedules, addSchedule, updateSchedule, deleteSchedule } from "../services/schedulesFirebase";
 import { listenJastipers } from "../services/jastipersFirebase";
+import { compareDepartureDates } from "../utils/format";
 
 export function useSchedules(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
   const [schedules, setSchedules] = useState<DepartureSchedule[]>([]);
@@ -56,7 +57,7 @@ export function useSchedules(showToast?: (message: string, type: "success" | "er
       );
     }
     return [...list].sort((a, b) =>
-      a.tanggalBerangkat.localeCompare(b.tanggalBerangkat),
+      compareDepartureDates(a.tanggalBerangkat, b.tanggalBerangkat),
     );
   }, [schedules, statusFilter, q]);
 

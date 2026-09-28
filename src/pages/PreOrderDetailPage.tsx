@@ -243,15 +243,13 @@ function ResizableBookingTableHeader({
         {BOOKING_COLUMNS.map((column) => (
           <th
             key={column.key}
-            className={`sticky top-0 z-30 px-2 py-2 shadow-[0_1px_0_#cbd5e1] ${
-              column.key === "number" ? "bg-slate-100" : "bg-white"
-            } ${column.key === "actions" ? "" : "border-r border-slate-200"} ${
-              column.align === "center"
+            className={`sticky top-0 z-30 px-2 py-2 shadow-[0_1px_0_#cbd5e1] ${column.key === "number" ? "bg-slate-100" : "bg-white"
+              } ${column.key === "actions" ? "" : "border-r border-slate-200"} ${column.align === "center"
                 ? "text-center"
                 : column.align === "right"
                   ? "text-right"
                   : "text-left"
-            }`}
+              }`}
           >
             {column.label}
             {!isRotated && (
@@ -288,11 +286,10 @@ function DeliveryAddressStatusIcon({
     <span
       aria-label={`${label} untuk pengiriman ${destination}`}
       title={`${label} untuk pengiriman ${destination}`}
-      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-        complete
+      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
           : "border-amber-200 bg-amber-50 text-amber-700"
-      }`}
+        }`}
     >
       {complete
         ? <CheckCircle2 size={10} strokeWidth={2.75} />
@@ -929,8 +926,8 @@ function ItemsEditModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         className={`relative bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col transition-all overflow-hidden z-10 ${isRotated
-            ? "max-w-2xl w-[95%] max-h-[48vh]"
-            : "max-w-md w-full max-h-[90vh]"
+          ? "max-w-2xl w-[95%] max-h-[48vh]"
+          : "max-w-md w-full max-h-[90vh]"
           }`}
       >
         {/* Header */}
@@ -1402,12 +1399,11 @@ export function PreOrderDetailPage({
                 </>
               )}
               <span className="text-sm font-extrabold text-slate-800 truncate">{schedule.rute}</span>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                schedule.id === "__unscheduled__"
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${schedule.id === "__unscheduled__"
                   ? "bg-amber-50 text-amber-700 border border-amber-200"
                   : schedule.status === "Open"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-slate-100 text-slate-500 border border-slate-200"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-slate-100 text-slate-500 border border-slate-200"
                 }`}>
                 {schedule.id === "__unscheduled__" ? "Belum Ada Jadwal" : schedule.status}
               </span>
@@ -1546,323 +1542,284 @@ export function PreOrderDetailPage({
                       </div>
                     </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 text-[10px] font-bold text-slate-500">
-                    <button
-                      type="button"
-                      onClick={shareAllWA}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-emerald-700 transition-colors hover:bg-emerald-100"
-                      title={`Bagikan seluruh ${pos.length} booking ke WhatsApp`}
-                    >
-                      <MessageCircle size={10} />
-                      <span className="hidden sm:inline">Share Semua WA</span>
-                      <span className="sm:hidden">Semua WA</span>
-                    </button>
-                    {!isRotated && (
+                    <div className="flex flex-wrap items-center justify-end gap-2 text-[10px] font-bold text-slate-500">
                       <button
                         type="button"
-                        onClick={resetAllColumnWidths}
-                        className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-slate-500 transition-colors hover:border-rose-200 hover:text-rose-600"
-                        title="Kembalikan semua lebar kolom"
+                        onClick={shareAllWA}
+                        className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-emerald-700 transition-colors hover:bg-emerald-100"
+                        title={`Bagikan seluruh ${pos.length} booking ke WhatsApp`}
                       >
-                        Reset Kolom
+                        <MessageCircle size={10} />
+                        <span className="hidden sm:inline">Share Semua WA</span>
+                        <span className="sm:hidden">Semua WA</span>
                       </button>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <Weight size={10} />
-                      Total: {totalBeratPOs.toFixed(1)} Kg
-                    </span>
-                    {schedule.id !== "__unscheduled__" && (
-                      <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-extrabold ${
-                        remainingCapacityKg <= 0
-                          ? "bg-red-50 text-red-600 border border-red-100"
-                          : remainingCapacityKg <= 5
-                          ? "bg-amber-50 text-amber-600 border border-amber-100"
-                          : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      }`}>
-                        Sisa {remainingCapacityKg.toFixed(1)} Kg
+                      {!isRotated && (
+                        <button
+                          type="button"
+                          onClick={resetAllColumnWidths}
+                          className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-slate-500 transition-colors hover:border-rose-200 hover:text-rose-600"
+                          title="Kembalikan semua lebar kolom"
+                        >
+                          Reset Kolom
+                        </button>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Weight size={10} />
+                        Total: {totalBeratPOs.toFixed(1)} Kg
                       </span>
-                    )}
-                    <span>{pos.length} baris</span>
+                      {schedule.id !== "__unscheduled__" && (
+                        <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-extrabold ${remainingCapacityKg <= 0
+                            ? "bg-red-50 text-red-600 border border-red-100"
+                            : remainingCapacityKg <= 5
+                              ? "bg-amber-50 text-amber-600 border border-amber-100"
+                              : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                          }`}>
+                          Sisa {remainingCapacityKg.toFixed(1)} Kg
+                        </span>
+                      )}
+                      <span>{pos.length} baris</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Scrollable table */}
-                <div className={isRotated ? "w-full" : "overflow-x-auto w-full"}>
-                  <table
-                    style={{
-                      "--table-fs": `${tableFontSize}px`,
-                      fontSize: "var(--table-fs)",
-                      width: isRotated ? "100%" : `${tableWidth}px`,
-                      minWidth: isRotated ? 0 : "100%",
-                    } as React.CSSProperties}
-                    className="table-fixed border-collapse text-left"
-                  >
-                    <BookingTableColGroup
-                      widths={columnWidths}
-                      isRotated={isRotated}
-                    />
-                    <ResizableBookingTableHeader
-                      isRotated={isRotated}
-                      onResizeStart={startResizing}
-                      onResetWidth={resetColumnWidth}
-                    />
+                  {/* Scrollable table */}
+                  <div className={isRotated ? "w-full" : "overflow-x-auto w-full"}>
+                    <table
+                      style={{
+                        "--table-fs": `${tableFontSize}px`,
+                        fontSize: "var(--table-fs)",
+                        width: isRotated ? "100%" : `${tableWidth}px`,
+                        minWidth: isRotated ? 0 : "100%",
+                      } as React.CSSProperties}
+                      className="table-fixed border-collapse text-left"
+                    >
+                      <BookingTableColGroup
+                        widths={columnWidths}
+                        isRotated={isRotated}
+                      />
+                      <ResizableBookingTableHeader
+                        isRotated={isRotated}
+                        onResizeStart={startResizing}
+                        onResetWidth={resetColumnWidth}
+                      />
 
-                    <tbody className="divide-y divide-slate-100">
-                      {pos.map((po, poIdx) => {
-                        const isSelesai = po.status === "Selesai";
-                        const checkedCount = po.items.filter((i) => i.checked).length;
-                        const totalItems = po.items.length;
-                        const isKomplit = totalItems > 0 && checkedCount === totalItems;
-                        const isSaving = savingCell?.startsWith(po.id);
-                        const customer = customers.find((customer) => customer.id === po.idPelanggan);
-                        const customerPhone = customer?.telpon || po.noTelponPelanggan;
-                        const hasWhatsAppPhone = !!normalizeWhatsAppPhone(customerPhone);
-                        const deliveryCountry = inferDeliveryCountry(po.rute);
-                        const hasCompleteDeliveryAddress = isDeliveryAddressComplete(
-                          customer,
-                          deliveryCountry,
-                        );
+                      <tbody className="divide-y divide-slate-100">
+                        {pos.map((po, poIdx) => {
+                          const isSelesai = po.status === "Selesai";
+                          const checkedCount = po.items.filter((i) => i.checked).length;
+                          const totalItems = po.items.length;
+                          const isKomplit = totalItems > 0 && checkedCount === totalItems;
+                          const isSaving = savingCell?.startsWith(po.id);
+                          const customer = customers.find((customer) => customer.id === po.idPelanggan);
+                          const customerPhone = customer?.telpon || po.noTelponPelanggan;
+                          const hasWhatsAppPhone = !!normalizeWhatsAppPhone(customerPhone);
+                          const deliveryCountry = inferDeliveryCountry(po.rute);
+                          const hasCompleteDeliveryAddress = isDeliveryAddressComplete(
+                            customer,
+                            deliveryCountry,
+                          );
 
-                        return (
-                          <tr
-                            key={po.id}
-                            className={`group transition-colors duration-100 ${selectedIds.includes(po.id)
-                              ? "bg-rose-50/50"
-                              : isKomplit || isSelesai
-                                ? "bg-emerald-50/40 hover:bg-emerald-50/70"
-                                : "hover:bg-slate-50/60"
-                              } ${isSaving ? "opacity-70" : ""}`}
-                          >
-                            {/* # */}
-                            <td
-                              style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                              className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center font-mono select-none overflow-hidden ${
-                                isKomplit || isSelesai
-                                  ? "bg-emerald-100/40 text-emerald-700 font-bold"
-                                  : "bg-slate-50/80 text-slate-400"
-                              }`}
+                          return (
+                            <tr
+                              key={po.id}
+                              className={`group transition-colors duration-100 ${selectedIds.includes(po.id)
+                                ? "bg-rose-50/50"
+                                : isKomplit || isSelesai
+                                  ? "bg-emerald-50/40 hover:bg-emerald-50/70"
+                                  : "hover:bg-slate-50/60"
+                                } ${isSaving ? "opacity-70" : ""}`}
                             >
-                              {poIdx + 1}
-                            </td>
+                              {/* # */}
+                              <td
+                                style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center font-mono select-none overflow-hidden ${isKomplit || isSelesai
+                                    ? "bg-emerald-100/40 text-emerald-700 font-bold"
+                                    : "bg-slate-50/80 text-slate-400"
+                                  }`}
+                              >
+                                {poIdx + 1}
+                              </td>
 
-                            {/* Checkbox */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center overflow-hidden`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.includes(po.id)}
-                                onChange={() => toggleSelect(po.id)}
-                                className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 cursor-pointer"
-                              />
-                            </td>
+                              {/* Checkbox */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1.5" : "px-2 py-2"} text-center overflow-hidden`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(po.id)}
+                                  onChange={() => toggleSelect(po.id)}
+                                  className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 cursor-pointer"
+                                />
+                              </td>
 
-                            {/* Pelanggan */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
-                              {isRotated ? (
-                                <div className="flex min-w-0 items-center gap-1">
-                                  <div
-                                    onClick={() => !isSelesai && setCustomerPickPO(po)}
-                                    className="min-w-0 flex-1 cursor-pointer font-extrabold text-slate-800 break-words whitespace-normal leading-tight block min-h-[22px] hover:bg-rose-50 hover:ring-1 hover:ring-rose-200 rounded px-1 py-0.5 transition-all"
-                                    title={isSelesai ? undefined : "Klik untuk ganti pelanggan"}
-                                  >
-                                    {po.namaPelanggan || "—"}
-                                  </div>
-                                  <DeliveryAddressStatusIcon
-                                    complete={hasCompleteDeliveryAddress}
-                                    country={deliveryCountry}
-                                  />
-                                </div>
-                              ) : (
-                                isSelesai ? (
+                              {/* Pelanggan */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
+                                {isRotated ? (
                                   <div className="flex min-w-0 items-center gap-1">
-                                    <span
-                                      style={{ fontSize: "var(--table-fs)" }}
-                                      className="min-w-0 flex-1 font-extrabold text-slate-800 truncate block"
+                                    <div
+                                      onClick={() => !isSelesai && setCustomerPickPO(po)}
+                                      className="min-w-0 flex-1 cursor-pointer font-extrabold text-slate-800 break-words whitespace-normal leading-tight block min-h-[22px] hover:bg-rose-50 hover:ring-1 hover:ring-rose-200 rounded px-1 py-0.5 transition-all"
+                                      title={isSelesai ? undefined : "Klik untuk ganti pelanggan"}
                                     >
                                       {po.namaPelanggan || "—"}
-                                    </span>
+                                    </div>
                                     <DeliveryAddressStatusIcon
                                       complete={hasCompleteDeliveryAddress}
                                       country={deliveryCountry}
                                     />
                                   </div>
                                 ) : (
-                                  <div className="flex min-w-0 items-center gap-1">
-                                    <div className="min-w-0 flex-1">
-                                      <CustomerDropdownCell
-                                        po={po}
-                                        customers={customers}
-                                        onSelect={(c) => handleCustomerChange(po.id, c)}
+                                  isSelesai ? (
+                                    <div className="flex min-w-0 items-center gap-1">
+                                      <span
+                                        style={{ fontSize: "var(--table-fs)" }}
+                                        className="min-w-0 flex-1 font-extrabold text-slate-800 truncate block"
+                                      >
+                                        {po.namaPelanggan || "—"}
+                                      </span>
+                                      <DeliveryAddressStatusIcon
+                                        complete={hasCompleteDeliveryAddress}
+                                        country={deliveryCountry}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="flex min-w-0 items-center gap-1">
+                                      <div className="min-w-0 flex-1">
+                                        <CustomerDropdownCell
+                                          po={po}
+                                          customers={customers}
+                                          onSelect={(c) => handleCustomerChange(po.id, c)}
+                                          style={{ fontSize: "var(--table-fs)" }}
+                                          isRotated={!isRotated}
+                                        />
+                                      </div>
+                                      <DeliveryAddressStatusIcon
+                                        complete={hasCompleteDeliveryAddress}
+                                        country={deliveryCountry}
+                                      />
+                                    </div>
+                                  )
+                                )}
+                              </td>
+
+                              {/* Total Berat */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
+                                <div className="flex items-center gap-1">
+                                  {!isRotated && <Weight size={10} className="text-slate-400 shrink-0" />}
+                                  {isSelesai ? (
+                                    <span
+                                      style={{ fontSize: "var(--table-fs)" }}
+                                      className={`font-bold text-slate-700 block ${isRotated ? "break-words whitespace-normal leading-tight" : "whitespace-nowrap"}`}
+                                    >
+                                      {po.totalKg.toFixed(1)} Kg
+                                    </span>
+                                  ) : (
+                                    <div className="flex-1">
+                                      <EditableCell
+                                        value={po.totalKg.toFixed(1)}
+                                        poId={po.id}
+                                        field="totalKg"
+                                        type="number"
+                                        editingCell={editingCell}
+                                        onStartEdit={setEditingCell}
+                                        onSave={handleCellSave}
+                                        className={isRotated ? "font-bold text-slate-700 break-words whitespace-normal leading-tight" : "font-bold text-slate-700 whitespace-nowrap"}
                                         style={{ fontSize: "var(--table-fs)" }}
                                         isRotated={!isRotated}
                                       />
                                     </div>
-                                    <DeliveryAddressStatusIcon
-                                      complete={hasCompleteDeliveryAddress}
-                                      country={deliveryCountry}
-                                    />
-                                  </div>
-                                )
-                              )}
-                            </td>
-
-                            {/* Total Berat */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
-                              <div className="flex items-center gap-1">
-                                {!isRotated && <Weight size={10} className="text-slate-400 shrink-0" />}
-                                {isSelesai ? (
-                                  <span
-                                    style={{ fontSize: "var(--table-fs)" }}
-                                    className={`font-bold text-slate-700 block ${isRotated ? "break-words whitespace-normal leading-tight" : "whitespace-nowrap"}`}
-                                  >
-                                    {po.totalKg.toFixed(1)} Kg
-                                  </span>
-                                ) : (
-                                  <div className="flex-1">
-                                    <EditableCell
-                                      value={po.totalKg.toFixed(1)}
-                                      poId={po.id}
-                                      field="totalKg"
-                                      type="number"
-                                      editingCell={editingCell}
-                                      onStartEdit={setEditingCell}
-                                      onSave={handleCellSave}
-                                      className={isRotated ? "font-bold text-slate-700 break-words whitespace-normal leading-tight" : "font-bold text-slate-700 whitespace-nowrap"}
-                                      style={{ fontSize: "var(--table-fs)" }}
-                                      isRotated={!isRotated}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Barang */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
-                              <button
-                                onClick={() => setViewItemsPO(po)}
-                                className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded font-extrabold transition-all active:scale-95 w-full justify-center whitespace-normal ${
-                                  isKomplit
-                                    ? "bg-emerald-100/70 text-emerald-800 border border-emerald-200 hover:bg-emerald-200/70"
-                                    : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600"
-                                }`}
-                                style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                              >
-                                {!isRotated && <Package size={10} className="shrink-0" />}
-                                {totalItems > 0 ? (
-                                  isRotated ? (
-                                    `${checkedCount}/${totalItems} ✓`
-                                  ) : (
-                                    `${totalItems} Barang (${checkedCount} ✓)`
-                                  )
-                                ) : (
-                                  isRotated ? "+" : "+ Tambah Barang"
-                                )}
-                              </button>
-                            </td>
-
-                            {/* PIC — editable bebas */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
-                              {isSelesai ? (
-                                <span
-                                  style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                                  className={`font-bold text-slate-500 block ${isRotated ? "break-words whitespace-normal leading-tight" : "truncate"}`}
-                                >
-                                  {po.pic || "—"}
-                                </span>
-                              ) : (
-                                <EditableCell
-                                  value={po.pic || ""}
-                                  poId={po.id}
-                                  field="pic"
-                                  editingCell={editingCell}
-                                  onStartEdit={setEditingCell}
-                                  onSave={handleCellSave}
-                                  className={isRotated ? "font-bold text-slate-600 break-words whitespace-normal leading-tight" : "font-bold text-slate-600 truncate"}
-                                  style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                                  isRotated={!isRotated}
-                                />
-                              )}
-                            </td>
-
-                            {/* Catatan */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
-                              {isSelesai ? (
-                                po.catatan ? (
-                                  <span
-                                    style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                                    className={`italic block ${isRotated ? "text-slate-400 break-words whitespace-normal leading-tight" : "text-slate-400 line-clamp-1"}`}
-                                  >
-                                    📝 {po.catatan}
-                                  </span>
-                                ) : null
-                              ) : (
-                                <EditableCell
-                                  value={po.catatan || ""}
-                                  poId={po.id}
-                                  field="catatan"
-                                  editingCell={editingCell}
-                                  onStartEdit={setEditingCell}
-                                  onSave={handleCellSave}
-                                  className={isRotated ? "text-slate-400 italic break-words whitespace-normal leading-tight" : "text-slate-400 italic line-clamp-1"}
-                                  style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                                  isRotated={!isRotated}
-                                />
-                              )}
-                            </td>
-
-                            {/* Status */}
-                            <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} text-center align-middle overflow-hidden`}>
-                              <span
-                                style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
-                                className={`font-bold px-1 py-0.5 rounded select-none ${isRotated ? "block break-words whitespace-normal leading-tight" : "inline-block"} ${isSelesai
-                                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                                  : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                                  }`}
-                              >
-                                {po.status}
-                              </span>
-                            </td>
-
-                            {/* Aksi */}
-                            <td className="px-1 py-1 text-right align-middle overflow-hidden">
-                              {isSelesai ? (
-                                <div className="flex items-center justify-end gap-0.5">
-                                  {!isShareMode && (
-                                    <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/90 p-0.5 shadow-sm">
-                                      <button
-                                        onClick={() => handleDeliveryAddressShare(po, "copy")}
-                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors`}
-                                        title="Salin link form alamat"
-                                      >
-                                        {deliveryLinkCopied === po.id
-                                          ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
-                                          : <Link2 size={isRotated ? 11 : 13} />}
-                                      </button>
-                                      {hasWhatsAppPhone && (
-                                        <button
-                                          onClick={() => handleDeliveryAddressShare(po, "whatsapp")}
-                                          className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors`}
-                                          title="Kirim form alamat via WhatsApp"
-                                        >
-                                          <MessageCircle size={isRotated ? 11 : 13} />
-                                        </button>
-                                      )}
-                                    </div>
                                   )}
                                 </div>
-                              ) : (
-                                <div className="flex items-center justify-end gap-0.5 flex-wrap">
-                                  {!isShareMode && (
-                                    <>
-                                      <button
-                                        onClick={() => {
-                                          setEditing(po);
-                                          setShowForm(true);
-                                        }}
-                                        className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
-                                        title="Edit & Ubah Jadwal"
-                                      >
-                                        <Pencil size={isRotated ? 11 : 13} />
-                                      </button>
+                              </td>
+
+                              {/* Barang */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
+                                <button
+                                  onClick={() => setViewItemsPO(po)}
+                                  className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded font-extrabold transition-all active:scale-95 w-full justify-center whitespace-normal ${isKomplit
+                                      ? "bg-emerald-100/70 text-emerald-800 border border-emerald-200 hover:bg-emerald-200/70"
+                                      : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-rose-50 hover:border-rose-100 hover:text-rose-600"
+                                    }`}
+                                  style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                >
+                                  {!isRotated && <Package size={10} className="shrink-0" />}
+                                  {totalItems > 0 ? (
+                                    isRotated ? (
+                                      `${checkedCount}/${totalItems} ✓`
+                                    ) : (
+                                      `${totalItems} Barang (${checkedCount} ✓)`
+                                    )
+                                  ) : (
+                                    isRotated ? "+" : "+ Tambah Barang"
+                                  )}
+                                </button>
+                              </td>
+
+                              {/* PIC — editable bebas */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
+                                {isSelesai ? (
+                                  <span
+                                    style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                    className={`font-bold text-slate-500 block ${isRotated ? "break-words whitespace-normal leading-tight" : "truncate"}`}
+                                  >
+                                    {po.pic || "—"}
+                                  </span>
+                                ) : (
+                                  <EditableCell
+                                    value={po.pic || ""}
+                                    poId={po.id}
+                                    field="pic"
+                                    editingCell={editingCell}
+                                    onStartEdit={setEditingCell}
+                                    onSave={handleCellSave}
+                                    className={isRotated ? "font-bold text-slate-600 break-words whitespace-normal leading-tight" : "font-bold text-slate-600 truncate"}
+                                    style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                    isRotated={!isRotated}
+                                  />
+                                )}
+                              </td>
+
+                              {/* Catatan */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} align-middle overflow-hidden`}>
+                                {isSelesai ? (
+                                  po.catatan ? (
+                                    <span
+                                      style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                      className={`italic block ${isRotated ? "text-slate-400 break-words whitespace-normal leading-tight" : "text-slate-400 line-clamp-1"}`}
+                                    >
+                                      📝 {po.catatan}
+                                    </span>
+                                  ) : null
+                                ) : (
+                                  <EditableCell
+                                    value={po.catatan || ""}
+                                    poId={po.id}
+                                    field="catatan"
+                                    editingCell={editingCell}
+                                    onStartEdit={setEditingCell}
+                                    onSave={handleCellSave}
+                                    className={isRotated ? "text-slate-400 italic break-words whitespace-normal leading-tight" : "text-slate-400 italic line-clamp-1"}
+                                    style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                                    isRotated={!isRotated}
+                                  />
+                                )}
+                              </td>
+
+                              {/* Status */}
+                              <td className={`border-r border-slate-100 ${isRotated ? "px-1 py-1" : "px-2 py-1.5"} text-center align-middle overflow-hidden`}>
+                                <span
+                                  style={{ fontSize: "calc(var(--table-fs) - 1.5px)" }}
+                                  className={`font-bold px-1 py-0.5 rounded select-none ${isRotated ? "block break-words whitespace-normal leading-tight" : "inline-block"} ${isSelesai
+                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                    : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                                    }`}
+                                >
+                                  {po.status}
+                                </span>
+                              </td>
+
+                              {/* Aksi */}
+                              <td className="px-1 py-1 text-right align-middle overflow-hidden">
+                                {isSelesai ? (
+                                  <div className="flex items-center justify-end gap-0.5">
+                                    {!isShareMode && (
                                       <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/90 p-0.5 shadow-sm">
                                         <button
                                           onClick={() => handleDeliveryAddressShare(po, "copy")}
@@ -1872,6 +1829,13 @@ export function PreOrderDetailPage({
                                           {deliveryLinkCopied === po.id
                                             ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
                                             : <Link2 size={isRotated ? 11 : 13} />}
+                                        </button>
+                                        <button
+                                          onClick={() => handleDelete(po)}
+                                          className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
+                                          title="Hapus"
+                                        >
+                                          <Trash2 size={11} />
                                         </button>
                                         {hasWhatsAppPhone && (
                                           <button
@@ -1883,51 +1847,87 @@ export function PreOrderDetailPage({
                                           </button>
                                         )}
                                       </div>
-                                    </>
-                                  )}
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-0.5 flex-wrap">
+                                    {!isShareMode && (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setEditing(po);
+                                            setShowForm(true);
+                                          }}
+                                          className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200`}
+                                          title="Edit & Ubah Jadwal"
+                                        >
+                                          <Pencil size={isRotated ? 11 : 13} />
+                                        </button>
+                                        <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/90 p-0.5 shadow-sm">
+                                          <button
+                                            onClick={() => handleDeliveryAddressShare(po, "copy")}
+                                            className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors`}
+                                            title="Salin link form alamat"
+                                          >
+                                            {deliveryLinkCopied === po.id
+                                              ? <Check size={isRotated ? 11 : 13} strokeWidth={3} />
+                                              : <Link2 size={isRotated ? 11 : 13} />}
+                                          </button>
+                                          {hasWhatsAppPhone && (
+                                            <button
+                                              onClick={() => handleDeliveryAddressShare(po, "whatsapp")}
+                                              className={`${isRotated ? "p-1" : "p-1.5"} rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors`}
+                                              title="Kirim form alamat via WhatsApp"
+                                            >
+                                              <MessageCircle size={isRotated ? 11 : 13} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </>
+                                    )}
 
-                                  <button
-                                    onClick={() => handleDelete(po)}
-                                    className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
-                                    title="Hapus"
-                                  >
-                                    <Trash2 size={11} />
-                                  </button>
-
-                                  {!isShareMode && (
                                     <button
-                                      onClick={() => setConvertTarget(po)}
-                                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
-                                      title="Pindahkan ke Pesanan"
+                                      onClick={() => handleDelete(po)}
+                                      className={`${isRotated ? "p-1" : "p-1.5"} rounded-lg text-rose-500 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-100`}
+                                      title="Hapus"
                                     >
-                                      <ArrowRight size={9} strokeWidth={3} />
-                                      Pindahkan
+                                      <Trash2 size={11} />
                                     </button>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
 
-                    {/* Footer total row */}
-                    <tfoot>
-                      <tr
-                        className="bg-slate-50/80 border-t-2 border-slate-200 font-bold text-slate-600"
-                        style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
-                      >
-                        <td colSpan={3} className={`${isRotated ? "px-1 py-1.5" : "px-3 py-2"} text-right text-slate-500`}>Total</td>
-                        <td className={`border-r border-slate-200 ${isRotated ? "px-1 py-1.5" : "px-3 py-2"} font-extrabold text-rose-600 whitespace-nowrap`}>
-                          {totalBeratPOs.toFixed(1)} Kg
-                        </td>
-                        <td colSpan={5} className={`${isRotated ? "px-1 py-1.5" : "px-3 py-2"} text-slate-400`}>{pos.length} booking</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                                    {!isShareMode && (
+                                      <button
+                                        onClick={() => setConvertTarget(po)}
+                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold transition-all active:scale-95 shrink-0"
+                                        title="Pindahkan ke Pesanan"
+                                      >
+                                        <ArrowRight size={9} strokeWidth={3} />
+                                        Pindahkan
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+
+                      {/* Footer total row */}
+                      <tfoot>
+                        <tr
+                          className="bg-slate-50/80 border-t-2 border-slate-200 font-bold text-slate-600"
+                          style={{ fontSize: "calc(var(--table-fs) - 1px)" }}
+                        >
+                          <td colSpan={3} className={`${isRotated ? "px-1 py-1.5" : "px-3 py-2"} text-right text-slate-500`}>Total</td>
+                          <td className={`border-r border-slate-200 ${isRotated ? "px-1 py-1.5" : "px-3 py-2"} font-extrabold text-rose-600 whitespace-nowrap`}>
+                            {totalBeratPOs.toFixed(1)} Kg
+                          </td>
+                          <td colSpan={5} className={`${isRotated ? "px-1 py-1.5" : "px-3 py-2"} text-slate-400`}>{pos.length} booking</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
-              </div>
               </div>
             )}
           </motion.div>

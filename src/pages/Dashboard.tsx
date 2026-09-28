@@ -1,10 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "../context/authContext";
 import { useSettings } from "../context/settingsContext";
 import { motion } from "framer-motion";
-import { Customer, Order, PeriodType } from "../types";
+import { OrderStatus, PeriodType } from "../types";
 import { formatCurrency, formatIDR } from "../utils/format";
-import { MONTH_LABEL_ID, compute } from "../utils/helpers";
+import { compute } from "../utils/helpers";
+import { dashboardMoney, dashboardRangeLabel, summarizeDashboard } from "../utils/dashboard";
+import { useDashboardData } from "../hooks/useDashboardData";
 import { FlagID, FlagJP } from "../components/ui/Flags";
 import {
   ResponsiveContainer,
@@ -32,8 +34,6 @@ import {
 } from "lucide-react";
 import { notificationService } from "../services/notificationService";
 import { KursInfoCard } from "../components/KursInfoCard";
-import { collection, query, orderBy, limit as qLimit, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { StatCard } from "../components/ui/StatCard";
@@ -81,16 +81,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "warning" | "success" }> = {
   "Belum Membayar": { label: "Belum Bayar", variant: "warning" },
-  "Selesai":        { label: "Selesai", variant: "success" },
+  "DP Terbayar": { label: "DP Terbayar", variant: "warning" },
+  "Selesai": { label: "Selesai", variant: "success" },
 };
 
-function StatusPills({ activeCount, totalCount }: { activeCount: number; totalCount: number }) {
-  const completedCount = Math.max(0, totalCount - activeCount);
-  const counts: Record<string, number> = {
-    "Belum Membayar": activeCount,
-    "Selesai": completedCount,
-  };
-
+function StatusPills({ counts, totalCount }: { counts: Record<OrderStatus, number>; totalCount: number }) {
+  const completedCount = counts["Selesai"];
   const total = totalCount;
 
   const completedPct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
@@ -100,7 +96,7 @@ function StatusPills({ activeCount, totalCount }: { activeCount: number; totalCo
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className="min-w-[180px]">
           <p className="eyebrow text-slate-400">Alur pesanan</p>
-          <h3 className="mt-1 text-sm font-extrabold text-brand-navyDark">Status operasional</h3>
+          <h3 className="mt-1 text-sm font-extrabold text-brand-navyDark">Status pesanan · Periode terpilih</h3>
         </div>
 
         <div className="flex-1">
@@ -118,17 +114,16 @@ function StatusPills({ activeCount, totalCount }: { activeCount: number; totalCo
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 lg:min-w-[300px]">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-2 lg:min-w-[420px]">
           {Object.entries(STATUS_CONFIG).map(([status, cfg]) => {
-            const count = counts[status] || 0;
+            const count = counts[status as OrderStatus] || 0;
             const pct = total > 0 ? Math.round((count / total) * 100) : 0;
             const warning = cfg.variant === "warning";
             return (
               <div
                 key={status}
-                className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 ${
-                  warning ? "border-amber-100 bg-amber-50/70" : "border-emerald-100 bg-emerald-50/70"
-                }`}
+                className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 ${warning ? "border-amber-100 bg-amber-50/70" : "border-emerald-100 bg-emerald-50/70"
+                  }`}
               >
                 <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-white ${warning ? "text-amber-600" : "text-emerald-600"}`}>
                   {warning ? <Clock size={16} /> : <PackageCheck size={16} />}
@@ -149,19 +144,8 @@ function StatusPills({ activeCount, totalCount }: { activeCount: number; totalCo
 }
 
 function DashboardView({
-  activeOrders,
-  monthlySummaries,
-  customers,
-  unitPrice,
-  globalJastipYen,
-  userName,
-  onSeeAllOrders,
-  onRecalculate,
-  onOpenFeature,
+  unitPrice, globalJastipYen, userName, onSeeAllOrders, onRecalculate, onOpenFeature,
 }: {
-  activeOrders: Order[];
-  monthlySummaries: any[];
-  customers: Customer[];
   unitPrice: number;
   globalJastipYen: number;
   userName: string;
@@ -170,38 +154,21 @@ function DashboardView({
   onOpenFeature: (feature: string) => void;
 }) {
   const [period, setPeriod] = useState<PeriodType>("12m");
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [loadingExtras, setLoadingExtras] = useState(false);
+  const [chartCurrency, setChartCurrency] = useState<"IDR" | "JPY">("IDR");
   const [syncing, setSyncing] = useState(false);
-  const [hasOrdersButNoStats, setHasOrdersButNoStats] = useState(false);
-
-  useEffect(() => {
-    async function loadExtras() {
-      setLoadingExtras(true);
-      try {
-        const ordersCol = collection(db, "orders");
-        const recentQ = query(ordersCol, orderBy("tanggal", "desc"), qLimit(8));
-        const recentSnap = await getDocs(recentQ);
-        setRecentOrders(recentSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-        if (!monthlySummaries || monthlySummaries.length === 0) {
-          setHasOrdersButNoStats(!recentSnap.empty);
-        } else {
-          setHasOrdersButNoStats(false);
-        }
-      } catch (err) {
-        console.error("Gagal memuat data pendukung dashboard:", err);
-      } finally {
-        setLoadingExtras(false);
-      }
-    }
-    loadExtras();
-  }, [monthlySummaries]);
+  const data = useDashboardData(period);
+  const { monthlyData, kpi, statusCounts } = useMemo(
+    () => summarizeDashboard(data.orders.rows, data.range),
+    [data.orders.rows, data.range],
+  );
+  const reportReady = !data.orders.loading && !data.orders.error;
+  const reportPlaceholder = data.orders.loading ? "Memuat..." : "Data belum tersedia";
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       await onRecalculate();
+      data.retry();
       alert("Statistik dashboard berhasil disinkronisasi ulang!");
     } catch (err) {
       console.error(err);
@@ -211,89 +178,36 @@ function DashboardView({
     }
   };
 
-  const { monthlyData, kpi } = useMemo(() => {
-    const now = new Date();
-    const from = new Date();
-    if (period === "30d") from.setDate(now.getDate() - 30);
-    if (period === "3m") from.setMonth(now.getMonth() - 3);
-    if (period === "12m") from.setMonth(now.getMonth() - 12);
-
-    const fromKey = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
-    const toKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    const filtered = (monthlySummaries || []).filter((m) => {
-      return m.id >= fromKey && m.id <= toKey;
-    });
-
-    const monthly = filtered.map((m) => {
-      const [y, monthStr] = m.id.split("-");
-      const mIdx = Number(monthStr) - 1;
-      const label = `${MONTH_LABEL_ID[mIdx]} ${y.slice(2)}`;
-      return {
-        key: m.id,
-        label,
-        count: m.orderCount || 0,
-        revIdr: m.revenueIdr || 0,
-        revJpy: m.revenueJpy || 0,
-        profIdr: m.profitIdr || 0,
-        profJpy: m.profitJpy || 0,
-      };
-    }).sort((a, b) => a.key.localeCompare(b.key));
-
-    let revIdr = 0, revJpy = 0, profIdr = 0, profJpy = 0, count = 0;
-    monthly.forEach(m => {
-      revIdr += m.revIdr;
-      revJpy += m.revJpy;
-      profIdr += m.profIdr;
-      profJpy += m.profJpy;
-      count += m.count;
-    });
-
-    return {
-      monthlyData: monthly,
-      kpi: {
-        activeOrders: activeOrders.length,
-        revIdr,
-        revJpy,
-        profIdr,
-        profJpy,
-        totalOrders: count,
-      },
-    };
-  }, [monthlySummaries, activeOrders, period]);
-
   const PERIOD_OPTIONS = [
-    { label: "30H", value: "30d" },
-    { label: "3B",  value: "3m" },
-    { label: "1T",  value: "12m" },
+    { label: "30 hari", value: "30d" },
+    { label: "3 bulan", value: "3m" },
+    { label: "1 tahun", value: "12m" },
   ];
 
   const KPI_CARDS = [
     {
       label: "Total Transaksi",
-      value: kpi.revIdr > 0 || kpi.revJpy === 0 ? formatIDR(kpi.revIdr) : `¥${kpi.revJpy.toLocaleString("id-ID")}`,
-      sub: kpi.revIdr > 0 && kpi.revJpy > 0 ? `+ ¥${kpi.revJpy.toLocaleString("id-ID")}` : undefined,
+      ...(reportReady ? dashboardMoney(kpi.revIdr, kpi.revJpy, kpi.hasIdr, kpi.hasJpy) : { value: "—", sub: reportPlaceholder }),
       icon: Wallet,
       tone: "navy" as const,
     },
     {
       label: "Total Profit",
-      value: kpi.profIdr > 0 || kpi.profJpy === 0 ? formatIDR(kpi.profIdr) : `¥${kpi.profJpy.toLocaleString("id-ID")}`,
-      sub: kpi.profIdr > 0 && kpi.profJpy > 0 ? `+ ¥${kpi.profJpy.toLocaleString("id-ID")}` : undefined,
+      ...(reportReady ? dashboardMoney(kpi.profIdr, kpi.profJpy, kpi.hasIdr, kpi.hasJpy) : { value: "—", sub: reportPlaceholder }),
       icon: CircleDollarSign,
       tone: "emerald" as const,
     },
     {
       label: "Pesanan Aktif",
-      value: kpi.activeOrders,
-      sub: "Perlu tindakan",
+      value: reportReady ? kpi.activeOrders : "—",
+      sub: reportReady ? "Periode terpilih" : reportPlaceholder,
       icon: Activity,
       tone: "orange" as const,
     },
     {
       label: "Total Pelanggan",
-      value: customers.length,
-      sub: `${kpi.totalOrders} total transaksi`,
+      value: data.customers.loading || data.customers.error ? "—" : data.customers.rows.length,
+      sub: data.customers.loading ? "Memuat pelanggan..." : data.customers.error ? "Data pelanggan belum tersedia" : reportReady ? `${kpi.totalOrders} total transaksi · periode terpilih` : reportPlaceholder,
       icon: Users,
       tone: "violet" as const,
     },
@@ -338,11 +252,10 @@ function DashboardView({
                     key={p.value}
                     onClick={() => setPeriod(p.value as PeriodType)}
                     aria-pressed={period === p.value}
-                    className={`min-h-9 rounded-[10px] px-3.5 text-xs font-extrabold transition-all ${
-                      period === p.value
+                    className={`min-h-[44px] rounded-[10px] px-3.5 text-xs font-extrabold transition-all ${period === p.value
                         ? "bg-white text-brand-navyDark shadow-sm"
                         : "text-slate-300 hover:bg-white/10 hover:text-white"
-                    }`}
+                      }`}
                   >
                     {p.label}
                   </button>
@@ -385,39 +298,14 @@ function DashboardView({
         </div>
       </motion.div>
 
-      {/* Sync Alert Banner */}
-      {hasOrdersButNoStats && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-5 rounded-card bg-brand-navyLight text-white flex flex-col sm:flex-row items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
-              <RotateCw size={20} className="animate-spin text-white" style={{ animationDuration: "3s" }} />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm sm:text-base tracking-tight">Statistik Belum Disinkronkan</h4>
-              <p className="text-xs text-white/80 mt-0.5 max-w-2xl leading-relaxed">
-                Kami mendeteksi adanya data pesanan di database Anda, namun performa bulanan belum dihitung. Klik tombol di samping untuk menginisialisasi statistik dashboard.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="px-5 py-2.5 bg-white hover:bg-slate-50 text-brand-navy disabled:opacity-50 text-xs sm:text-sm font-bold rounded-input transition-all shadow-sm flex items-center gap-2 shrink-0 min-h-[44px]"
-          >
-            {syncing ? (
-              <>
-                <RotateCw size={14} className="animate-spin" />
-                <span>Menyinkronkan...</span>
-              </>
-            ) : (
-              <span>Sinkronisasikan Sekarang</span>
-            )}
-          </button>
-        </motion.div>
+      <p className="text-xs font-medium text-slate-500">Ringkasan dan status: {dashboardRangeLabel(data.range)}. Jumlah pelanggan mencakup semua pelanggan.</p>
+
+      {/* Loading/error states never render a failed read as an empty database. */}
+      {(data.orders.error || data.customers.error || data.recent.error) && (
+        <div role="alert" className="rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {[data.orders.error, data.customers.error, data.recent.error].filter(Boolean).map(message => <p key={message}>{message}</p>)}
+          <button onClick={data.retry} className="mt-2 min-h-[44px] rounded-input bg-white px-4 font-bold text-brand-navy">Coba lagi</button>
+        </div>
       )}
 
       {/* KPI Cards */}
@@ -435,7 +323,9 @@ function DashboardView({
       </div>
 
       {/* Status Pills */}
-      <StatusPills activeCount={kpi.activeOrders} totalCount={kpi.totalOrders} />
+      {reportReady ? <StatusPills counts={statusCounts} totalCount={kpi.totalOrders} /> : (
+        <Card><p role="status" className="text-sm text-slate-500">{data.orders.loading ? "Memuat status pesanan..." : "Status pesanan belum tersedia."}</p></Card>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
@@ -452,29 +342,41 @@ function DashboardView({
               <div>
                 <p className="eyebrow text-brand-orange">Laporan</p>
                 <h3 className="mt-1 text-base font-extrabold text-brand-navyDark">Analisis Keuangan</h3>
-                <p className="mt-0.5 text-xs text-slate-500">Transaksi dan profit per bulan</p>
+                <p className="mt-0.5 text-xs text-slate-500">Transaksi dan profit per bulan · {chartCurrency}</p>
               </div>
-              <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-3 rounded-full bg-brand-navyLight" />
-                  Transaksi
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-3 rounded-full bg-emerald-500" />
-                  Profit
-                </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <div role="group" aria-label="Mata uang grafik" className="flex rounded-input border border-surface-border p-1">
+                  {(["IDR", "JPY"] as const).map(currency => (
+                    <button key={currency} aria-pressed={chartCurrency === currency} onClick={() => setChartCurrency(currency)}
+                      className={`min-h-[44px] rounded-lg px-3 text-xs font-bold ${chartCurrency === currency ? "bg-brand-navy text-white" : "text-brand-navy"}`}>
+                      {currency}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-3 rounded-full bg-brand-navyLight" />
+                    Transaksi
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-3 rounded-full bg-emerald-500" />
+                    Profit
+                  </span>
+                </div>
               </div>
             </div>
 
             <div className="h-[300px] sm:h-[340px] xl:h-[410px]">
-              {monthlyData.length === 0 ? (
+              {!reportReady ? (
+                <div role="status" className="flex h-full items-center justify-center text-sm text-slate-500">{data.orders.loading ? "Memuat analisis keuangan..." : "Analisis keuangan belum tersedia."}</div>
+              ) : !(chartCurrency === "IDR" ? kpi.hasIdr : kpi.hasJpy) ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 py-12">
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 mb-4 text-slate-400">
                     <Activity size={26} className="opacity-50 text-brand-navy" />
                   </div>
-                  <h4 className="font-bold text-slate-700 text-sm tracking-tight">Belum Ada Analisis Keuangan</h4>
+                  <h4 className="font-bold text-slate-700 text-sm tracking-tight">Belum Ada Transaksi {chartCurrency}</h4>
                   <p className="text-xs text-slate-400 max-w-[320px] mt-1.5 leading-relaxed text-center font-medium">
-                    Semua grafik omset, keuntungan bersih, dan margin bulanan Anda akan ditampilkan di sini secara otomatis setelah pesanan tercatat.
+                    Tidak ada pesanan {chartCurrency} pada periode terpilih. Pilih mata uang atau periode lain.
                   </p>
                 </div>
               ) : (
@@ -501,19 +403,14 @@ function DashboardView({
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(v) => {
-                        if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}M`;
-                        if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(0)}jt`;
-                        if (v >= 1_000) return `${(v / 1_000).toFixed(0)}rb`;
-                        return String(v);
-                      }}
+                      tickFormatter={(v) => new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(v)}
                       tick={{ fill: "#94a3b8", fontSize: 11 }}
                     />
                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#e2e8f0", strokeWidth: 1 }} />
                     <Area
                       type="monotone"
-                      dataKey="revIdr"
-                      name="Transaksi (IDR)"
+                      dataKey={chartCurrency === "IDR" ? "revIdr" : "revJpy"}
+                      name={`Transaksi (${chartCurrency})`}
                       stroke="#154574"
                       strokeWidth={2.5}
                       fill="url(#gradRevenue)"
@@ -522,8 +419,8 @@ function DashboardView({
                     />
                     <Area
                       type="monotone"
-                      dataKey="profIdr"
-                      name="Profit (IDR)"
+                      dataKey={chartCurrency === "IDR" ? "profIdr" : "profJpy"}
+                      name={`Profit (${chartCurrency})`}
                       stroke="#10b981"
                       strokeWidth={2.5}
                       fill="url(#gradProfit)"
@@ -563,18 +460,21 @@ function DashboardView({
               </button>
             </div>
 
+            <p className="px-5 pt-3 text-xs text-slate-500">8 pesanan terbaru · Semua periode</p>
             <div className="divide-y divide-surface-border">
-              {recentOrders.length === 0 ? (
+              {data.recent.loading || data.recent.error ? (
+                <p role="status" className="px-5 py-10 text-center text-sm text-slate-500">{data.recent.loading ? "Memuat pesanan terbaru..." : "Daftar pesanan belum tersedia."}</p>
+              ) : data.recent.rows.length === 0 ? (
                 <div className="py-10 flex flex-col items-center text-slate-300">
                   <ShoppingBag size={28} className="mb-2 opacity-40" />
                   <p className="text-xs text-slate-400">Belum ada pesanan</p>
                 </div>
               ) : (
-                recentOrders.map((order: any, i) => {
+                data.recent.rows.map((order) => {
                   const isDone = DONE_SET.has(order.status);
                   const d = compute(order, unitPrice);
                   return (
-                    <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-brand-mist/40">
+                    <div key={order.id} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-brand-mist/40">
                       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] text-xs font-extrabold ${isDone ? "bg-emerald-100 text-emerald-700" : "bg-brand-cream text-brand-orange"}`}>
                         {(order.namaPelanggan || "?").charAt(0).toUpperCase()}
                       </div>
@@ -583,12 +483,12 @@ function DashboardView({
                         <p className="text-[10px] text-slate-400 truncate mt-0.5">{order.namaBarang || "-"}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xs font-bold text-slate-800 flex items-center justify-end gap-1.5">
+                        <div className="text-xs font-bold text-slate-800 flex items-center justify-end gap-1.5">
                           {d.currency === "JPY" ? <FlagJP /> : <FlagID />}
                           <span>{formatCurrency(d.totalPembayaran, d.currency)}</span>
-                        </p>
+                        </div>
                         <Badge variant={isDone ? "success" : "warning"} dot>
-                          {isDone ? "Selesai" : "Pending"}
+                          {STATUS_CONFIG[order.status]?.label || order.status || "Belum Bayar"}
                         </Badge>
                       </div>
                     </div>
@@ -634,8 +534,8 @@ function NotificationCard({ user, registerFCM }: { user: any; registerFCM: () =>
       <p className="text-sm text-slate-500 mb-4">
         {!isSupported ? "Browser tidak mendukung notifikasi."
           : permission === "granted" ? "Notifikasi sudah aktif."
-          : permission === "denied" ? "Akses diblokir. Aktifkan manual di browser."
-          : "Aktifkan agar tidak ketinggalan pesanan baru."}
+            : permission === "denied" ? "Akses diblokir. Aktifkan manual di browser."
+              : "Aktifkan agar tidak ketinggalan pesanan baru."}
       </p>
       {permission === "default" && isSupported && (
         <button
@@ -669,9 +569,8 @@ function NotificationCard({ user, registerFCM }: { user: any; registerFCM: () =>
 }
 
 export function Dashboard({
-  activeOrders, monthlySummaries, customers, onSeeAllOrders, setActiveFeature, onRecalculateStats,
+  onSeeAllOrders, setActiveFeature, onRecalculateStats,
 }: {
-  activeOrders: Order[]; monthlySummaries: any[]; customers: Customer[];
   onSeeAllOrders: () => void;
   setActiveFeature: (v: string) => void;
   onRecalculateStats: () => Promise<void> | void;
@@ -682,9 +581,6 @@ export function Dashboard({
   return (
     <div className="min-h-screen bg-surface-base font-sans text-slate-800">
       <DashboardView
-        activeOrders={activeOrders}
-        monthlySummaries={monthlySummaries}
-        customers={customers}
         unitPrice={unitPrice}
         globalJastipYen={globalJastipYen}
         userName={user?.displayName || user?.email?.split("@")[0] || "Admin"}

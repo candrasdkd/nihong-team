@@ -44,9 +44,8 @@ export function StatCard({ label, value, sub, icon: Icon, trend, className = "",
           <Icon size={18} strokeWidth={2.2} />
         </div>
         {trend !== undefined && (
-          <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            pos ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
-          }`}>
+          <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${pos ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+            }`}>
             {pos ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
             {Math.abs(trend).toFixed(1)}%
           </div>

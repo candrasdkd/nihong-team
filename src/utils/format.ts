@@ -71,3 +71,16 @@ export const formatDateTime = (d: any) => {
   const timeStr = dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
   return `${dateStr} · ${timeStr}`;
 };
+
+/**
+ * Membandingkan dua tanggal keberangkatan (YYYY-MM-DD) secara ascending (terdekat lebih dulu).
+ * Tanggal kosong/tidak valid akan diletakkan di akhir.
+ */
+export function compareDepartureDates(dateA?: string | null, dateB?: string | null): number {
+  const valA = dateA?.trim() || "";
+  const valB = dateB?.trim() || "";
+  if (!valA && !valB) return 0;
+  if (!valA) return 1;
+  if (!valB) return -1;
+  return valA.localeCompare(valB);
+}

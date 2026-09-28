@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 
 import { ShoppingBag, Plus, X, ChevronDown } from "lucide-react";
 import { PreOrder, PreOrderItem, PreOrderStatus, DepartureSchedule, Customer } from "../../types";
-import { formatIDR, formatDate } from "../../utils/format";
+import { formatIDR, formatDate, compareDepartureDates } from "../../utils/format";
 import { Button } from "../ui/Button";
 import SearchableSelect from "../ui/SearchableSelect";
 import { addCustomer } from "../../services/customersFirebase";
@@ -109,7 +109,13 @@ function ScheduleSelect({
   const wrapRef = useRef<HTMLDivElement>(null);
   useOnClickOutside(wrapRef, () => setOpen(false));
 
-  const selected = schedules.find((s) => s.id === value);
+  const sortedSchedules = useMemo(() => {
+    return [...schedules].sort((a, b) =>
+      compareDepartureDates(a.tanggalBerangkat, b.tanggalBerangkat)
+    );
+  }, [schedules]);
+
+  const selected = sortedSchedules.find((s) => s.id === value);
 
   return (
     <div ref={wrapRef} className="relative w-full">
@@ -143,11 +149,11 @@ function ScheduleSelect({
 
       {open && (
         <div className="absolute left-0 right-0 mt-1.5 z-[100] bg-white rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
-          {schedules.length === 0 ? (
+          {sortedSchedules.length === 0 ? (
             <div className="px-4 py-6 text-xs font-semibold text-slate-400 text-center select-none">Tidak ada jadwal tersedia</div>
           ) : (
             <div className="p-1.5 space-y-1">
-              {schedules.map((s) => {
+              {sortedSchedules.map((s) => {
                 const isPicked = s.id === value;
                 return (
                   <button

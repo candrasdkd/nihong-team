@@ -20,6 +20,7 @@ import {
 import { listenSchedules } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
 import { generateShoppingListText } from "../utils/nihongStoreExport";
+import { compareDepartureDates } from "../utils/format";
 
 export type InboxSortOption = "newest" | "oldest" | "price_desc" | "price_asc" | "weight_desc";
 
@@ -122,7 +123,12 @@ export function useNihongStoreInbox(
 
   // 2. Subscribe Schedules & Customers from nihong-4b93e
   useEffect(() => {
-    const unsubS = listenSchedules((rows) => setSchedules(rows));
+    const unsubS = listenSchedules((rows) => {
+      const sorted = [...rows].sort((a, b) =>
+        compareDepartureDates(a.tanggalBerangkat, b.tanggalBerangkat)
+      );
+      setSchedules(sorted);
+    });
     const unsubC = listenCustomers((rows) => setCustomers(rows));
     return () => {
       unsubS();
