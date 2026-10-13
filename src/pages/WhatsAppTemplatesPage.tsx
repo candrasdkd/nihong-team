@@ -8,6 +8,7 @@ import {
   Copy,
   ExternalLink,
   Landmark,
+  Mail,
   MapPin,
   MessageCircle,
   PackageX,
@@ -34,6 +35,7 @@ type TemplateId =
   | "indo-japan"
   | "japan-indo"
   | "yamato-estimate"
+  | "letterpack-estimate"
   | "oversized-item"
   | "cannot-carry"
   | "restricted-items";
@@ -149,6 +151,19 @@ Terima kasih! 🙏`,
 Estimasi ini memakai tarif tunai Yamato dan ukuran minimum berdasarkan berat saja. Ukuran final ditentukan dari dimensi dan berat paket, sehingga ongkir dapat berubah setelah paket diukur. Biaya ini belum termasuk tarif handcarry.`,
   },
   {
+    id: "letterpack-estimate",
+    title: "Estimasi Letter Pack · Jepang",
+    description: "Tarif tetap Japan Post, divalidasi berdasarkan berat dan ketebalan.",
+    icon: Mail,
+    text: `Halo Kak! Berikut perkiraan biaya pengiriman domestik Jepang menggunakan Japan Post Letter Pack:
+
+📮 Jenis: [Letter Pack Light / Letter Pack Plus]
+⚖️ Berat paket: [berat] kg
+🚚 Ongkir domestik: *¥[nominal]* (tarif tetap seluruh Jepang)
+
+Letter Pack hanya berlaku untuk pengiriman domestik di Jepang dan menggunakan amplop khusus Japan Post. Biaya ini belum termasuk tarif handcarry.`,
+  },
+  {
     id: "oversized-item",
     title: "Barang besar · tarif satuan",
     description: "Harga dihitung per barang, bukan per kg.",
@@ -188,6 +203,11 @@ const YAMATO_PREFECTURE_OPTIONS = YAMATO_PREFECTURES.map((prefecture) => ({
   value: prefecture,
 }));
 
+const LETTER_PACK_OPTIONS = {
+  light: { label: "Letter Pack Light", priceYen: 430, delivery: "Dikirim ke kotak surat" },
+  plus: { label: "Letter Pack Plus", priceYen: 600, delivery: "Diantar langsung, perlu tanda terima" },
+} as const;
+
 export function WhatsAppTemplatesPage() {
   const [selectedId, setSelectedId] = useState<TemplateId>("yen-payment");
   const [messageText, setMessageText] = useState(TEMPLATES[0].text);
@@ -196,6 +216,9 @@ export function WhatsAppTemplatesPage() {
   const [yamatoOrigin, setYamatoOrigin] = useState<YamatoPrefecture>("Osaka");
   const [yamatoDestination, setYamatoDestination] = useState<YamatoPrefecture | "">("");
   const [yamatoWeight, setYamatoWeight] = useState("");
+  const [letterPackType, setLetterPackType] = useState<keyof typeof LETTER_PACK_OPTIONS>("light");
+  const [letterPackWeight, setLetterPackWeight] = useState("");
+  const [letterPackThickness, setLetterPackThickness] = useState("");
 
   const selectedTemplate = useMemo(
     () => TEMPLATES.find((template) => template.id === selectedId) ?? TEMPLATES[0],
@@ -214,6 +237,18 @@ export function WhatsAppTemplatesPage() {
     if (!yamatoDestination || !yamatoWeight.trim()) return null;
     return estimateYamatoByRouteAndWeight(yamatoOrigin, yamatoDestination, yamatoWeightKg);
   }, [yamatoDestination, yamatoOrigin, yamatoWeight, yamatoWeightKg]);
+  const letterPackWeightKg = Number(letterPackWeight);
+  const letterPackThicknessCm = Number(letterPackThickness);
+  const letterPackWeightValid = letterPackWeight.trim() !== ""
+    && Number.isFinite(letterPackWeightKg)
+    && letterPackWeightKg > 0
+    && letterPackWeightKg <= 4;
+  const letterPackThicknessValid = letterPackType === "plus"
+    || (letterPackThickness.trim() !== ""
+      && Number.isFinite(letterPackThicknessCm)
+      && letterPackThicknessCm > 0
+      && letterPackThicknessCm <= 3);
+  const canEstimateLetterPack = letterPackWeightValid && letterPackThicknessValid;
 
   const handleInsertYamatoEstimate = () => {
     if (!yamatoEstimate || !yamatoDestination) return;
@@ -228,6 +263,25 @@ export function WhatsAppTemplatesPage() {
 🚚 Estimasi ongkir Yamato: *¥${formattedYen}*
 
 Estimasi ini memakai tarif tunai Yamato dan ukuran minimum berdasarkan berat saja. Ukuran final ditentukan dari dimensi dan berat paket, sehingga ongkir dapat berubah setelah paket diukur. Biaya ini belum termasuk tarif handcarry.`);
+    setCopyState("idle");
+  };
+
+  const handleInsertLetterPackEstimate = () => {
+    if (!canEstimateLetterPack) return;
+
+    const option = LETTER_PACK_OPTIONS[letterPackType];
+    const formattedWeight = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(letterPackWeightKg);
+    const formattedYen = new Intl.NumberFormat("id-ID").format(option.priceYen);
+    const thicknessLine = letterPackType === "light"
+      ? `\n📏 Ketebalan paket: ${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(letterPackThicknessCm)} cm`
+      : "";
+    setMessageText(`Halo Kak! Berikut perkiraan biaya pengiriman domestik Jepang menggunakan Japan Post Letter Pack:
+
+📮 Jenis: ${option.label} · ${option.delivery}
+⚖️ Berat paket: ${formattedWeight} kg${thicknessLine}
+🚚 Ongkir domestik: *¥${formattedYen}* (tarif tetap seluruh Jepang)
+
+Letter Pack hanya berlaku untuk pengiriman domestik di Jepang dan menggunakan amplop khusus Japan Post. Biaya ini belum termasuk tarif handcarry.`);
     setCopyState("idle");
   };
 
@@ -386,6 +440,118 @@ Estimasi ini memakai tarif tunai Yamato dan ukuran minimum berdasarkan berat saj
                 type="button"
                 onClick={handleInsertYamatoEstimate}
                 disabled={!yamatoEstimate}
+                className="min-h-[48px] w-full bg-brand-navy px-4 text-sm hover:bg-brand-navyDark"
+              >
+                Masukkan estimasi ke pesan
+              </Button>
+            </section>
+          )}
+
+          {selectedId === "letterpack-estimate" && (
+            <section aria-labelledby="letterpack-calculator-title" className="space-y-4 rounded-2xl border border-brand-navy/10 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-mist text-brand-navy">
+                  <Mail size={19} />
+                </span>
+                <div>
+                  <h2 id="letterpack-calculator-title" className="text-sm font-extrabold text-brand-navyDark">Hitung ongkir Letter Pack</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Tarif tetap untuk seluruh Jepang, jadi tidak perlu mengisi rute.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(["light", "plus"] as const).map((type) => {
+                  const option = LETTER_PACK_OPTIONS[type];
+                  const isSelected = letterPackType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setLetterPackType(type)}
+                      className={`flex min-h-[76px] items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${isSelected ? "border-brand-orange/60 bg-brand-cream ring-2 ring-brand-orange/10" : "border-surface-border bg-white hover:border-slate-300"}`}
+                    >
+                      <span>
+                        <span className="block text-sm font-bold text-brand-navyDark">{option.label}</span>
+                        <span className="mt-1 block text-xs text-slate-500">{option.delivery}</span>
+                      </span>
+                      <span className="shrink-0 text-base font-extrabold text-brand-navyDark">¥{new Intl.NumberFormat("id-ID").format(option.priceYen)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className={letterPackType === "plus" ? "sm:col-span-2" : ""}>
+                  <label htmlFor="letterpack-weight" className="mb-1.5 block text-sm font-bold text-slate-600">Berat paket (kg)</label>
+                  <input
+                    id="letterpack-weight"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.1"
+                    max="4"
+                    step="0.1"
+                    value={letterPackWeight}
+                    onChange={(event) => setLetterPackWeight(event.target.value)}
+                    placeholder="Maksimal 4 kg"
+                    className="min-h-[46px] w-full rounded-xl border border-surface-border bg-white px-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-orange/60 focus:ring-2 focus:ring-brand-orange/15"
+                  />
+                </div>
+                {letterPackType === "light" && (
+                  <div>
+                    <label htmlFor="letterpack-thickness" className="mb-1.5 block text-sm font-bold text-slate-600">Ketebalan paket (cm)</label>
+                    <input
+                      id="letterpack-thickness"
+                      type="number"
+                      inputMode="decimal"
+                      min="0.1"
+                      max="3"
+                      step="0.1"
+                      value={letterPackThickness}
+                      onChange={(event) => setLetterPackThickness(event.target.value)}
+                      placeholder="Maksimal 3 cm"
+                      className="min-h-[46px] w-full rounded-xl border border-surface-border bg-white px-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-orange/60 focus:ring-2 focus:ring-brand-orange/15"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div aria-live="polite" className={`rounded-xl border p-3.5 ${canEstimateLetterPack ? "border-emerald-200 bg-emerald-50/70" : "border-surface-border bg-surface-base/70"}`}>
+                {letterPackWeight.trim() === "" ? (
+                  <p className="text-sm leading-relaxed text-slate-600">Masukkan berat paket untuk memeriksa kelayakan dan menampilkan tarif.</p>
+                ) : !Number.isFinite(letterPackWeightKg) || letterPackWeightKg <= 0 ? (
+                  <p className="text-sm leading-relaxed text-rose-700">Masukkan berat paket lebih dari 0 kg.</p>
+                ) : letterPackWeightKg > 4 ? (
+                  <p className="text-sm leading-relaxed text-rose-700">Letter Pack hanya menerima paket sampai 4 kg.</p>
+                ) : letterPackType === "light" && letterPackThickness.trim() === "" ? (
+                  <p className="text-sm leading-relaxed text-slate-600">Masukkan ketebalan paket untuk mengecek Letter Pack Light.</p>
+                ) : letterPackType === "light" && (!Number.isFinite(letterPackThicknessCm) || letterPackThicknessCm <= 0) ? (
+                  <p className="text-sm leading-relaxed text-rose-700">Masukkan ketebalan paket lebih dari 0 cm.</p>
+                ) : letterPackType === "light" && letterPackThicknessCm > 3 ? (
+                  <p className="text-sm leading-relaxed text-rose-700">Paket lebih dari 3 cm tidak memenuhi batas Letter Pack Light. Coba Letter Pack Plus.</p>
+                ) : (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-600">Estimasi ongkir domestik Jepang · tarif tetap seluruh Jepang</p>
+                    <p className="mt-1 text-2xl font-black tracking-tight text-brand-navyDark">¥{new Intl.NumberFormat("id-ID").format(LETTER_PACK_OPTIONS[letterPackType].priceYen)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{LETTER_PACK_OPTIONS[letterPackType].label} · berat {new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(letterPackWeightKg)} kg</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs leading-relaxed text-amber-800">Keduanya maksimal 4 kg dan wajib memakai amplop khusus Japan Post ukuran A4 (34 × 24,8 cm). Letter Pack Light maksimal 3 cm tebal; Plus tidak memiliki batas ketebalan selama tetap muat dalam amplop. Layanan ini hanya berlaku untuk pengiriman domestik Jepang.</p>
+              <a
+                href="https://www.post.japanpost.jp/service/send/domestic/mail/letterpack/"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-brand-navyLight underline-offset-4 hover:underline"
+              >
+                Cek detail resmi Japan Post <ExternalLink size={14} />
+              </a>
+
+              <Button
+                type="button"
+                onClick={handleInsertLetterPackEstimate}
+                disabled={!canEstimateLetterPack}
                 className="min-h-[48px] w-full bg-brand-navy px-4 text-sm hover:bg-brand-navyDark"
               >
                 Masukkan estimasi ke pesan
