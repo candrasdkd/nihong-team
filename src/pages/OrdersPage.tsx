@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSettings } from "../context/settingsContext";
 import { Customer, ExtendedOrder } from "../types";
 import { formatCurrency, CurrencyCode } from "../utils/format";
@@ -33,6 +34,7 @@ import { exportOrdersToExcel } from "../utils/exportExcel";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { PaymentTrackerModal } from "../components/PaymentTrackerModal";
 import { OrderPaymentSummary } from "../components/OrderPaymentSummary";
+import { OrderWhatsAppModal } from "../components/OrderWhatsAppModal";
 import { getPaymentSummary } from "../utils/payment";
 
 // ===== IMAGE PREVIEW MODAL =====
@@ -340,7 +342,9 @@ export function OrdersPage({
     handleSubmitOrder,
   } = useOrders({ customers, unitPrice });
 
+  const navigate = useNavigate();
   const [paymentModalOrder, setPaymentModalOrder] = useState<ExtendedOrder | null>(null);
+  const [whatsAppModalOrder, setWhatsAppModalOrder] = useState<ExtendedOrder | null>(null);
 
   // Auto-open create form when triggered by SpeedDialFAB
   useEffect(() => {
@@ -724,6 +728,7 @@ export function OrdersPage({
                 }}
                 onShowDetail={() => setSelectedOrderDetail(o)}
                 onPayment={() => setPaymentModalOrder(o)}
+                onWhatsApp={() => setWhatsAppModalOrder(o)}
               />
             ))
           )}
@@ -918,6 +923,20 @@ export function OrdersPage({
           showToast={showToast}
         />
       )}
+
+      {/* Order WhatsApp Template Modal */}
+      {whatsAppModalOrder && (
+        <OrderWhatsAppModal
+          isOpen={Boolean(whatsAppModalOrder)}
+          onClose={() => setWhatsAppModalOrder(null)}
+          order={whatsAppModalOrder}
+          customer={resolveOrderCustomer(whatsAppModalOrder, customers)}
+          unitPrice={unitPrice}
+          onOpenFullTemplates={(phone, name) => {
+            navigate(`/whatsapp-templates?phone=${phone}&name=${encodeURIComponent(name)}`);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -936,6 +955,7 @@ interface MobileOrderCardProps {
   onPreview: (src: string | string[]) => void;
   onShowDetail: () => void;
   onPayment: () => void;
+  onWhatsApp: () => void;
 }
 
 function MobileOrderCard({
@@ -950,6 +970,7 @@ function MobileOrderCard({
   onPreview,
   onShowDetail,
   onPayment,
+  onWhatsApp,
 }: MobileOrderCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const d = compute(order, unitPrice);
@@ -1041,6 +1062,15 @@ function MobileOrderCard({
           >
             <FileText size={12} className="stroke-[2.2]" />
             <span>Invoice</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onWhatsApp}
+            title="Kirim Pesan WhatsApp"
+            className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition-all active:scale-98"
+          >
+            <MessageCircle size={13} className="stroke-[2.2]" />
           </button>
 
           <button

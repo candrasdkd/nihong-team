@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { PreOrder, PreOrderStatus, DepartureSchedule } from "../../types";
 import { formatIDR, formatDate } from "../../utils/format";
+import { normalizeWhatsAppPhone } from "../../utils/whatsapp";
 
 // ─── Status Config ──────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<PreOrderStatus, { label: string; cls: string }> = {
@@ -75,11 +76,12 @@ export function PreOrderCard({
 *Daftar Barang:*
 ${itemsText}`;
 
-    window.open(
-      `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    const cleanPhone = normalizeWhatsAppPhone(po.noTelponPelanggan);
+    const targetUrl = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
