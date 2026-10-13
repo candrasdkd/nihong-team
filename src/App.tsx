@@ -22,6 +22,7 @@ const JastiperSearchPage = React.lazy(() => import("./pages/JastiperSearchPage")
 const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
 const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
 const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ default: m.InboxPage })));
+const WhatsAppTemplatesPage = React.lazy(() => import("./pages/WhatsAppTemplatesPage").then(m => ({ default: m.WhatsAppTemplatesPage })));
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
 const SharedLedgerPage = React.lazy(() => import("./pages/SharedLedgerPage").then(m => ({ default: m.SharedLedgerPage })));
 const SharedDeliveryAddressPage = React.lazy(() => import("./pages/SharedDeliveryAddressPage").then(m => ({ default: m.SharedDeliveryAddressPage })));
@@ -351,6 +352,7 @@ const router = createBrowserRouter([
       { path: "schedules", element: <SchedulesRoute /> },
       { path: "preorders", element: <PreOrdersRoute /> },
       { path: "inbox", element: <InboxRoute /> },
+      { path: "whatsapp-templates", element: <WhatsAppTemplatesPage /> },
       { path: "menu", element: <MenuRoute /> },
     ],
   },

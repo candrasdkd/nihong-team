@@ -15,6 +15,7 @@ import {
   PackageSearch,
   Inbox,
   Search,
+  MessageCircle,
 } from "lucide-react";
 import logo from "../assets/nihong.png";
 import { listenUnassignedNihongStoreCount } from "../services/nihongStoreFirebase";
@@ -38,6 +39,7 @@ const SUB_MENU_ITEMS = [
   { id: "jastiper-search", label: "Cari Jastiper", icon: Search },
   { id: "schedules",  label: "Jadwal",        icon: Calendar },
   { id: "preorders",  label: "Booking",       icon: ShoppingBag },
+  { id: "whatsapp-templates", label: "Template WhatsApp", icon: MessageCircle },
 ];
 
 function NavItem({

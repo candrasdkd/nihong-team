@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import {
   UserRound, Calendar, ShoppingBag, Users, Plane,
-  ArrowRight, Inbox, Search,
+  ArrowRight, Inbox, Search, MessageCircle,
 } from "lucide-react";
 import { TabId } from "../types";
 
@@ -70,6 +70,16 @@ const MENU_ITEMS = [
     bg: "bg-violet-50",
     iconColor: "text-violet-600",
     accent: "ring-violet-200/70",
+  },
+  {
+    id: "whatsapp-templates" as TabId,
+    label: "Template Chat WhatsApp",
+    description: "Salin atau kirim pesan siap pakai untuk pelanggan jastip",
+    icon: MessageCircle,
+    gradient: "from-emerald-500 to-teal-600",
+    bg: "bg-emerald-50",
+    iconColor: "text-emerald-700",
+    accent: "ring-emerald-200/70",
   },
 ];
 
