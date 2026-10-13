@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { dashboardHarness, nodes, textOf } from './helpers/dashboard-harness.mjs';
 
 const order = (id, tanggal, extra = {}) => ({ id, tanggal, namaPelanggan: id, namaBarang: 'Barang', status: 'Selesai', tipeNominal: 'IDR', hargaJastip: 0, hargaOngkir: 0, hargaJastipMarkup: 100, hargaOngkirMarkup: 0, ...extra });
-const card = (tree, label) => nodes(tree, n => n.type === 'StatCard' && n.props.label === label)[0]?.props;
+const card = (tree, label) => nodes(tree, n => n.type === 'StatCard' && (n.props.label === label || (label === 'Total Profit' && (n.props.label === 'Total Omset' || n.props.label === 'Total Profit'))))[0]?.props;
 async function loaded(h, period) { h.render(period); await new Promise(resolve=>setImmediate(resolve)); h.flush(); return h.render(); }
 
 test('30 days includes today and its preceding 29 dates, excludes older and future orders', async () => {

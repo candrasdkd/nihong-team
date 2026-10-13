@@ -190,12 +190,16 @@ function DashboardView({
       ...(reportReady ? dashboardMoney(kpi.revIdr, kpi.revJpy, kpi.hasIdr, kpi.hasJpy) : { value: "—", sub: reportPlaceholder }),
       icon: Wallet,
       tone: "navy" as const,
+      badge: "Semua Status",
+      fallbackSub: "Nilai akumulasi seluruh pesanan",
     },
     {
-      label: "Total Profit",
+      label: "Total Omset",
       ...(reportReady ? dashboardMoney(kpi.profIdr, kpi.profJpy, kpi.hasIdr, kpi.hasJpy) : { value: "—", sub: reportPlaceholder }),
       icon: CircleDollarSign,
       tone: "emerald" as const,
+      badge: "Laba Kotor",
+      fallbackSub: "Sebelum biaya operasional",
     },
     {
       label: "Pesanan Aktif",
@@ -203,6 +207,9 @@ function DashboardView({
       sub: reportReady ? "Periode terpilih" : reportPlaceholder,
       icon: Activity,
       tone: "orange" as const,
+      badge: "Perlu Tindakan",
+      live: reportReady && kpi.activeOrders > 0,
+      fallbackSub: "Belum lunas & DP",
     },
     {
       label: "Total Pelanggan",
@@ -210,6 +217,8 @@ function DashboardView({
       sub: data.customers.loading ? "Memuat pelanggan..." : data.customers.error ? "Data pelanggan belum tersedia" : reportReady ? `${kpi.totalOrders} total transaksi · periode terpilih` : reportPlaceholder,
       icon: Users,
       tone: "violet" as const,
+      badge: "Database",
+      fallbackSub: "Pelanggan terdaftar",
     },
   ];
 
@@ -298,7 +307,14 @@ function DashboardView({
         </div>
       </motion.div>
 
-      <p className="text-xs font-medium text-slate-500">Ringkasan dan status: {dashboardRangeLabel(data.range)}. Jumlah pelanggan mencakup semua pelanggan.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+        <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-orange shrink-0" />
+          <span>
+            Ringkasan dan status: <span className="font-bold text-slate-700">{dashboardRangeLabel(data.range)}</span>. Jumlah pelanggan mencakup semua pelanggan.
+          </span>
+        </p>
+      </div>
 
       {/* Loading/error states never render a failed read as an empty database. */}
       {(data.orders.error || data.customers.error || data.recent.error) && (
@@ -309,13 +325,13 @@ function DashboardView({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 xl:grid-cols-4 xl:gap-4">
+      <div className="grid grid-cols-1 gap-3.5 min-[440px]:grid-cols-2 xl:grid-cols-4 xl:gap-4.5">
         {KPI_CARDS.map((card, index) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.08 }}
+            transition={{ duration: 0.35, delay: index * 0.06 }}
           >
             <StatCard {...card} />
           </motion.div>

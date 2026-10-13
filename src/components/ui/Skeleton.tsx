@@ -22,15 +22,17 @@ export function PageSkeleton() {
 
 export function StatCardSkeleton() {
   return (
-    <div className="bg-surface-card border border-surface-border rounded-card p-5 space-y-4 animate-pulse">
+    <div className="bg-white border border-slate-200/80 rounded-[22px] p-5 space-y-4 animate-pulse shadow-sm">
       <div className="flex items-start justify-between">
-        <Shimmer className="w-10 h-10 rounded-xl" />
-        <Shimmer className="w-14 h-5 rounded-full" />
+        <Shimmer className="w-11 h-11 rounded-[14px]" />
+        <Shimmer className="w-16 h-5 rounded-full" />
       </div>
-      <div className="space-y-2">
-        <Shimmer className="h-3 w-16" />
-        <Shimmer className="h-7 w-28" />
-        <Shimmer className="h-3 w-20" />
+      <div className="space-y-2.5 pt-1">
+        <Shimmer className="h-2.5 w-20" />
+        <Shimmer className="h-8 w-36" />
+      </div>
+      <div className="border-t border-slate-100 pt-2.5">
+        <Shimmer className="h-3 w-28" />
       </div>
     </div>
   );

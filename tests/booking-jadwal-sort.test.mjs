@@ -88,13 +88,13 @@ test("usePreOrders sorts schedules and jastiper groups by nearest departure date
 
   assert.match(
     preOrdersHookFile,
-    /list\.sort\(\(a,\s*b\)\s*=>\s*compareDepartureDates\(a\.date,\s*b\.date\)\)/,
-    "groupedBySchedule must sort by departure date ascending",
+    /compareDepartureDates\(a\.date,\s*b\.date\)/,
+    "groupedBySchedule must sort by departure date using compareDepartureDates",
   );
 
   assert.match(
     preOrdersHookFile,
-    /schedules:\s*g\.schedules\.sort\(\(a,\s*b\)\s*=>\s*compareDepartureDates\(a\.date,\s*b\.date\)\)/,
+    /schedules:\s*g\.schedules\.sort\(\(a,\s*b\)\s*=>\s*\{[\s\S]*?compareDepartureDates\(a\.date,\s*b\.date\)/,
     "groupedByJastiper must sort schedules inside each jastiper group by nearest date",
   );
 

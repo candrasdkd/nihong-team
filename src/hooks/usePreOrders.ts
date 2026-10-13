@@ -204,7 +204,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
 
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
       const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || allPOsForCapacity.length > 0 || !q) {
+      if (matchPO.length > 0 || (statusFilter !== "Selesai" && (allPOsForCapacity.length > 0 || !q))) {
         list.push({
           schedule: sch,
           preOrders: matchPO,
@@ -216,7 +216,11 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       }
     });
 
-    list.sort((a, b) => compareDepartureDates(a.date, b.date));
+    // Selesai tab: terbaru dulu (descending); Pending/All: terdekat dulu (ascending)
+    list.sort((a, b) => {
+      const cmp = compareDepartureDates(a.date, b.date);
+      return statusFilter === "Selesai" ? -cmp : cmp;
+    });
 
     // Check if there are pre-orders with schedules not in the list (or empty idJadwal)
     const orphans = filtered.filter((p) => !schedules.some((s) => s.id === p.idJadwal));
@@ -242,7 +246,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
       // Semua PO (Pending + Selesai) untuk hitung kapasitas aktual
       const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || allPOsForCapacity.length > 0 || !q) {
+      if (matchPO.length > 0 || (statusFilter !== "Selesai" && (allPOsForCapacity.length > 0 || !q))) {
         const jastiperName = sch.namaJastiper?.trim() || "Jastiper Tanpa Nama";
         const jastiperId = sch.idJastiper?.trim() || jastiperName;
 
@@ -279,7 +283,10 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     // Sort schedules inside each jastiper group by date ascending (nearest departure date first)
     const result: JastiperGroup[] = Array.from(jastiperMap.values()).map((g) => ({
       ...g,
-      schedules: g.schedules.sort((a, b) => compareDepartureDates(a.date, b.date)),
+      schedules: g.schedules.sort((a, b) => {
+        const cmp = compareDepartureDates(a.date, b.date);
+        return statusFilter === "Selesai" ? -cmp : cmp;
+      }),
     }));
 
     // Sort Jastiper groups so that the Jastiper with the nearest departure date comes first
@@ -287,7 +294,8 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       const earliestA = a.schedules[0]?.date;
       const earliestB = b.schedules[0]?.date;
       const cmp = compareDepartureDates(earliestA, earliestB);
-      if (cmp !== 0) return cmp;
+      const directedCmp = statusFilter === "Selesai" ? -cmp : cmp;
+      if (directedCmp !== 0) return directedCmp;
       return a.namaJastiper.localeCompare(b.namaJastiper);
     });
 
