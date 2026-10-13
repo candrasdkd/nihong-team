@@ -343,6 +343,7 @@ export function printDeliveryAddressBatch(
       line-height: 1.15;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
+      text-transform: uppercase;
     }
     @media print {
       body { background: #fff; }
