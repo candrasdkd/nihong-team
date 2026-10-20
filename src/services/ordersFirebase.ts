@@ -21,6 +21,7 @@ import {
   writeBatch,
   type Unsubscribe,
   type QueryConstraint,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { OrderDoc, OrderStatus, SubscribeOpts } from "../types";
@@ -393,31 +394,95 @@ export function subscribeOrders(
   }, onError);
 }
 
-/**
- * Mengambil data pesanan dalam bentuk lembaran/batch (Pagination) menggunakan cursor penunjuk.
- * Berguna saat membuat fitur infinite scroll atau tombol "Load More".
- * 
- * @param pageSize - Jumlah dokumen yang dimuat per halaman.
- * @param cursor - Penanda batas dokumen terakhir di halaman sebelumnya (startAfter).
- */
-export async function getOrdersPage(pageSize = 25, cursor?: any) {
-  const q1 = cursor
-    ? query(
-      ORDERS,
-      orderBy("tanggal", "desc"),
-      startAfter(cursor), // Lanjutkan setelah dokumen cursor
-      qLimit(pageSize),
-    )
-    : query(ORDERS, orderBy("tanggal", "desc"), qLimit(pageSize));
+export type OrdersPageFilters = {
+  status?: string;
+  fromInput?: string;
+  toInput?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
 
-  const snap = await getDocs(q1);
-  const rows: OrderDoc[] = snap.docs.map((d) => ({
-    ...(d.data() as OrderDoc),
-    id: d.id,
-  }));
-  const last =
-    snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : undefined;
-  return { rows, cursor: last };
+export type OrdersPageCursor = QueryDocumentSnapshot<DocumentData>;
+
+const orderFieldFor = (sortBy: string | undefined) => {
+  if (sortBy === "keuntungan") return "totalKeuntungan";
+  if (sortBy === "totalPembayaran") return "totalPembayaran";
+  if (sortBy === "namaPelanggan") return "namaPelanggan";
+  return "tanggal";
+};
+
+function addOrderFilters(constraints: QueryConstraint[], filters: OrdersPageFilters, includeDateRange = true) {
+  if (filters.status) constraints.push(where("status", "==", filters.status));
+  if (includeDateRange && filters.fromInput) constraints.push(where("tanggal", ">=", filters.fromInput));
+  if (includeDateRange && filters.toInput) constraints.push(where("tanggal", "<=", filters.toInput));
+}
+
+function toOrderDoc(docSnap: { id: string; data: () => DocumentData }): OrderDoc {
+  return { ...(docSnap.data() as OrderDoc), id: docSnap.id };
+}
+
+/** Fetch one server-backed cursor page. A lookahead document determines hasMore. */
+export async function getOrdersPage(
+  filters: OrdersPageFilters = {},
+  pageSize = 15,
+  cursor?: OrdersPageCursor,
+) {
+  const sortBy = filters.sortBy || "tanggal";
+  const sortOrder = filters.sortOrder || "desc";
+  const orderField = orderFieldFor(sortBy);
+  const isDateSort = orderField === "tanggal";
+  const hasDateRange = Boolean(filters.fromInput || filters.toInput);
+  const scanSize = Math.max(1, pageSize + 1);
+  const rows: OrderDoc[] = [];
+  let scanCursor = cursor;
+  let lastReturned: OrdersPageCursor | undefined;
+  let hasMore = false;
+
+  // A date inequality must be ordered by tanggal in Firestore. For other sort
+  // modes, scan ordered candidates and apply the date range while filling a page.
+  while (rows.length <= pageSize) {
+    const constraints: QueryConstraint[] = [];
+    addOrderFilters(constraints, filters, isDateSort);
+    constraints.push(orderBy(orderField, sortOrder));
+    if (scanCursor) constraints.push(startAfter(scanCursor));
+    constraints.push(qLimit(scanSize));
+
+    const snap = await getDocsFromServer(query(ORDERS, ...constraints));
+    if (!snap.docs.length) break;
+
+    for (const docSnap of snap.docs) {
+      scanCursor = docSnap;
+      const row = toOrderDoc(docSnap);
+      if (!isDateSort && hasDateRange
+        && ((filters.fromInput && row.tanggal < filters.fromInput)
+          || (filters.toInput && row.tanggal > filters.toInput))) continue;
+
+      rows.push(row);
+      if (rows.length === pageSize) lastReturned = docSnap;
+      if (rows.length > pageSize) {
+        hasMore = true;
+        break;
+      }
+    }
+
+    if (hasMore || snap.docs.length < scanSize) break;
+  }
+
+  const pageRows = rows.slice(0, pageSize);
+  return {
+    rows: pageRows,
+    hasMore,
+    cursor: hasMore ? lastReturned : undefined,
+  };
+}
+
+/** Fetch the complete filtered set only for on-demand search, reports, or exports. */
+export async function fetchOrders(filters: OrdersPageFilters = {}) {
+  const constraints: QueryConstraint[] = [];
+  addOrderFilters(constraints, filters);
+  constraints.push(orderBy("tanggal", filters.sortOrder || "desc"));
+  const snap = await getDocsFromServer(query(ORDERS, ...constraints));
+  return snap.docs.map(toOrderDoc);
 }
 
 /* ===================== ADAPTERS & MIGRATIONS ===================== */

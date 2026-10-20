@@ -12,6 +12,7 @@ export function ledgerHarness({ publicReportsEnabled = true, authenticated = tru
   let sequence = 0;
   let afterQuery;
   const reads = [];
+  const queries = [];
   const listeners = new Set();
   const clone = value => value === undefined ? undefined : structuredClone(value);
   const snapshot = (path, fromCache = false) => { const exists = records.has(path); const value = clone(records.get(path)); return { id: path.split("/").at(-1), exists: () => exists, data: () => value, metadata: { fromCache } }; };
@@ -34,19 +35,39 @@ export function ledgerHarness({ publicReportsEnabled = true, authenticated = tru
     where: (field, operator, value) => ({ field, operator, value }),
     orderBy: (field, direction = "asc") => ({ sort: field, direction }),
     limit: count => ({ count }),
+    startAfter: cursor => ({ cursor }),
     query: (ref, ...constraints) => ({ ...ref, constraints }),
     increment: value => ({ __increment: value }),
     serverTimestamp: () => Date.now(),
     getDoc: async ref => { reads.push(ref.path); return snapshot(ref.path); },
     getDocs: async ref => {
       reads.push(ref.path);
+      queries.push({ path: ref.path, constraints: [...(ref.constraints || [])] });
       let docs = [...records.keys()].filter(path => path.startsWith(ref.path + "/") && path.split("/").length === ref.path.split("/").length + 1).map(path => {
         const value = clone(records.get(path));
         return { id: path.split("/").at(-1), data: () => value };
       });
       for (const c of ref.constraints || []) {
         if (c.field) docs = docs.filter(d => c.operator === "==" ? d.data()[c.field] === c.value : c.operator === ">=" ? d.data()[c.field] >= c.value : d.data()[c.field] <= c.value);
-        if (c.sort) docs.sort((a, b) => (a.data()[c.sort] < b.data()[c.sort] ? -1 : 1) * (c.direction === "desc" ? -1 : 1));
+        if (c.sort) docs.sort((a, b) => {
+          const valueA = c.sort === "__name__" ? a.id : a.data()[c.sort];
+          const valueB = c.sort === "__name__" ? b.id : b.data()[c.sort];
+          const primary = valueA === valueB ? 0 : valueA < valueB ? -1 : 1;
+          const tieBreak = a.id === b.id ? 0 : a.id < b.id ? -1 : 1;
+          return (primary || tieBreak) * (c.direction === "desc" ? -1 : 1);
+        });
+        if (c.cursor) {
+          const order = (ref.constraints || []).find(item => item.sort);
+          if (order) {
+            const cursorValue = order.sort === "__name__" ? c.cursor.id : c.cursor.data()[order.sort];
+            docs = docs.filter(doc => {
+              const value = order.sort === "__name__" ? doc.id : doc.data()[order.sort];
+              const primary = value === cursorValue ? 0 : value < cursorValue ? -1 : 1;
+              const tieBreak = doc.id === c.cursor.id ? 0 : doc.id < c.cursor.id ? -1 : 1;
+              return (primary || tieBreak) * (order.direction === "desc" ? -1 : 1) > 0;
+            });
+          }
+        }
         if (c.count) docs = docs.slice(0, c.count);
       }
       if (afterQuery) { const callback = afterQuery; afterQuery = undefined; await callback(ref); }
@@ -107,7 +128,7 @@ export function ledgerHarness({ publicReportsEnabled = true, authenticated = tru
   return {
     ledger: load("src/services/ledgerFirebase.ts"),
     capital: load("src/services/capitalAdvanceFirebase.ts"),
-    records, reads, load,
+    records, reads, queries, load,
     emitCached: path => { for (const listener of listeners) if (listener.path === path) listener.callback(snapshot(path, true)); },
     seed: write,
     afterNextQuery: callback => { afterQuery = callback; },

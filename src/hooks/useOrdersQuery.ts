@@ -1,35 +1,85 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ExtendedOrder } from "../types";
-import { subscribeOrders, toExtended } from "../services/ordersFirebase";
+import type { ExtendedOrder } from "../types";
+import {
+  fetchOrders,
+  getOrdersPage,
+  toExtended,
+  type OrdersPageCursor,
+  type OrdersPageFilters,
+} from "../services/ordersFirebase";
 import { filterOrders } from "../utils/orders";
 import { compute } from "../utils/helpers";
+
+const ORDERS_PAGE_SIZE = 15;
 
 interface UseOrdersQueryProps {
   unitPrice: number;
   onOrdersUpdated?: (filtered: ExtendedOrder[]) => void;
 }
 
+function sortOrders(list: ExtendedOrder[], sortBy: string, sortOrder: "asc" | "desc", unitPrice: number) {
+  return [...list].sort((a, b) => {
+    let valA: string | number;
+    let valB: string | number;
+
+    if (sortBy === "keuntungan") {
+      valA = compute(a, unitPrice).totalKeuntungan;
+      valB = compute(b, unitPrice).totalKeuntungan;
+    } else if (sortBy === "totalPembayaran") {
+      valA = compute(a, unitPrice).totalPembayaran;
+      valB = compute(b, unitPrice).totalPembayaran;
+    } else if (sortBy === "namaPelanggan") {
+      valA = String(a.namaPelanggan || "").toLocaleLowerCase("id-ID");
+      valB = String(b.namaPelanggan || "").toLocaleLowerCase("id-ID");
+    } else {
+      valA = String(a.tanggal || "");
+      valB = String(b.tanggal || "");
+    }
+
+    const primary = typeof valA === "string" && typeof valB === "string"
+      ? valA.localeCompare(valB, "id-ID")
+      : Number(valA || 0) - Number(valB || 0);
+    if (primary !== 0) return sortOrder === "asc" ? primary : -primary;
+    return sortOrder === "asc"
+      ? String(a.id || "").localeCompare(String(b.id || ""))
+      : String(b.id || "").localeCompare(String(a.id || ""));
+  });
+}
+
 export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q")?.trim() ?? "");
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") ?? "");
   const [sortBy, setSortBy] = useState<string>(searchParams.get("sortBy") ?? "tanggal");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-
   const [allOrders, setAllOrders] = useState<ExtendedOrder[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [renderLimit, setRenderLimit] = useState(50);
+  const [renderLimit, setRenderLimit] = useState(ORDERS_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
-
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>(searchParams.get("from") ?? "");
   const [dateTo, setDateTo] = useState<string>(searchParams.get("to") ?? "");
+  const cursorRef = useRef<OrdersPageCursor | undefined>(undefined);
+  const requestKeyRef = useRef(0);
 
-  const orders = useMemo(() => filterOrders(allOrders, { q, status: statusFilter, from: dateFrom, to: dateTo }), [allOrders, q, statusFilter, dateFrom, dateTo]);
+  const orders = useMemo(() => filterOrders(allOrders, {
+    q: searchTerm,
+    status: statusFilter,
+    from: dateFrom,
+    to: dateTo,
+  }), [allOrders, searchTerm, statusFilter, dateFrom, dateTo]);
   useEffect(() => { onOrdersUpdated?.(orders); }, [orders, onOrdersUpdated]);
 
-  // Sync filters to URL search params
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSearchTerm(q.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
+
+  // Sync filters to URL search params.
   useEffect(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -42,62 +92,113 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     }, { replace: true });
   }, [q, statusFilter, sortBy, dateFrom, dateTo, setSearchParams]);
 
-  // Client-side sorting based on active filters
-  const sortedOrders = useMemo(() => {
-    const list = [...orders];
-    list.sort((a, b) => {
-      let valA: any;
-      let valB: any;
+  const pageFilters = useMemo<OrdersPageFilters>(() => ({
+    status: statusFilter || undefined,
+    fromInput: dateFrom || undefined,
+    toInput: dateTo || undefined,
+    sortBy,
+    sortOrder,
+  }), [statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
 
-      if (sortBy === "keuntungan") {
-        const compA = compute(a, unitPrice);
-        const compB = compute(b, unitPrice);
-        valA = compA.totalKeuntungan;
-        valB = compB.totalKeuntungan;
-      } else if (sortBy === "totalPembayaran") {
-        const compA = compute(a, unitPrice);
-        const compB = compute(b, unitPrice);
-        valA = compA.totalPembayaran;
-        valB = compB.totalPembayaran;
-      } else if (sortBy === "namaPelanggan") {
-        valA = String(a.namaPelanggan || "").toLowerCase();
-        valB = String(b.namaPelanggan || "").toLowerCase();
-      } else {
-        valA = String(a.tanggal || "");
-        valB = String(b.tanggal || "");
+  useEffect(() => {
+    let cancelled = false;
+    const requestKey = ++requestKeyRef.current;
+    cursorRef.current = undefined;
+    setAllOrders([]);
+    setHasMore(false);
+    setRenderLimit(ORDERS_PAGE_SIZE);
+    setLoading(true);
+    setLoadingMore(false);
+    setError(null);
+
+    const load = async () => {
+      try {
+        if (searchTerm) {
+          // Firestore cannot query arbitrary substring matches. Read only after
+          // the debounce, within the active status/date scope, then match locally.
+          const rows = (await fetchOrders(pageFilters)).map(toExtended);
+          const filtered = filterOrders(rows, { q: searchTerm, status: statusFilter, from: dateFrom, to: dateTo });
+          if (!cancelled && requestKeyRef.current === requestKey) {
+            setAllOrders(sortOrders(filtered, sortBy, sortOrder, unitPrice));
+            setHasMore(filtered.length > ORDERS_PAGE_SIZE);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const page = await getOrdersPage(pageFilters, ORDERS_PAGE_SIZE);
+        if (!cancelled && requestKeyRef.current === requestKey) {
+          setAllOrders(page.rows.map(toExtended));
+          cursorRef.current = page.cursor;
+          setHasMore(page.hasMore);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("load orders page error:", err);
+        if (!cancelled && requestKeyRef.current === requestKey) {
+          setAllOrders([]);
+          setHasMore(false);
+          setError("Pesanan gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
+          setLoading(false);
+        }
       }
+    };
 
-      let primaryResult = 0;
-      if (typeof valA === "string" && typeof valB === "string") {
-        primaryResult = sortOrder === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
-      } else {
-        const numA = Number(valA || 0);
-        const numB = Number(valB || 0);
-        primaryResult = sortOrder === "asc" ? numA - numB : numB - numA;
+    void load();
+    return () => { cancelled = true; };
+  }, [pageFilters, searchTerm, statusFilter, dateFrom, dateTo, sortBy, sortOrder, unitPrice, reloadKey]);
+
+  const sortedOrders = useMemo(() => searchTerm
+    ? sortOrders(orders, sortBy, sortOrder, unitPrice)
+    : orders,
+  [orders, searchTerm, sortBy, sortOrder, unitPrice]);
+
+  const displayedOrders = useMemo(
+    () => sortedOrders.slice(0, renderLimit),
+    [sortedOrders, renderLimit],
+  );
+
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    if (searchTerm) {
+      const nextLimit = renderLimit + ORDERS_PAGE_SIZE;
+      setRenderLimit(nextLimit);
+      setHasMore(nextLimit < sortedOrders.length);
+      return;
+    }
+
+    const requestKey = requestKeyRef.current;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const page = await getOrdersPage(pageFilters, ORDERS_PAGE_SIZE, cursorRef.current);
+      if (requestKeyRef.current !== requestKey) return;
+      setAllOrders((previous) => {
+        const seen = new Set(previous.map((row) => row.id));
+        return [...previous, ...page.rows.map(toExtended).filter((row) => !seen.has(row.id))];
+      });
+      cursorRef.current = page.cursor;
+      setHasMore(page.hasMore);
+      setRenderLimit((previous) => previous + page.rows.length);
+    } catch (err) {
+      console.error("load more orders error:", err);
+      if (requestKeyRef.current === requestKey) {
+        setError("Pesanan berikutnya gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
       }
+    } finally {
+      if (requestKeyRef.current === requestKey) setLoadingMore(false);
+    }
+  }, [loading, loadingMore, hasMore, searchTerm, renderLimit, sortedOrders.length, pageFilters]);
 
-      if (primaryResult !== 0) return primaryResult;
-
-      // Secondary sort: createdAt
-      const getTimestamp = (val: any): number => {
-        if (!val) return 0;
-        if (typeof val === "number") return val;
-        if (typeof val.toMillis === "function") return val.toMillis();
-        if (val.seconds !== undefined) return val.seconds * 1000;
-        return 0;
-      };
-      const timeA = getTimestamp(a.createdAt);
-      const timeB = getTimestamp(b.createdAt);
-      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
-    });
-    return list;
-  }, [orders, sortBy, sortOrder, unitPrice]);
-
-  const displayedOrders = useMemo(() => {
-    return sortedOrders.slice(0, renderLimit);
-  }, [sortedOrders, renderLimit]);
+  const fetchAllFilteredOrders = useCallback(async () => {
+    const rows = (await fetchOrders(pageFilters)).map(toExtended);
+    return sortOrders(filterOrders(rows, {
+      q: q.trim(),
+      status: statusFilter,
+      from: dateFrom,
+      to: dateTo,
+    }), sortBy, sortOrder, unitPrice);
+  }, [pageFilters, q, statusFilter, dateFrom, dateTo, sortBy, sortOrder, unitPrice]);
 
   const metrics = useMemo(() => {
     let totalKg = 0;
@@ -106,18 +207,15 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     let dpCount = 0;
     let paidCount = 0;
 
-    orders.forEach((o) => {
-      const comp = compute(o, unitPrice);
+    orders.forEach((order) => {
+      const comp = compute(order, unitPrice);
       totalKg += comp.kg;
-      if (o.status === "Selesai") {
+      if (order.status === "Selesai") {
         paidCount++;
       } else {
         unpaidCount++;
-        if (o.status === "DP Terbayar") {
-          dpCount++;
-        } else {
-          pureUnpaidCount++;
-        }
+        if (order.status === "DP Terbayar") dpCount++;
+        else pureUnpaidCount++;
       }
     });
 
@@ -133,38 +231,9 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     };
   }, [orders, unitPrice]);
 
-  useEffect(() => {
-    setRenderLimit(50);
-  }, [q, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    // Load the full private dataset once. Filters, exports and sorting share it;
-    // the 50-row limit applies only to rendering.
-    return subscribeOrders({ fromInput: "", toInput: "", limit: null, sort: "desc" }, rows => {
-      setAllOrders(rows.map(toExtended));
-      setLoading(false);
-      setError(null);
-    }, () => {
-      setAllOrders([]);
-      setLoading(false);
-      setError("Pesanan gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
-    });
-  }, [reloadKey]);
-
-  useEffect(() => {
-    function handleScroll() {
-      if (!loading && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 150) {
-        setRenderLimit(previous => Math.min(previous + 50, Math.max(50, sortedOrders.length)));
-      }
-    }
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loading, sortedOrders.length]);
-
   return {
-    error, retry: () => setReloadKey(value => value + 1),
+    error,
+    retry: () => setReloadKey((value) => value + 1),
     q,
     setQ,
     statusFilter,
@@ -177,6 +246,10 @@ export function useOrdersQuery({ unitPrice, onOrdersUpdated }: UseOrdersQueryPro
     renderLimit,
     setRenderLimit,
     loading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    fetchAllFilteredOrders,
     dateFrom,
     setDateFrom,
     dateTo,

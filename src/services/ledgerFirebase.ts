@@ -2,7 +2,7 @@
 import {
   collection, query, where, orderBy, limit as qLimit, onSnapshot,
   getDocsFromServer, getDocFromServer, doc, runTransaction, increment,
-  type QueryConstraint, type Transaction, type DocumentData,
+  startAfter, type QueryConstraint, type QueryDocumentSnapshot, type Transaction, type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { getReturnedAmount, localDateInput, summarizeLedger, validateAmount, validateLedgerDate } from "../utils/ledger";
@@ -31,6 +31,12 @@ export type FetchParams = {
   from?: string; to?: string; type?: "Masuk" | "Keluar"; category?: string;
   order?: { field: keyof LedgerEntry; direction: "asc" | "desc" }; limit?: number;
 };
+export type LedgerPageParams = Pick<FetchParams, "from" | "to" | "type" | "category">;
+export type LedgerPageResult = {
+  rows: LedgerEntry[];
+  cursor?: QueryDocumentSnapshot<DocumentData>;
+  hasMore: boolean;
+};
 export type LedgerAudit = {
   id: string; entryId: string; action: "create" | "update" | "void" | "restore";
   before: LedgerEntry | null; after: LedgerEntry; at: number; actor: string;
@@ -55,6 +61,29 @@ function mapDoc(d: { id: string; data(): DocumentData }): LedgerEntry {
 export async function fetchLedger(p: FetchParams = {}): Promise<LedgerEntry[]> {
   const snap = await getDocsFromServer(query(collection(db, "ledger"), ...buildConstraints(p)));
   return snap.docs.map(mapDoc);
+}
+/** Fetch one server-side page for the ledger table; search text is applied after fetching. */
+export async function getLedgerPage(
+  p: LedgerPageParams = {},
+  cursor?: QueryDocumentSnapshot<DocumentData>,
+  pageSize = 50,
+): Promise<LedgerPageResult> {
+  const constraints: QueryConstraint[] = [];
+  if (p.from) constraints.push(where("tanggal", ">=", p.from));
+  if (p.to) constraints.push(where("tanggal", "<=", p.to));
+  if (p.type) constraints.push(where("tipe", "==", p.type));
+  if (p.category) constraints.push(where("kategori", "==", p.category));
+  constraints.push(orderBy("tanggal", "desc"));
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(qLimit(pageSize + 1));
+
+  const snap = await getDocsFromServer(query(collection(db, "ledger"), ...constraints));
+  const pageDocs = snap.docs.slice(0, pageSize);
+  return {
+    rows: pageDocs.map(mapDoc),
+    cursor: pageDocs[pageDocs.length - 1],
+    hasMore: snap.docs.length > pageSize,
+  };
 }
 export function subscribeLedger(p: FetchParams, onRows: (rows: LedgerEntry[]) => void, onError?: (err: Error) => void) {
   return onSnapshot(query(collection(db, "ledger"), ...buildConstraints(p)), snap => onRows(snap.docs.map(mapDoc)), onError);
@@ -86,6 +115,11 @@ export async function recalculateLedgerSummary(): Promise<LedgerSummary> {
 export async function fetchLedgerSummary(): Promise<LedgerSummary> {
   const snap = await getDocFromServer(summaryRef());
   return snap.exists() ? snap.data() as LedgerSummary : recalculateLedgerSummary();
+}
+/** Read the cached aggregate without scanning the ledger when it has not been initialized. */
+export async function readLedgerSummary(): Promise<LedgerSummary | null> {
+  const snap = await getDocFromServer(summaryRef());
+  return snap.exists() ? snap.data() as LedgerSummary : null;
 }
 export function subscribeLedgerSummary(onSummary: (summary: LedgerSummary) => void, onError?: (error: Error) => void) {
   return onSnapshot(summaryRef(), snap => {

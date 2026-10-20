@@ -203,6 +203,7 @@ export interface PreOrder {
   catatan?: string;
   nihongStoreOrderId?: string;
   nihongStoreOrderNo?: string;
+  convertedOrderId?: string;
   deliveryAddressShareToken?: string;
   deliveryAddressShareCreatedAt?: any;
   productShareToken?: string;

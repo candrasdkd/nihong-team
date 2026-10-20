@@ -300,9 +300,11 @@ export function OrdersPage({
     sortOrder,
     setSortOrder,
     orders,
-    renderLimit,
-    setRenderLimit,
     loading, error, retry,
+    loadingMore,
+    hasMore,
+    loadMore,
+    fetchAllFilteredOrders,
     dateFrom,
     setDateFrom,
     dateTo,
@@ -345,6 +347,7 @@ export function OrdersPage({
   const navigate = useNavigate();
   const [paymentModalOrder, setPaymentModalOrder] = useState<ExtendedOrder | null>(null);
   const [whatsAppModalOrder, setWhatsAppModalOrder] = useState<ExtendedOrder | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Auto-open create form when triggered by SpeedDialFAB
   useEffect(() => {
@@ -355,21 +358,36 @@ export function OrdersPage({
     }
   }, [formTrigger, onFormTriggerConsumed]);
 
-  const handleShareAdminRekap = () => {
+  const handleShareAdminRekap = async () => {
     if (loading || error) return;
-    const message = buildUnpaidRecap(sortedOrders, unitPrice);
-    if (!message) { showToast("Tidak ada pesanan belum lunas untuk direkap.", "info"); return; }
+    try {
+      const allFilteredOrders = await fetchAllFilteredOrders();
+      const message = buildUnpaidRecap(allFilteredOrders, unitPrice);
+      if (!message) { showToast("Tidak ada pesanan belum lunas untuk direkap.", "info"); return; }
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(message).then(() => {
-      showToast("Rekap disalin ke clipboard!", "success");
-    }).catch(() => {
-      showToast("Gagal menyalin rekap", "error");
-    });
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+      try {
+        await navigator.clipboard.writeText(message);
+        showToast("Rekap disalin ke clipboard!", "success");
+      } catch {
+        showToast("Rekap dibuka di WhatsApp, tetapi gagal disalin ke clipboard", "error");
+      }
+    } catch {
+      showToast("Gagal memuat atau menyalin rekap", "error");
+    }
+  };
 
-    // Open WhatsApp Web/App (without specific phone)
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-    window.open(waUrl, "_blank", "noopener,noreferrer");
+  const handleExportOrders = async () => {
+    setIsExporting(true);
+    try {
+      const allFilteredOrders = await fetchAllFilteredOrders();
+      await exportOrdersToExcel(allFilteredOrders, unitPrice);
+    } catch {
+      showToast("Gagal memuat pesanan untuk export", "error");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -386,15 +404,15 @@ export function OrdersPage({
               <Button onClick={() => { setEditing(null); setShowForm(true); }} variant="primary" className="shadow-lg font-bold">
                 <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Buat Pesanan
               </Button>
-              <Button variant="outline" disabled={loading || Boolean(error)} onClick={() => exportOrdersToExcel(sortedOrders, unitPrice)} className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5">
-                <Download className="w-4 h-4 mr-2" /> Export Excel
+              <Button variant="outline" disabled={loading || Boolean(error) || isExporting} onClick={() => void handleExportOrders()} className="border-white/20 hover:bg-white/10 text-white font-bold bg-white/5">
+                <Download className="w-4 h-4 mr-2" /> {isExporting ? "Menyiapkan Export..." : "Export Excel"}
               </Button>
             </div>
           }
         />
 
         {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}<button onClick={retry} className="ml-3 min-h-11 font-bold underline">Coba lagi</button></div>}
-        {loading && <p role="status" className="text-sm text-slate-500">Memuat seluruh pesanan...</p>}
+        {loading && <p role="status" className="text-sm text-slate-500">Memuat pesanan...</p>}
 
         {/* ── Mini Stats Grid ── */}
         <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -431,6 +449,11 @@ export function OrdersPage({
             index={3}
           />
         </div>
+        {!loading && hasMore && !q.trim() && (
+          <p className="-mt-3 text-xs font-medium text-slate-500">
+            Ringkasan menghitung {orders.length} pesanan yang sudah dimuat. Muat halaman berikutnya untuk memperbaruinya.
+          </p>
+        )}
 
         {/* ── Toolbar & Filters ── */}
         <div       className="bg-surface-card/80 backdrop-blur-md p-4 rounded-card border border-surface-border shadow-card space-y-4">
@@ -446,6 +469,11 @@ export function OrdersPage({
                 onChange={(e) => setQ(e.target.value)}
                 className="pl-10 pr-4 py-2.5 w-full border-0 bg-slate-50 focus:bg-white ring-1 ring-surface-border focus:ring-2 focus:ring-brand-navy/20 focus:shadow-md rounded-input transition-all font-semibold text-xs sm:text-sm text-slate-800 placeholder-slate-400"
               />
+              {q.trim() && (
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  Pencarian mencocokkan semua pesanan dalam filter aktif; hasil ditampilkan 15 per halaman.
+                </p>
+              )}
             </div>
 
             {/* Filter Status */}
@@ -735,23 +763,21 @@ export function OrdersPage({
         </div>
 
         {/* Fallback "Muat Lebih Banyak" Button */}
-        {(renderLimit < sortedOrders.length) && (
+        {hasMore && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
-              onClick={() => {
-                setRenderLimit(previous => previous + 50);
-              }}
-              disabled={loading}
+              onClick={() => void loadMore()}
+              disabled={loading || loadingMore}
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center gap-2"
             >
-              {loading ? (
+              {loadingMore ? (
                 <>
                   <div className="w-4 h-4 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
                   <span>Memuat...</span>
                 </>
               ) : (
-                <span>Muat Lebih Banyak</span>
+                <span>Muat 15 Pesanan Lagi</span>
               )}
             </Button>
           </div>
@@ -917,9 +943,7 @@ export function OrdersPage({
           order={paymentModalOrder}
           unitPrice={unitPrice}
           customerPhone={resolveOrderCustomer(paymentModalOrder, customers)?.telpon}
-          onPaymentUpdated={() => {
-            // refresh trigger
-          }}
+          onPaymentUpdated={retry}
           showToast={showToast}
         />
       )}

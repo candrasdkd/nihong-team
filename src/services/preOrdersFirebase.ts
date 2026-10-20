@@ -1,9 +1,7 @@
 // src/services/preOrdersFirebase.ts
 import {
   collection,
-  addDoc,
   updateDoc,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -14,13 +12,63 @@ import {
   getDocs,
   getDoc,
   where,
+  getDocsFromServer,
+  getCountFromServer,
+  startAfter,
+  limit as qLimit,
+  documentId,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { PreOrder, PreOrderItem, PreOrderStatus } from "../types";
-import { adjustScheduleWeight } from "./schedulesFirebase";
 import { storeDb } from "./nihongStoreFirebase";
 
 const COL = "pre_orders";
+
+export type PreOrdersPageCursor = QueryDocumentSnapshot<DocumentData>;
+
+function buildPreOrderListQuery(status?: string) {
+  const constraints: QueryConstraint[] = [];
+  if (status) constraints.push(where("status", "==", status));
+  constraints.push(orderBy("createdAt", "desc"), orderBy(documentId(), "desc"));
+  return constraints;
+}
+
+/** Fetch one server-backed booking page; a lookahead document determines hasMore. */
+export async function getPreOrdersPage(
+  status: string,
+  pageSize = 15,
+  cursor?: PreOrdersPageCursor,
+) {
+  const constraints = buildPreOrderListQuery(status);
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(qLimit(pageSize + 1));
+
+  const snap = await getDocsFromServer(query(collection(db, COL), ...constraints));
+  const hasMore = snap.docs.length > pageSize;
+  const pageDocs = snap.docs.slice(0, pageSize);
+  return {
+    rows: pageDocs.map((d) => ({ id: d.id, ...d.data() }) as PreOrder),
+    hasMore,
+    cursor: hasMore ? pageDocs[pageDocs.length - 1] : undefined,
+  };
+}
+
+/** Full status-scoped booking set for explicitly requested substring searches. */
+export async function fetchPreOrders(status?: string) {
+  const snap = await getDocsFromServer(query(collection(db, COL), ...buildPreOrderListQuery(status)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PreOrder);
+}
+
+export async function getPreOrderCounts() {
+  const [pending, selesai] = await Promise.all([
+    getCountFromServer(query(collection(db, COL), where("status", "==", "Pending"), orderBy("createdAt", "desc"))),
+    getCountFromServer(query(collection(db, COL), where("status", "==", "Selesai"), orderBy("createdAt", "desc"))),
+  ]);
+  return { pending: pending.data().count, selesai: selesai.data().count };
+}
 
 /**
  * Mendengarkan semua Pre Order secara real-time.
@@ -63,7 +111,10 @@ export function listenPreOrdersBySchedule(scheduleId: string, cb: (rows: PreOrde
 export async function addPreOrder(
   data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">,
 ) {
-  const totalKg = Number(data.totalKg) || 0;
+  const totalKg = Number(data.totalKg ?? 0);
+  if (!Number.isFinite(totalKg) || totalKg < 0) {
+    throw new Error("Berat booking harus nol atau lebih");
+  }
 
   const payload = {
     ...data,
@@ -72,11 +123,19 @@ export async function addPreOrder(
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
+  const ref = doc(collection(db, COL));
+  const scheduleRef = doc(db, "departure_schedules", data.idJadwal);
 
-  const ref = await addDoc(collection(db, COL), payload);
+  await runTransaction(db, async (transaction) => {
+    const scheduleSnap = await transaction.get(scheduleRef);
+    if (!scheduleSnap.exists()) throw new Error("Jadwal keberangkatan tidak ditemukan");
 
-  // Semua booking tetap memakai kapasitas jadwal, termasuk yang sudah Selesai.
-  await adjustScheduleWeight(data.idJadwal, totalKg);
+    transaction.set(ref, payload);
+    transaction.update(scheduleRef, {
+      beratTerpakai: increment(totalKg),
+      updatedAt: serverTimestamp(),
+    });
+  });
 
   return ref.id;
 }
@@ -89,35 +148,55 @@ export async function updatePreOrder(
   data: Partial<Omit<PreOrder, "id" | "createdAt">>,
 ) {
   const docRef = doc(db, COL, id);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) throw new Error("Pre Order tidak ditemukan");
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) throw new Error("Pre Order tidak ditemukan");
 
-  const oldData = snap.data() as PreOrder;
-  const oldTotalKg = Number(oldData.totalKg || 0);
-  const oldScheduleId = oldData.idJadwal;
+    const oldData = snap.data() as PreOrder;
+    const oldTotalKg = Number(oldData.totalKg || 0);
+    const oldScheduleId = oldData.idJadwal;
+    const newTotalKg = typeof data.totalKg === "number" ? data.totalKg : oldTotalKg;
+    const newScheduleId = data.idJadwal || oldScheduleId;
+    if (!Number.isFinite(newTotalKg) || newTotalKg < 0) {
+      throw new Error("Berat booking harus nol atau lebih");
+    }
 
-  // Hitung totalKg baru jika ada perubahan items
-  const newTotalKg = typeof data.totalKg === "number" ? data.totalKg : oldTotalKg;
-  const newScheduleId = data.idJadwal || oldScheduleId;
+    const oldScheduleRef = doc(db, "departure_schedules", oldScheduleId);
+    const newScheduleRef = doc(db, "departure_schedules", newScheduleId);
+    const oldScheduleSnap = await transaction.get(oldScheduleRef);
+    const newScheduleSnap = oldScheduleId === newScheduleId
+      ? oldScheduleSnap
+      : await transaction.get(newScheduleRef);
+    if (!oldScheduleSnap.exists() || !newScheduleSnap.exists()) {
+      throw new Error("Jadwal booking tidak ditemukan");
+    }
 
-  await updateDoc(docRef, {
-    ...data,
-    totalKg: newTotalKg,
-    updatedAt: Date.now(),
+    transaction.update(docRef, {
+      ...data,
+      totalKg: newTotalKg,
+      updatedAt: Date.now(),
+    });
+
+    // Status Pending/Selesai tidak mengubah kapasitas; hanya perubahan booking yang dihitung.
+    if (oldScheduleId === newScheduleId) {
+      const delta = newTotalKg - oldTotalKg;
+      if (delta !== 0) {
+        transaction.update(oldScheduleRef, {
+          beratTerpakai: increment(delta),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } else {
+      transaction.update(oldScheduleRef, {
+        beratTerpakai: increment(-oldTotalKg),
+        updatedAt: serverTimestamp(),
+      });
+      transaction.update(newScheduleRef, {
+        beratTerpakai: increment(newTotalKg),
+        updatedAt: serverTimestamp(),
+      });
+    }
   });
-
-  // Status tidak mengubah penggunaan slot; barang Selesai tetap ikut jadwal.
-  const oldContribution = oldTotalKg;
-  const newContribution = newTotalKg;
-
-  // Sesuaikan berat terpakai di Jadwal
-  if (newScheduleId === oldScheduleId) {
-    const delta = newContribution - oldContribution;
-    if (delta !== 0) await adjustScheduleWeight(oldScheduleId, delta);
-  } else {
-    if (oldContribution > 0) await adjustScheduleWeight(oldScheduleId, -oldContribution);
-    if (newContribution > 0) await adjustScheduleWeight(newScheduleId, newContribution);
-  }
 }
 
 /**
@@ -125,14 +204,21 @@ export async function updatePreOrder(
  */
 export async function deletePreOrder(id: string) {
   const docRef = doc(db, COL, id);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) return;
 
-  const data = snap.data() as PreOrder;
-  await deleteDoc(docRef);
+    const data = snap.data() as PreOrder;
+    const scheduleRef = doc(db, "departure_schedules", data.idJadwal);
+    const scheduleSnap = await transaction.get(scheduleRef);
+    if (!scheduleSnap.exists()) throw new Error("Jadwal booking tidak ditemukan");
 
-  // Kapasitas dikembalikan hanya ketika booking benar-benar dihapus.
-  await adjustScheduleWeight(data.idJadwal, -Number(data.totalKg || 0));
+    transaction.delete(docRef);
+    transaction.update(scheduleRef, {
+      beratTerpakai: increment(-Number(data.totalKg || 0)),
+      updatedAt: serverTimestamp(),
+    });
+  });
 }
 
 /**
@@ -161,12 +247,15 @@ export async function convertPreOrderToOrder(
   const idPelanggan = String(orderPayload.idPelanggan || "");
   const summaryRef = doc(db, "orders_monthly_summaries", monthKey);
 
-  await runTransaction(db, async (transaction) => {
+  const conversion = await runTransaction(db, async (transaction) => {
     const preOrderSnap = await transaction.get(preOrderRef);
     if (!preOrderSnap.exists()) throw new Error("Pre Order tidak ditemukan");
     const preOrderData = preOrderSnap.data() as PreOrder;
 
     if (preOrderData.status === "Selesai") {
+      if (preOrderData.convertedOrderId) {
+        return { orderId: preOrderData.convertedOrderId, created: false };
+      }
       throw new Error("Pre Order sudah dipindahkan ke Pesanan");
     }
 
@@ -214,10 +303,13 @@ export async function convertPreOrderToOrder(
         orderCount: increment(1)
       }, { merge: true });
     }
+
+    return { orderId: newOrderRef.id, created: true };
   });
 
   // 5. Sinkronkan status linimasa NihongStore jika PreOrder berasal dari NihongStore
   try {
+    if (!conversion.created) return conversion.orderId;
     const preOrderSnap = await getDoc(preOrderRef);
     if (preOrderSnap.exists()) {
       const data = preOrderSnap.data() as PreOrder;
@@ -228,7 +320,7 @@ export async function convertPreOrderToOrder(
           const curTimeline = storeSnap.data().timeline || [];
           await updateDoc(storeOrderRef, {
             displayStatus: "Diproses di Jepang",
-            assignedOrderId: newOrderRef.id,
+            assignedOrderId: conversion.orderId,
             timeline: [
               ...curTimeline,
               {
@@ -246,7 +338,7 @@ export async function convertPreOrderToOrder(
     console.warn("Could not sync NihongStore timeline on preorder conversion:", err);
   }
 
-  return newOrderRef.id;
+  return conversion.orderId;
 }
 
 /**

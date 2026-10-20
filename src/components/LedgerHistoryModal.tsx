@@ -2,26 +2,37 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
-import { restoreLedgerEntry, subscribeLedgerAudit, type LedgerAudit, type LedgerEntry } from "../services/ledgerFirebase";
+import { fetchLedger, restoreLedgerEntry, subscribeLedgerAudit, type LedgerAudit, type LedgerEntry } from "../services/ledgerFirebase";
 import { formatIDR } from "../utils/format";
 import { formatLedgerDate } from "../utils/ledger";
 
 const actions = { create: "Dicatat", update: "Diubah", void: "Dibatalkan", restore: "Dipulihkan" };
-export function LedgerHistoryModal({ rows, onClose }: { rows: LedgerEntry[]; onClose: () => void }) {
+export function LedgerHistoryModal({ onClose, onRestored }: { onClose: () => void; onRestored?: () => void }) {
   const [tab, setTab] = useState<"activity" | "cancelled">("activity");
   const [events, setEvents] = useState<LedgerAudit[]>([]);
+  const [cancelledRows, setCancelledRows] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
-  useEffect(() => subscribeLedgerAudit(events => { setEvents(events); setLoading(false); }, () => { setError("Riwayat gagal dimuat. Periksa koneksi atau akses akun."); setLoading(false); }), []);
+  useEffect(() => {
+    const unsubscribe = subscribeLedgerAudit(events => { setEvents(events); setLoading(false); }, () => { setError("Riwayat gagal dimuat. Periksa koneksi atau akses akun."); setLoading(false); });
+    fetchLedger().then(rows => setCancelledRows(rows.filter(row => row.voidedAt)))
+      .catch(() => setError("Transaksi yang dibatalkan gagal dimuat."));
+    return unsubscribe;
+  }, []);
   async function restore(id: string) {
     setBusy(id); setError("");
-    try { await restoreLedgerEntry(id); setRestoreTarget(null); }
+    try {
+      await restoreLedgerEntry(id);
+      setCancelledRows(rows => rows.filter(row => row.id !== id));
+      setRestoreTarget(null);
+      onRestored?.();
+    }
     catch (error) { setError(error instanceof Error ? error.message : "Pemulihan gagal."); }
     finally { setBusy(null); }
   }
-  const cancelled = rows.filter(row => row.voidedAt).sort((a, b) => (b.voidedAt || 0) - (a.voidedAt || 0));
+  const cancelled = cancelledRows.sort((a, b) => (b.voidedAt || 0) - (a.voidedAt || 0));
   return <Modal title="Riwayat Kas" onClose={() => { if (!busy) onClose(); }} size="2xl">
     <div className="flex gap-2 mb-4">
       <Button variant={tab === "activity" ? "primary" : "outline"} onClick={() => setTab("activity")}>Aktivitas</Button>

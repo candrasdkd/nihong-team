@@ -79,11 +79,15 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     setEditing,
     confirmModal,
     setConfirmModal,
-    visibleCount,
-    setVisibleCount,
+    loadingMore,
+    hasMore,
     filtered,
     visibleSchedules,
+    resultCount,
+    loadedCount,
+    isSearching,
     openCount,
+    loadMore,
     handleSubmit,
     handleDelete,
   } = useSchedules(showToast);
@@ -116,7 +120,7 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
         <div className="flex flex-wrap items-center gap-3">
           <Card className="flex items-center gap-2 !p-3 !rounded-input">
             <Calendar size={16} className="text-brand-navy" />
-            <span className="text-sm font-bold text-slate-700">{filtered.length} Total Jadwal</span>
+            <span className="text-sm font-bold text-slate-700">{resultCount} Total Jadwal</span>
           </Card>
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-input px-4 py-2.5 shadow-sm">
             <CheckCircle2 size={16} className="text-emerald-600" />
@@ -153,6 +157,11 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 backdrop-blur focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm transition-all"
           />
         </div>
+        {isSearching && (
+          <p className="text-xs font-medium text-slate-500">
+            Pencarian substring membaca semua jadwal dalam filter status yang dipilih.
+          </p>
+        )}
 
         {/* Desktop Table & Mobile Cards */}
         {loading ? (
@@ -321,24 +330,25 @@ export function SchedulesPage({ formTrigger = 0, onFormTriggerConsumed }: { form
             </div>
 
             {/* Pagination / Load More */}
-            {filtered.length > visibleCount && (
+            {hasMore && (
               <div className="flex flex-col items-center justify-center pt-8 pb-4 space-y-3">
                 <p className="text-xs text-slate-500 font-bold">
-                  Menampilkan <span className="text-slate-800">{Math.min(visibleCount, filtered.length)}</span> dari{" "}
-                  <span className="text-slate-800">{filtered.length}</span> jadwal keberangkatan
+                  Menampilkan <span className="text-slate-800">{loadedCount}</span> dari{" "}
+                  <span className="text-slate-800">{resultCount}</span> jadwal keberangkatan
                 </p>
                 <div className="w-48 h-1 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                    style={{ width: `${(Math.min(visibleCount, filtered.length) / filtered.length) * 100}%` }}
+                    style={{ width: `${resultCount ? (loadedCount / resultCount) * 100 : 0}%` }}
                   />
                 </div>
                 <Button
-                  onClick={() => setVisibleCount((prev) => prev + 10)}
+                  onClick={loadMore}
                   variant="outline"
                   className="px-6 py-2 rounded-xl text-xs font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-800 shadow-sm hover:shadow active:scale-95 transition-all"
+                  disabled={loadingMore}
                 >
-                  Muat Lebih Banyak ▾
+                  {loadingMore ? "Memuat..." : "Muat 15 Lagi ▾"}
                 </Button>
               </div>
             )}

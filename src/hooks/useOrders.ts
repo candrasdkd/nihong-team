@@ -74,6 +74,7 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
       type: "danger",
       onConfirm: async () => {
         await deleteOrder(id);
+        query.retry();
         showToast("Pesanan berhasil dihapus", "success");
       },
     });
@@ -89,6 +90,7 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
         await createOrder(dto, unitPrice);
         showToast("Pesanan berhasil dibuat", "success");
       }
+      query.retry();
       setShowForm(false);
       setEditing(null);
     } catch (err: any) {
@@ -113,6 +115,10 @@ export function useOrders({ customers, unitPrice }: UseOrdersProps) {
     renderLimit: query.renderLimit,
     setRenderLimit: query.setRenderLimit,
     loading: query.loading,
+    loadingMore: query.loadingMore,
+    hasMore: query.hasMore,
+    loadMore: query.loadMore,
+    fetchAllFilteredOrders: query.fetchAllFilteredOrders,
     dateFrom: query.dateFrom,
     setDateFrom: query.setDateFrom,
     dateTo: query.dateTo,

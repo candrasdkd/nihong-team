@@ -8,14 +8,77 @@ import {
   onSnapshot,
   orderBy,
   query,
+  where,
+  startAfter,
+  limit as qLimit,
+  documentId,
+  getDocsFromServer,
+  getCountFromServer,
   serverTimestamp,
   runTransaction,
   increment,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { DepartureSchedule, ScheduleStatus } from "../types";
 
 const COL = "departure_schedules";
+
+export type SchedulesPageCursor = QueryDocumentSnapshot<DocumentData>;
+
+export type SchedulesPageFilters = {
+  status?: string;
+};
+
+function addScheduleFilters(constraints: QueryConstraint[], filters: SchedulesPageFilters) {
+  if (filters.status) constraints.push(where("status", "==", filters.status));
+}
+
+function toSchedule(docSnap: { id: string; data: () => DocumentData }): DepartureSchedule {
+  return { ...(docSnap.data() as DepartureSchedule), id: docSnap.id };
+}
+
+/** Fetch one server-backed page in departure-date order with an ID tie-breaker. */
+export async function getSchedulesPage(
+  filters: SchedulesPageFilters = {},
+  pageSize = 15,
+  cursor?: SchedulesPageCursor,
+) {
+  const constraints: QueryConstraint[] = [];
+  addScheduleFilters(constraints, filters);
+  constraints.push(orderBy("tanggalBerangkat", "asc"), orderBy(documentId(), "asc"));
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(qLimit(pageSize + 1));
+
+  const snap = await getDocsFromServer(query(collection(db, COL), ...constraints));
+  const hasMore = snap.docs.length > pageSize;
+  const pageDocs = snap.docs.slice(0, pageSize);
+  return {
+    rows: pageDocs.map(toSchedule),
+    hasMore,
+    cursor: hasMore ? pageDocs[pageDocs.length - 1] : undefined,
+  };
+}
+
+/** Full filtered set for the explicitly requested substring search only. */
+export async function fetchSchedules(filters: SchedulesPageFilters = {}) {
+  const constraints: QueryConstraint[] = [];
+  addScheduleFilters(constraints, filters);
+  constraints.push(orderBy("tanggalBerangkat", "asc"), orderBy(documentId(), "asc"));
+  const snap = await getDocsFromServer(query(collection(db, COL), ...constraints));
+  return snap.docs.map(toSchedule);
+}
+
+export async function getScheduleCount(filters: SchedulesPageFilters = {}) {
+  const constraints: QueryConstraint[] = [];
+  addScheduleFilters(constraints, filters);
+  // Match the paged list's orderBy scope (documents without this field are not listed).
+  constraints.push(orderBy("tanggalBerangkat", "asc"));
+  const snap = await getCountFromServer(query(collection(db, COL), ...constraints));
+  return snap.data().count;
+}
 
 /**
  * Mendengarkan daftar Jadwal Keberangkatan secara real-time.

@@ -21,8 +21,8 @@ Tanpa flag tersebut, halaman laporan tidak membaca Firestore dan tombol pembuata
 - Saldo ditampilkan untuk keseluruhan kas. Form dan ekspor mencatat metode pembayaran tanpa kolom rekening.
 - Hubungan modal lama dicari melalui `ledgerEntryIdKeluar` / `ledgerEntryIdMasuk` dan dilengkapi saat diperbarui. Modal yatim atau nominal yang sudah tidak cocok ditolak saat pengembalian; tidak dibuatkan pemasukan otomatis. Selaraskan transaksi asal melalui edit setelah memeriksa catatan yang benar.
 - Pengembalian sebagian menyimpan `returnedAmount`. Membatalkan pengembalian membuka kembali sisa modal. Modal tidak bisa dibatalkan selama masih ada pengembalian aktif, kecuali seluruh pengembalian itu ikut dipilih dalam satu batch.
-- Pembatalan massal maksimal 100 transaksi dan seluruhnya atomik. Pilihan dibersihkan saat filter berubah. Laporan/grafik/ekspor memakai seluruh transaksi aktif sesuai filter; batas 50 hanya mengatur jumlah baris yang dirender.
-- Halaman admin berlangganan seluruh ledger untuk menjamin total dan ekspor lengkap. Untuk volume sangat besar, pindahkan agregasi/laporan ke backend sebelum memperkenalkan kembali pagination server.
+- Pembatalan massal maksimal 100 transaksi dan seluruhnya atomik. Pilihan dibersihkan saat filter berubah. Tabel kas membaca 15 dokumen per halaman dari Firestore. Ringkasan global memakai `metadata/ledger_summary`; pencarian teks bebas, ekspor, pembuatan link laporan, dan daftar transaksi dibatalkan di Riwayat membaca data lengkap hanya saat fitur itu digunakan. Grafik dan total filter server-side mengikuti transaksi yang sudah dimuat sampai semua halaman dibuka.
+- Jika dokumen ringkasan belum tersedia, angka dari halaman yang sedang dimuat ditandai dan pengguna dapat menjalankan sinkronisasi saldo untuk menghitung ulang seluruh ledger.
 
 ## Verifikasi lokal
 

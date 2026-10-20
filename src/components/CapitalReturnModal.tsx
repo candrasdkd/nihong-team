@@ -8,8 +8,8 @@ import { returnCapitalAdvance, type CapitalAdvance } from "../services/capitalAd
 import { formatIDR } from "../utils/format";
 import { getReturnedAmount, localDateInput } from "../utils/ledger";
 
-export function CapitalReturnModal({ advance, onClose }: {
-  advance: CapitalAdvance; onClose: () => void;
+export function CapitalReturnModal({ advance, onClose, onCompleted }: {
+  advance: CapitalAdvance; onClose: () => void; onCompleted?: () => void;
 }) {
   const remaining = advance.jumlah - getReturnedAmount(advance);
   const [jumlah, setJumlah] = useState(remaining);
@@ -24,6 +24,7 @@ export function CapitalReturnModal({ advance, onClose }: {
     setBusy(true); setError("");
     try {
       await returnCapitalAdvance(advance.id, { jumlah, tanggal, metode, requestId });
+      onCompleted?.();
       onClose();
     } catch (error) { setError(error instanceof Error ? error.message : "Pengembalian gagal disimpan."); }
     finally { setBusy(false); }

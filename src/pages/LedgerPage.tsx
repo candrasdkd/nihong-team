@@ -15,7 +15,7 @@ import {
   type LedgerEntry,
   type LedgerUpsert,
 } from "../services/ledgerFirebase";
-import { useLedger } from "../hooks/useLedger";
+import { LEDGER_PAGE_SIZE, useLedger } from "../hooks/useLedger";
 import { LedgerFormModal } from "../components/LedgerFormModal";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { useCapitalAdvance } from "../hooks/useCapitalAdvance";
@@ -323,12 +323,13 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     setDateFrom,
     dateTo,
     setDateTo,
-    rows,
-    setRows,
     globalSummary,
     syncingSummary,
     renderLimit,
     setRenderLimit,
+    hasMore,
+    loadingMore,
+    loadMore,
     loading,
     selectedIds,
     setSelectedIds,
@@ -360,6 +361,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
     handleDelete,
     handleBulkDelete,
     handleSubmitForm,
+    fetchAllFilteredLedger,
     filterCount,
     defaultFrom,
     defaultTo,
@@ -377,6 +379,14 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       : totalKeluar;
 
   const handleShareReport = () => setShowShare(true);
+  const handleExport = async () => {
+    try {
+      exportLedgerToExcel(await fetchAllFilteredLedger(), "Laporan_Kas.xlsx");
+    } catch (error) {
+      console.error("Gagal menyiapkan ekspor kas:", error);
+      alert("Gagal menyiapkan ekspor kas. Periksa koneksi, lalu coba lagi.");
+    }
+  };
   const reportFilters = { q, type: typeFilter, category: categoryFilter, from: dateFrom, to: dateTo };
 
   const {
@@ -425,7 +435,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
             </Button>
             <Button
               variant="outline"
-              onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
+              onClick={handleExport}
               disabled={loading || !!error || !filtered.length}
               className="hidden sm:flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm h-10 text-xs font-semibold"
             >
@@ -548,6 +558,17 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           />
         </div>
 
+        {hasMore && isViewingFilteredSummary && (
+          <p className="-mt-2 text-xs font-medium text-amber-700">
+            Ringkasan filter dihitung dari transaksi yang sudah dimuat ({filtered.length}). Muat lebih banyak untuk melengkapinya.
+          </p>
+        )}
+        {!globalSummary && (hasMore || isViewingFilteredSummary) && (
+          <p className="-mt-2 text-xs font-medium text-amber-700">
+            Ringkasan kas belum tersinkron. Tekan tombol sinkronisasi saldo untuk menghitung total lengkap.
+          </p>
+        )}
+
         {/* Charts & Visualization Section */}
         <AnimatePresence>
           {showCharts && (
@@ -564,7 +585,11 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">Aliran Arus Kas</h3>
-                      <p className="text-[10px] text-slate-400">Visualisasi pemasukan vs pengeluaran kas</p>
+                      <p className="text-[10px] text-slate-400">
+                        {hasMore
+                          ? `Visualisasi sementara dari ${filtered.length} transaksi yang dimuat`
+                          : "Visualisasi pemasukan vs pengeluaran kas"}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500">
                       <span className="flex items-center gap-1.5">
@@ -648,8 +673,8 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                           <FileText className="w-8 h-8 text-slate-300" />
                         </div>
-                        <h3 className="text-sm font-bold text-slate-800">Tidak ada transaksi</h3>
-                        <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau tambah transaksi baru.</p>
+                        <h3 className="text-sm font-bold text-slate-800">{hasMore ? "Belum ada transaksi aktif di halaman ini" : "Tidak ada transaksi"}</h3>
+                        <p className="text-xs text-slate-400 mt-1">{hasMore ? "Muat halaman berikutnya untuk melanjutkan." : "Coba kata kunci lain atau tambah transaksi baru."}</p>
                       </div>
                     </td>
                   </tr>
@@ -749,9 +774,9 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                   <FileText className="w-8 h-8 text-slate-300" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">Tidak ada transaksi</h3>
+                <h3 className="text-lg font-bold text-slate-800">{hasMore ? "Belum ada transaksi aktif di halaman ini" : "Tidak ada transaksi"}</h3>
                 <p className="text-sm mt-1 max-w-xs mx-auto text-slate-400">
-                  Coba ubah filter pencarian Anda atau tambahkan transaksi baru.
+                  {hasMore ? "Muat halaman berikutnya untuk melanjutkan." : "Coba ubah filter pencarian Anda atau tambahkan transaksi baru."}
                 </p>
               </div>
             ) : (
@@ -847,17 +872,18 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           </div>
           
           {/* Load More Fallback Button */}
-          {renderLimit < filtered.length && (
+          {((hasMore && !q.trim()) || renderLimit < filtered.length) && (
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-center">
               <Button
                 variant="outline"
-                disabled={loading}
+                disabled={loading || loadingMore}
                 onClick={() => {
-                  setRenderLimit(previous => previous + 50);
+                  if (q.trim()) setRenderLimit(previous => previous + LEDGER_PAGE_SIZE);
+                  else void loadMore();
                 }}
                 className="w-full sm:w-auto h-10 px-6 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
               >
-                {loading ? "Memuat..." : "Muat Lebih Banyak"}
+                {loading || loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
               </Button>
             </div>
           )}
@@ -925,7 +951,7 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
       {/* Mobile Export Excel Button */}
       {!loading && !error && filtered.length > 0 && (
         <button
-          onClick={() => exportLedgerToExcel(filtered, "Laporan_Kas.xlsx")}
+          onClick={handleExport}
           className="sm:hidden fixed bottom-36 right-6 z-35 h-12 w-12 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all animate-in slide-in-from-bottom-5 duration-200"
           title="Export Excel"
         >
@@ -1011,8 +1037,8 @@ export function LedgerPage({ formTrigger = 0, onFormTriggerConsumed }: { formTri
           />
         )}
 
-        {returning && <CapitalReturnModal key="capital-return" advance={returning} onClose={() => setReturning(null)} />}
-        {showHistory && <LedgerHistoryModal key="ledger-history" rows={rows} onClose={() => setShowHistory(false)} />}
+        {returning && <CapitalReturnModal key="capital-return" advance={returning} onClose={() => setReturning(null)} onCompleted={retry} />}
+        {showHistory && <LedgerHistoryModal key="ledger-history" onClose={() => setShowHistory(false)} onRestored={retry} />}
         {showShare && <LedgerShareModal key="ledger-share" filters={reportFilters} onClose={() => setShowShare(false)} />}
       </AnimatePresence>
     </div>

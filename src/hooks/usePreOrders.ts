@@ -1,22 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  getCountFromServer,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PreOrder, DepartureSchedule, Customer } from "../types";
-import { addPreOrder, updatePreOrder, deletePreOrder } from "../services/preOrdersFirebase";
+import {
+  addPreOrder,
+  updatePreOrder,
+  deletePreOrder,
+  fetchPreOrders,
+  getPreOrderCounts,
+  getPreOrdersPage,
+  PreOrdersPageCursor,
+} from "../services/preOrdersFirebase";
 import { listenSchedules } from "../services/schedulesFirebase";
 import { listenCustomers } from "../services/customersFirebase";
 import { formatDate, formatIDR, compareDepartureDates } from "../utils/format";
 
-const COL = "pre_orders";
+export const PREORDER_PAGE_SIZE = 25;
 
 export const UNSCHEDULED_SCHEDULE_ID = "__unscheduled__";
 
@@ -56,23 +53,27 @@ export function createUnscheduledSchedule(orphans: PreOrder[]): DepartureSchedul
 }
 
 export function usePreOrders(showToast?: (message: string, type: "success" | "error" | "info" | "warning") => void) {
-  const [pendingPreOrders, setPendingPreOrders] = useState<PreOrder[]>([]);
-  const [selesaiPreOrders, setSelesaiPreOrders] = useState<PreOrder[]>([]);
+  const [pagePreOrders, setPagePreOrders] = useState<PreOrder[]>([]);
+  const [searchResults, setSearchResults] = useState<PreOrder[] | null>(null);
   const [schedules, setSchedules] = useState<DepartureSchedule[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  
-  const [loadingPending, setLoadingPending] = useState(true);
-  const [loadingSelesai, setLoadingSelesai] = useState(true);
-  const [selesaiLimit, setSelesaiLimit] = useState(50);
-  const [hasMoreSelesai, setHasMoreSelesai] = useState(true);
-  const [totalSelesaiCount, setTotalSelesaiCount] = useState(0);
-
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageHasMore, setPageHasMore] = useState(false);
+  const [totalCounts, setTotalCounts] = useState({ pending: 0, selesai: 0 });
+  const [visibleSearchCount, setVisibleSearchCount] = useState(PREORDER_PAGE_SIZE);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [q, setQ] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Pending");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PreOrder | null>(null);
   const [convertTarget, setConvertTarget] = useState<PreOrder | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const cursorRef = useRef<PreOrdersPageCursor | undefined>(undefined);
+  const requestKeyRef = useRef(0);
+  const toastRef = useRef(showToast);
+  toastRef.current = showToast;
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -82,76 +83,81 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     isOpen: false,
     title: "",
     message: "",
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
-  // 1. Listen to all Pending pre-orders (always up-to-date)
   useEffect(() => {
-    const qPending = query(
-      collection(db, COL),
-      where("status", "==", "Pending"),
-      orderBy("createdAt", "desc")
-    );
-    const unsubPending = onSnapshot(qPending, (snap) => {
-      const pendingRows = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as PreOrder[];
-      setPendingPreOrders(pendingRows);
-      setLoadingPending(false);
+    const timeout = window.setTimeout(() => setSearchTerm(q.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPreOrderCounts().then((counts) => {
+      if (!cancelled) setTotalCounts(counts);
+    }).catch((err: unknown) => {
+      console.error("load booking counts error:", err);
     });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
-    return () => unsubPending();
-  }, []);
-
-  // 2. Fetch Selesai pre-orders statically (avoiding dynamic listener assertion errors)
   useEffect(() => {
-    let active = true;
-    const fetchSelesai = async () => {
-      setLoadingSelesai(true);
+    let cancelled = false;
+    const requestKey = ++requestKeyRef.current;
+    cursorRef.current = undefined;
+    setPagePreOrders([]);
+    setSearchResults(null);
+    setPageHasMore(false);
+    setLoadingMore(false);
+    setVisibleSearchCount(PREORDER_PAGE_SIZE);
+    setLoading(true);
+
+    const load = async () => {
       try {
-        const qSelesai = query(
-          collection(db, COL),
-          where("status", "==", "Selesai"),
-          orderBy("createdAt", "desc"),
-          limit(selesaiLimit)
-        );
-        const snap = await getDocs(qSelesai);
-        if (!active) return;
-        const selesaiRows = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as PreOrder[];
-        setSelesaiPreOrders(selesaiRows);
-        setHasMoreSelesai(selesaiRows.length === selesaiLimit);
+        if (searchTerm) {
+          // Firestore has no arbitrary substring query. Scan the active status
+          // scope only after debounce, then keep the rendered list page-sized.
+          const rows = await fetchPreOrders(statusFilter);
+          const normalized = searchTerm.toLocaleLowerCase();
+          const matches = rows.filter((po) =>
+            (po.namaPelanggan || "").toLocaleLowerCase().includes(normalized)
+            || (po.rute || "").toLocaleLowerCase().includes(normalized)
+            || (po.namaJastiper || "").toLocaleLowerCase().includes(normalized)
+            || (po.items || []).some((item) => (item.namaBarang || "").toLocaleLowerCase().includes(normalized)),
+          );
+          if (!cancelled && requestKeyRef.current === requestKey) {
+            setSearchResults(matches);
+            setPagePreOrders(matches.slice(0, PREORDER_PAGE_SIZE));
+            setPageHasMore(matches.length > PREORDER_PAGE_SIZE);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const page = await getPreOrdersPage(statusFilter, PREORDER_PAGE_SIZE);
+        if (!cancelled && requestKeyRef.current === requestKey) {
+          setPagePreOrders(page.rows);
+          cursorRef.current = page.cursor;
+          setPageHasMore(page.hasMore);
+          setLoading(false);
+        }
       } catch (err) {
-        console.error("Failed to fetch selesai pre-orders:", err);
-      } finally {
-        if (active) setLoadingSelesai(false);
+        console.error("load booking page error:", err);
+        if (!cancelled && requestKeyRef.current === requestKey) {
+          setPagePreOrders([]);
+          setSearchResults(null);
+          setPageHasMore(false);
+          setLoading(false);
+          toastRef.current?.("Booking gagal dimuat. Periksa koneksi lalu coba lagi.", "error");
+        }
       }
     };
 
-    fetchSelesai();
-    return () => {
-      active = false;
-    };
-  }, [selesaiLimit, pendingPreOrders]);
+    void load();
+    return () => { cancelled = true; };
+  }, [searchTerm, statusFilter, refreshKey]);
 
-  // 3. Get accurate server-side total count of Selesai pre-orders
-  useEffect(() => {
-    const fetchSelesaiCount = async () => {
-      try {
-        const qCount = query(collection(db, COL), where("status", "==", "Selesai"));
-        const snapshot = await getCountFromServer(qCount);
-        setTotalSelesaiCount(snapshot.data().count);
-      } catch (err) {
-        console.error("Failed to fetch selesai count:", err);
-      }
-    };
-    fetchSelesaiCount();
-  }, [pendingPreOrders, selesaiPreOrders]); // Refresh whenever pre-orders change
-
-  // 4. Listen to other core collections
+  // 2. Listen to schedules and customers needed by the grouped list and forms.
   useEffect(() => {
     const unsubS = listenSchedules((rows) => {
       const sorted = [...rows].sort((a, b) =>
@@ -166,27 +172,12 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     };
   }, []);
 
-  const preOrders = useMemo(() => {
-    return [...pendingPreOrders, ...selesaiPreOrders];
-  }, [pendingPreOrders, selesaiPreOrders]);
-
-  const loading = loadingPending || (statusFilter !== "Pending" && loadingSelesai);
-
-  const filtered = useMemo(() => {
-    let list = preOrders;
-    if (statusFilter) list = list.filter((p) => p.status === statusFilter);
-    if (q.trim()) {
-      const s = q.trim().toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.namaPelanggan.toLowerCase().includes(s) ||
-          p.rute.toLowerCase().includes(s) ||
-          p.namaJastiper.toLowerCase().includes(s) ||
-          p.items.some((i) => i.namaBarang.toLowerCase().includes(s))
-      );
-    }
-    return list;
-  }, [preOrders, q, statusFilter]);
+  const preOrders = useMemo(() => searchResults ?? pagePreOrders, [searchResults, pagePreOrders]);
+  const visiblePreOrders = useMemo(() => searchResults
+    ? searchResults.slice(0, visibleSearchCount)
+    : pagePreOrders,
+    [searchResults, visibleSearchCount, pagePreOrders]);
+  const filtered = visiblePreOrders;
 
   const groupedBySchedule = useMemo(() => {
     const list: {
@@ -204,7 +195,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
 
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
       const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || (statusFilter !== "Selesai" && (allPOsForCapacity.length > 0 || !q))) {
+      if (matchPO.length > 0) {
         list.push({
           schedule: sch,
           preOrders: matchPO,
@@ -246,7 +237,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       const matchPO = filtered.filter((p) => p.idJadwal === sch.id);
       // Semua PO (Pending + Selesai) untuk hitung kapasitas aktual
       const allPOsForCapacity = preOrders.filter((p) => p.idJadwal === sch.id);
-      if (matchPO.length > 0 || (statusFilter !== "Selesai" && (allPOsForCapacity.length > 0 || !q))) {
+      if (matchPO.length > 0) {
         const jastiperName = sch.namaJastiper?.trim() || "Jastiper Tanpa Nama";
         const jastiperId = sch.idJastiper?.trim() || jastiperName;
 
@@ -331,6 +322,11 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     showToast?.(message, type);
   };
 
+  const refreshBookings = () => {
+    cursorRef.current = undefined;
+    setRefreshKey((value) => value + 1);
+  };
+
   async function handleSubmit(data: Omit<PreOrder, "id" | "createdAt" | "updatedAt">) {
     if (editing) {
       await updatePreOrder(editing.id, data);
@@ -339,6 +335,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       await addPreOrder(data);
       toast("Booking berhasil dibuat");
     }
+    refreshBookings();
   }
 
   function handleDelete(po: PreOrder) {
@@ -350,6 +347,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
         try {
           await deletePreOrder(po.id);
           toast("Booking berhasil dihapus");
+          refreshBookings();
         } catch {
           toast("Gagal menghapus pre order", "error");
         }
@@ -364,6 +362,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
       );
       await updatePreOrder(po.id, { items: updatedItems });
       toast("Status check barang berhasil diubah");
+      refreshBookings();
     } catch (err: any) {
       toast(err.message || "Gagal mengubah status barang", "error");
     }
@@ -426,14 +425,36 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const counts = {
-    pending: pendingPreOrders.length,
-    selesai: totalSelesaiCount,
-  };
+  const counts = totalCounts;
+  const hasMore = searchResults ? visibleSearchCount < searchResults.length : pageHasMore;
+  const resultCount = searchResults?.length ?? (statusFilter === "Pending"
+    ? totalCounts.pending
+    : statusFilter === "Selesai"
+      ? totalCounts.selesai
+      : totalCounts.pending + totalCounts.selesai);
+  const loadedCount = filtered.length;
 
-  const loadMoreSelesai = () => {
-    if (hasMoreSelesai) {
-      setSelesaiLimit((prev) => prev + 50);
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return;
+    if (searchResults) {
+      setVisibleSearchCount((count) => count + PREORDER_PAGE_SIZE);
+      return;
+    }
+    if (!cursorRef.current) return;
+
+    const requestKey = requestKeyRef.current;
+    setLoadingMore(true);
+    try {
+      const page = await getPreOrdersPage(statusFilter, PREORDER_PAGE_SIZE, cursorRef.current);
+      if (requestKey !== requestKeyRef.current) return;
+      setPagePreOrders((current) => [...current, ...page.rows]);
+      cursorRef.current = page.cursor;
+      setPageHasMore(page.hasMore);
+    } catch (err) {
+      console.error("load more bookings error:", err);
+      toast("Booking berikutnya gagal dimuat", "error");
+    } finally {
+      if (requestKey === requestKeyRef.current) setLoadingMore(false);
     }
   };
 
@@ -442,6 +463,11 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     schedules,
     customers,
     loading,
+    loadingMore,
+    hasMore,
+    resultCount,
+    loadedCount,
+    isSearching: Boolean(searchTerm),
     q,
     setQ,
     statusFilter,
@@ -459,8 +485,7 @@ export function usePreOrders(showToast?: (message: string, type: "success" | "er
     counts,
     groupedBySchedule,
     groupedByJastiper,
-    hasMoreSelesai,
-    loadMoreSelesai,
+    loadMore,
     handleSubmit,
     handleDelete,
     handleToggleItemCheck,

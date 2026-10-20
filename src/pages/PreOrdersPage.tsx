@@ -64,15 +64,18 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
     counts,
     groupedBySchedule,
     groupedByJastiper,
-    hasMoreSelesai,
-    loadMoreSelesai,
+    loadingMore,
+    hasMore,
+    resultCount,
+    loadedCount,
+    isSearching,
+    loadMore,
     handleSubmit,
     handleDelete,
     handleToggleItemCheck,
   } = usePreOrders(showToast);
 
   const STATUS_FILTERS = ["", "Pending", "Selesai"];
-  const totalPO = (counts.pending || 0) + (counts.selesai || 0);
 
   // Navigation state — which schedule's detail to show
   const [detailSchedule, setDetailSchedule] = React.useState<DepartureSchedule | null>(null);
@@ -155,7 +158,7 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                   {counts.selesai} Selesai
                 </span>
                 <span className="text-[11px] text-slate-400 font-semibold select-none hidden sm:inline">
-                  {totalPO} Total
+                  {loading ? "Memuat..." : `${loadedCount} dari ${resultCount} ditampilkan`}
                 </span>
               </div>
             </div>
@@ -212,6 +215,11 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm"
           />
         </div>
+        {isSearching && (
+          <p className="text-xs font-medium text-slate-500">
+            Pencarian substring membaca semua booking dalam filter status yang dipilih.
+          </p>
+        )}
 
         {/* ── Content ── */}
         {loading ? (
@@ -236,6 +244,11 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
           </div>
         ) : (
           <div className="space-y-6">
+            {(hasMore || isSearching) && (
+              <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                Ringkasan kartu mengikuti {loadedCount} booking yang ditampilkan. Total status di atas tetap mencakup seluruh database.
+              </p>
+            )}
             {groupedByJastiper.map((jastiperGroup, jIdx) => {
               const isUnscheduledJastiper = jastiperGroup.id === "__unscheduled__";
 
@@ -289,7 +302,9 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
                         ? Math.min(100, (sch.beratTerpakai / sch.slotBeratKg) * 100)
                         : 0;
                       const isFull = slotFill >= 100;
-                      const totalBeratGroup = (group.allPreOrders ?? group.preOrders).reduce((s, p) => s + (p.totalKg || 0), 0);
+                      const totalBeratGroup = sch && !isUnscheduled
+                        ? (sch.beratTerpakai || 0)
+                        : (group.allPreOrders ?? group.preOrders).reduce((s, p) => s + (p.totalKg || 0), 0);
                       const pendingCount = group.preOrders.filter((p) => p.status === "Pending").length;
                       const dateInfo = parseHighlightDate(sch?.tanggalBerangkat);
 
@@ -433,14 +448,18 @@ export function PreOrdersPage({ formTrigger = 0, onFormTriggerConsumed }: { form
               );
             })}
 
-            {statusFilter !== "Pending" && hasMoreSelesai && (
-              <div className="flex justify-center pt-2">
+            {hasMore && (
+              <div className="flex flex-col items-center gap-3 pt-2">
+                <p className="text-xs font-semibold text-slate-500">
+                  Menampilkan {loadedCount} dari {resultCount} booking
+                </p>
                 <Button
                   variant="outline"
-                  onClick={loadMoreSelesai}
+                  onClick={loadMore}
+                  disabled={loadingMore}
                   className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-2 rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all"
                 >
-                  Muat Lebih Banyak
+                  {loadingMore ? "Memuat..." : "Muat 15 Lagi"}
                 </Button>
               </div>
             )}

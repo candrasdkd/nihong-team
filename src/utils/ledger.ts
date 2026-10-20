@@ -39,7 +39,7 @@ export function filterLedger(rows: LedgerEntry[], filters: LedgerFilters): Ledge
     && (!filters.from || row.tanggal >= filters.from)
     && (!filters.to || row.tanggal <= filters.to)
     && (!text || [row.keterangan, row.kategori, row.metode, row.catatan, row.tanggal].some(value => (value || "").toLocaleLowerCase("id-ID").includes(text))))
-    .sort((a, b) => b.tanggal.localeCompare(a.tanggal) || (b.createdAt || 0) - (a.createdAt || 0) || a.id.localeCompare(b.id));
+    .sort((a, b) => b.tanggal.localeCompare(a.tanggal) || b.id.localeCompare(a.id));
 }
 
 export function visibleSelectedIds(rows: LedgerEntry[], selectedIds: Set<string>): string[] {

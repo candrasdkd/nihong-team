@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { DocumentData, collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import {
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Frown,
   MapPin,
   Pencil,
   Phone,
   Search,
-  Sparkles,
   Trash2,
   UserPlus,
   UsersRound,
@@ -17,7 +18,6 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "../components/ConfirmModal";
 
-import { db } from "../lib/firebase";
 import { Customer } from "../types";
 import { openWhatsApp } from "../utils/helpers";
 import { formatPhoneDisplay } from "../utils/phone";
@@ -26,7 +26,10 @@ import {
   updateCustomer,
   deleteCustomer,
   clearCustomerDeliveryAddress,
-  migrateCustomersAndOrdersToUppercase,
+  getCustomersPage,
+  getCustomerMetrics,
+  customerNameExists,
+  type CustomerProfileFilter,
 } from "../services/customersFirebase";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -34,9 +37,7 @@ import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import { CustomerFormModal } from "../components/CustomerFormModal";
 
 // ─── Konstanta ───────────────────────────────────────────────
-const COL = "customer";
-
-type CustomerFilter = "all" | "wa" | "complete";
+const CUSTOMER_PAGE_SIZE = 15;
 
 // WhatsApp brand icon (tidak tersedia di lucide-react)
 const IconWhatsApp = (props: React.SVGProps<SVGSVGElement>) => (
@@ -130,11 +131,19 @@ export function CustomersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState(false);
+  const [metrics, setMetrics] = useState({ total: 0, wa: 0, complete: 0 });
   const [q, setQ] = useState(searchParams.get("q") ?? "");
-  const [profileFilter, setProfileFilter] = useState<CustomerFilter>("all");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q")?.trim() ?? "");
+  const [profileFilter, setProfileFilter] = useState<CustomerProfileFilter>("all");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pageCursors = useRef<Array<QueryDocumentSnapshot<DocumentData> | undefined>>([undefined]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [migrating, setMigrating] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -149,66 +158,66 @@ export function CustomersPage() {
     onConfirm: () => {},
   });
 
-  async function handleMigrate() {
-    setConfirmModal({
-      isOpen: true,
-      title: "Migrasi Huruf Kapital",
-      message: "Apakah Anda yakin ingin mengubah semua data nama pelanggan lama dan pesanan lama menjadi HURUF KAPITAL (UPPERCASE)? Tindakan ini akan memakan waktu beberapa saat dan tidak dapat dibatalkan.",
-      confirmText: "Ya, Migrasi",
-      type: "warning",
-      onConfirm: async () => {
-        setMigrating(true);
-        try {
-          await migrateCustomersAndOrdersToUppercase();
-          alert("Migrasi berhasil! Seluruh data nama pelanggan dan pesanan telah diubah menjadi huruf kapital.");
-        } catch (err: any) {
-          alert("Gagal melakukan migrasi: " + (err?.message || err));
-        } finally {
-          setMigrating(false);
-        }
-      },
-    });
+  function resetPagination() {
+    pageCursors.current = [undefined];
+    setPageIndex(0);
+  }
+
+  function refreshCustomers() {
+    resetPagination();
+    setRefreshKey((value) => value + 1);
   }
 
   useEffect(() => {
-    const qy = query(collection(db, COL), orderBy("nama"));
-    const unsub = onSnapshot(
-      qy,
-      (snap) => {
-        const rows = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as DocumentData),
-        })) as Customer[];
-        setCustomers(rows);
+    const timeout = window.setTimeout(() => setSearchTerm(q.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    getCustomersPage({
+      pageSize: CUSTOMER_PAGE_SIZE,
+      cursor: pageCursors.current[pageIndex],
+      search: searchTerm,
+      profileFilter,
+    }).then((page) => {
+      if (!cancelled) {
+        setCustomers(page.rows);
+        setHasMore(page.hasMore);
+        pageCursors.current[pageIndex + 1] = page.hasMore ? page.cursor : undefined;
         setLoading(false);
-      },
-      (err) => {
-        console.error("listen customer error:", err);
+      }
+    }).catch((err: unknown) => {
+      if (!cancelled) {
+        console.error("load customer page error:", err);
+        setCustomers([]);
+        setHasMore(false);
+        setLoadError("Pelanggan gagal dimuat. Periksa koneksi atau akses akun, lalu coba lagi.");
         setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const keyword = q.trim().toLowerCase();
-
-    return customers.filter((c) => {
-      const matchesSearch =
-        !keyword ||
-        (c?.nama ?? "").toLowerCase().includes(keyword) ||
-        (c?.alamat ?? "").toLowerCase().includes(keyword) ||
-        (c?.telpon ?? "").toLowerCase().includes(keyword);
-      const hasPhone = Boolean(c.telpon?.trim());
-      const hasAddress = Boolean(c.alamat?.trim());
-      const matchesProfile =
-        profileFilter === "all" ||
-        (profileFilter === "wa" && hasPhone) ||
-        (profileFilter === "complete" && hasPhone && hasAddress);
-
-      return matchesSearch && matchesProfile;
+      }
     });
-  }, [customers, profileFilter, q]);
+
+    return () => { cancelled = true; };
+  }, [pageIndex, profileFilter, refreshKey, searchTerm]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMetricsLoading(true);
+    setMetricsError(false);
+    getCustomerMetrics().then((nextMetrics) => {
+      if (!cancelled) setMetrics(nextMetrics);
+    }).catch((err: unknown) => {
+      console.error("load customer metrics error:", err);
+      if (!cancelled) setMetricsError(true);
+    }).finally(() => {
+      if (!cancelled) setMetricsLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
   // Sync search query to URL
   useEffect(() => {
@@ -218,14 +227,6 @@ export function CustomersPage() {
       return next;
     }, { replace: true });
   }, [q, setSearchParams]);
-
-  // CRM Analytics Metrics
-  const metrics = useMemo(() => {
-    const total = customers.length;
-    const wa = customers.filter((c) => !!c.telpon?.trim()).length;
-    const complete = customers.filter((c) => !!c.telpon?.trim() && !!c.alamat?.trim()).length;
-    return { total, wa, complete };
-  }, [customers]);
 
   async function handleDelete(id?: string) {
     if (!id) return;
@@ -238,6 +239,7 @@ export function CustomersPage() {
       onConfirm: async () => {
         try {
           await deleteCustomer(id);
+          refreshCustomers();
         } catch (err: any) {
           alert("Gagal menghapus: " + (err?.message || err));
         }
@@ -260,6 +262,7 @@ export function CustomersPage() {
       onConfirm: async () => {
         try {
           await clearCustomerDeliveryAddress(c.id!, country);
+          refreshCustomers();
         } catch (err: any) {
           alert("Gagal menghapus alamat: " + (err?.message || err));
         }
@@ -291,15 +294,6 @@ export function CustomersPage() {
           mobileSubtitle="Cari kontak, lengkapi profil, dan hubungi pelanggan lebih cepat."
           action={
             <>
-              <Button
-                onClick={handleMigrate}
-                disabled={migrating}
-                variant="secondary"
-                className="border-white/15 bg-white/10 text-white hover:bg-white/15"
-              >
-                <Sparkles className="h-4 w-4" />
-                {migrating ? "Memproses..." : "Rapikan Kapital"}
-              </Button>
               <Button onClick={openAddForm}>
                 <UserPlus className="h-4 w-4" />
                 <span>Tambah Pelanggan</span>
@@ -318,7 +312,7 @@ export function CustomersPage() {
                   Total Pelanggan
                 </p>
                 <p className="mt-1.5 text-3xl font-black tracking-tight text-brand-navyDark sm:text-4xl">
-                  {loading ? <span className="inline-block h-9 w-16 animate-pulse rounded-lg bg-slate-200" /> : metrics.total}
+                  {metricsLoading ? <span className="inline-block h-9 w-16 animate-pulse rounded-lg bg-slate-200" /> : metricsError ? "—" : metrics.total}
                 </p>
                 <p className="mt-1 text-[11px] font-medium text-slate-500">Kontak tersimpan di database</p>
               </div>
@@ -338,7 +332,7 @@ export function CustomersPage() {
               </span>
             </div>
             <p className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-              {loading ? <span className="inline-block h-8 w-12 animate-pulse rounded-lg bg-slate-200" /> : metrics.wa}
+              {metricsLoading ? <span className="inline-block h-8 w-12 animate-pulse rounded-lg bg-slate-200" /> : metricsError ? "—" : metrics.wa}
             </p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400 sm:text-[11px]">Punya WhatsApp</p>
           </Card>
@@ -353,7 +347,7 @@ export function CustomersPage() {
               </span>
             </div>
             <p className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-              {loading ? <span className="inline-block h-8 w-12 animate-pulse rounded-lg bg-slate-200" /> : metrics.complete}
+              {metricsLoading ? <span className="inline-block h-8 w-12 animate-pulse rounded-lg bg-slate-200" /> : metricsError ? "—" : metrics.complete}
             </p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400 sm:text-[11px]">Profil Lengkap</p>
           </Card>
@@ -366,16 +360,22 @@ export function CustomersPage() {
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-navy" />
               <input
                 type="search"
-                placeholder="Cari nama, nomor WhatsApp, atau alamat..."
+                placeholder="Cari bagian mana saja dari nama pelanggan..."
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  resetPagination();
+                }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-11 pr-11 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:font-medium placeholder:text-slate-400 focus:border-brand-navy/40 focus:bg-white focus:ring-4 focus:ring-brand-navy/10"
-                aria-label="Cari pelanggan"
+                aria-label="Cari nama pelanggan"
               />
               {q && (
                 <button
                   type="button"
-                  onClick={() => setQ("")}
+                  onClick={() => {
+                    setQ("");
+                    resetPagination();
+                  }}
                   className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
                   aria-label="Hapus pencarian"
                 >
@@ -389,30 +389,22 @@ export function CustomersPage() {
                 <UserPlus className="h-4 w-4" />
                 Tambah Pelanggan
               </Button>
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={handleMigrate}
-                disabled={migrating}
-                className="h-10 w-10 shrink-0 rounded-xl"
-                title="Rapikan huruf kapital"
-                aria-label="Rapikan huruf kapital"
-              >
-                <Sparkles className={`h-4 w-4 ${migrating ? "animate-spin" : ""}`} />
-              </Button>
             </div>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto px-3 py-2.5 custom-scrollbar sm:px-4">
             {([
-              { value: "all", label: "Semua", count: metrics.total },
-              { value: "wa", label: "Ada WhatsApp", count: metrics.wa },
-              { value: "complete", label: "Profil Lengkap", count: metrics.complete },
+              { value: "all", label: "Semua", count: metricsError ? "—" : metrics.total },
+              { value: "wa", label: "Ada WhatsApp", count: metricsError ? "—" : metrics.wa },
+              { value: "complete", label: "Profil Lengkap", count: metricsError ? "—" : metrics.complete },
             ] as const).map((filter) => (
               <button
                 key={filter.value}
                 type="button"
-                onClick={() => setProfileFilter(filter.value)}
+                onClick={() => {
+                  setProfileFilter(filter.value);
+                  resetPagination();
+                }}
                 className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition-all ${
                   profileFilter === filter.value
                     ? "border-brand-navy bg-brand-navy text-white shadow-sm"
@@ -428,10 +420,19 @@ export function CustomersPage() {
               </button>
             ))}
             <span className="ml-auto hidden shrink-0 text-xs font-semibold text-slate-400 sm:block">
-              Menampilkan {filtered.length} pelanggan
+              Menampilkan {customers.length} pelanggan · Halaman {pageIndex + 1}
             </span>
           </div>
         </section>
+
+        {loadError && (
+          <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+            <span>{loadError}</span>
+            <Button variant="secondary" onClick={refreshCustomers} className="min-h-[44px] border-rose-200 bg-white text-rose-700">
+              Coba lagi
+            </Button>
+          </div>
+        )}
 
         {/* Tabel Desktop */}
         <div className="hidden overflow-hidden rounded-card border border-surface-border bg-surface-card shadow-card lg:block">
@@ -449,7 +450,7 @@ export function CustomersPage() {
               <tbody className="divide-y divide-surface-border">
                 {loading && <TableSkeleton />}
 
-                {!loading && filtered.length === 0 && (
+                {!loading && !loadError && customers.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
@@ -462,7 +463,7 @@ export function CustomersPage() {
                 )}
 
                 {!loading &&
-                  filtered.map((c) => (
+                  customers.map((c) => (
                     <tr key={c.id} className="group transition-colors duration-200 hover:bg-slate-50/70">
                       <td className="px-5 py-4 align-middle">
                         <div className="flex items-center gap-3">
@@ -579,7 +580,7 @@ export function CustomersPage() {
         <div className="lg:hidden">
           {loading && <MobileListSkeleton />}
 
-          {!loading && filtered.length === 0 && (
+          {!loading && !loadError && customers.length === 0 && (
             <div className="py-16 flex flex-col items-center justify-center text-slate-400 px-4 text-center bg-surface-card rounded-card border border-surface-border shadow-card">
               <Frown className="w-12 h-12 mb-3 text-slate-300" />
               <p className="text-slate-700 font-bold text-sm">Tidak ada pelanggan ditemukan</p>
@@ -590,9 +591,9 @@ export function CustomersPage() {
             </div>
           )}
 
-          {!loading && filtered.length > 0 && (
+          {!loading && customers.length > 0 && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {filtered.map((c) => (
+              {customers.map((c) => (
                 <article
                   key={c.id}
                   className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm transition-all active:scale-[0.99]"
@@ -698,6 +699,32 @@ export function CustomersPage() {
             </div>
           )}
         </div>
+
+        {!loading && !loadError && (
+          <section className="flex flex-col gap-3 rounded-2xl border border-surface-border bg-surface-card p-3 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <p className="text-center text-xs font-semibold text-slate-500 sm:text-left">
+              Halaman {pageIndex + 1} · {customers.length} pelanggan ditampilkan
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="secondary"
+                className="min-h-[44px]"
+                onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+                disabled={pageIndex === 0 || loading}
+              >
+                <ChevronLeft className="h-4 w-4" /> Sebelumnya
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-[44px]"
+                onClick={() => setPageIndex((current) => current + 1)}
+                disabled={!hasMore || loading}
+              >
+                Berikutnya <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Modal Form */}
@@ -707,9 +734,7 @@ export function CustomersPage() {
           onClose={() => setShowForm(false)}
           onSubmit={async (val: Customer) => {
             const cleanName = val.nama.trim().toUpperCase();
-            const isDuplicate = customers.some(
-              (c) => c.nama.toUpperCase().trim() === cleanName && c.id !== editing?.id
-            );
+            const isDuplicate = await customerNameExists(cleanName, editing?.id);
             if (isDuplicate) {
               throw new Error(`Pelanggan "${cleanName}" sudah terdaftar.`);
             }
@@ -732,6 +757,7 @@ export function CustomersPage() {
               });
             }
             setShowForm(false);
+            refreshCustomers();
           }}
         />
       )}

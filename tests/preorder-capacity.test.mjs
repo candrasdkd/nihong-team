@@ -27,8 +27,10 @@ test("remaining capacity counts both Pending and Selesai bookings", () => {
 });
 
 test("changing a booking to Selesai does not release its schedule weight", () => {
-  assert.match(preOrderService, /const oldContribution = oldTotalKg/);
-  assert.match(preOrderService, /const newContribution = newTotalKg/);
+  assert.match(preOrderService, /const delta = newTotalKg - oldTotalKg/);
+  assert.match(preOrderService, /beratTerpakai: increment\(delta\)/);
+  assert.match(preOrderService, /runTransaction\(db, async \(transaction\)/);
+  assert.match(preOrderService, /beratTerpakai: increment\(-Number\(data\.totalKg \|\| 0\)\)/);
   assert.doesNotMatch(preOrderService, /oldStatus === "Pending" \? oldTotalKg : 0/);
   assert.doesNotMatch(preOrderService, /newStatus === "Pending" \? newTotalKg : 0/);
   assert.doesNotMatch(preOrderService, /if \(payload\.status === "Pending"\)/);

@@ -74,3 +74,26 @@ Sebelum menyelesaikan tugas atau membuat commit:
    node --test tests/*.mjs
    ```
 3. **Pertahankan Integritas Data**: Jangan menghapus komentar atau fungsionalitas yang tidak terkait langsung dengan tugas yang sedang dikerjakan.
+
+---
+
+## 6. 📄 Pagination Firestore
+
+Fitur daftar yang berpotensi memuat banyak dokumen wajib memakai pagination di query Firestore, bukan mengambil seluruh koleksi lalu memotong tampilan di client.
+
+1. **Pola halaman**:
+   - Gunakan ukuran halaman konsisten **15 dokumen** sebagai nilai awal.
+   - Ambil data dengan `getDocsFromServer`, `orderBy` yang stabil, `startAfter(cursor)`, dan `limit(pageSize + 1)` untuk menentukan `hasMore`.
+   - Simpan snapshot dokumen terakhir yang ditampilkan sebagai cursor. Reset cursor ketika pencarian, filter, urutan, atau data yang dimuat ulang berubah.
+   - Jangan memakai `slice` atas seluruh koleksi sebagai pengganti pagination server. `slice` hanya boleh mengatur jumlah hasil pencarian yang memang sudah diambil sesuai kebutuhan.
+2. **Filter, urutan, dan indeks**:
+   - Terapkan filter yang didukung Firestore sebelum `limit`, lalu lakukan urutan deterministik. Nilai yang sama harus memakai document ID sebagai pemecah seri dengan arah yang konsisten.
+   - Untuk gabungan filter dan urutan, periksa batasan query Firestore dan tambahkan composite index yang diminta. Jangan menghapus filter atau mengubah urutan diam-diam untuk menghindari index.
+   - Jika query butuh rentang pada field yang berbeda dari urutan aktif, desain pemindaian cursor yang tetap menjaga urutan dan tidak melewati hasil, atau jelaskan batasan dan alternatifnya sebelum mengubah perilaku.
+3. **Pencarian teks**:
+   - Firestore Standard tidak mendukung pencarian substring umum pada field biasa. Jangan menyebut pencarian prefix/token sebagai pencarian “bagian mana saja”.
+   - Pencarian substring harus memakai layanan indeks pencarian yang sesuai, atau memindai data hanya setelah input di-debounce dan hanya dalam cakupan filter aktif. Beri tahu pengguna jika pencarian tersebut membaca seluruh cakupan itu.
+4. **Ringkasan dan perubahan data**:
+   - Jangan menampilkan ringkasan dari halaman pertama seolah-olah mencakup seluruh koleksi. Gunakan aggregate/summary tersendiri, muat cakupan lengkap hanya saat diminta, atau tandai ringkasan sebagai parsial sampai semua halaman dimuat.
+   - Refresh halaman aktif setelah mutasi lokal yang memengaruhi daftar. Hindari `onSnapshot` pada seluruh koleksi hanya untuk memperbarui daftar berpaginasi.
+   - Ekspor dan laporan yang harus mencakup semua data mengambil cakupan lengkap hanya saat aksi itu dijalankan; jangan membuatnya bergantung pada halaman yang kebetulan sedang terlihat.
