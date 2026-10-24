@@ -21,6 +21,7 @@ const JastipersPage = React.lazy(() => import("./pages/JastipersPage").then(m =>
 const JastiperSearchPage = React.lazy(() => import("./pages/JastiperSearchPage").then(m => ({ default: m.JastiperSearchPage })));
 const SchedulesPage = React.lazy(() => import("./pages/SchedulesPage").then(m => ({ default: m.SchedulesPage })));
 const PreOrdersPage = React.lazy(() => import("./pages/PreOrdersPage").then(m => ({ default: m.PreOrdersPage })));
+const ShoppingNotesPage = React.lazy(() => import("./pages/ShoppingNotesPage").then(m => ({ default: m.ShoppingNotesPage })));
 const InboxPage = React.lazy(() => import("./pages/InboxPage").then(m => ({ default: m.InboxPage })));
 const WhatsAppTemplatesPage = React.lazy(() => import("./pages/WhatsAppTemplatesPage").then(m => ({ default: m.WhatsAppTemplatesPage })));
 const SharedPreOrderPage = React.lazy(() => import("./pages/SharedPreOrderPage").then(m => ({ default: m.SharedPreOrderPage })));
@@ -351,6 +352,7 @@ const router = createBrowserRouter([
       { path: "jastiper-search", element: <JastiperSearchPage /> },
       { path: "schedules", element: <SchedulesRoute /> },
       { path: "preorders", element: <PreOrdersRoute /> },
+      { path: "shopping-notes", element: <ShoppingNotesPage /> },
       { path: "inbox", element: <InboxRoute /> },
       { path: "whatsapp-templates", element: <WhatsAppTemplatesPage /> },
       { path: "menu", element: <MenuRoute /> },

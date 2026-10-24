@@ -9,6 +9,7 @@ import {
   documentId,
   getCountFromServer,
   getDocs,
+  getDocsFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -81,18 +82,18 @@ export async function getCustomersPage({
 
   // Inequality filters must lead the ordering; name is the final stable sort.
   if (profileFilter === "complete") {
-    constraints.push(orderBy("telpon"), orderBy("alamat"), orderBy("nama"));
+    constraints.push(orderBy("telpon"), orderBy("alamat"), orderBy("nama"), orderBy(documentId()));
   } else if (profileFilter === "wa") {
-    constraints.push(orderBy("telpon"), orderBy("nama"));
+    constraints.push(orderBy("telpon"), orderBy("nama"), orderBy(documentId()));
   } else {
-    constraints.push(orderBy("nama"));
+    constraints.push(orderBy("nama"), orderBy(documentId()));
   }
 
   if (cursor) constraints.push(startAfter(cursor));
   // Fetch one look-ahead document so the UI can disable Next on the last page.
   constraints.push(limit(pageSize + 1));
 
-  const snapshot = await getDocs(query(collection(db, COL), ...constraints));
+  const snapshot = await getDocsFromServer(query(collection(db, COL), ...constraints));
   const pageDocs = snapshot.docs.slice(0, pageSize);
   return {
     rows: pageDocs.map((item) => ({ ...item.data(), id: item.id }) as Customer),

@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { HeroPageHeader } from "../components/ui/HeroPageHeader";
 import {
   UserRound, Calendar, ShoppingBag, Users, Plane,
-  ArrowRight, Inbox, Search, MessageCircle,
+  ArrowRight, Inbox, Search, MessageCircle, ShoppingBasket,
 } from "lucide-react";
 import { TabId } from "../types";
 
@@ -40,6 +40,16 @@ const MENU_ITEMS = [
     bg: "bg-rose-50",
     iconColor: "text-rose-600",
     accent: "ring-rose-200/70",
+  },
+  {
+    id: "shopping-notes" as TabId,
+    label: "Catatan Belanja",
+    description: "Susun daftar barang jastip, jumlah, harga, dan status belanja",
+    icon: ShoppingBasket,
+    gradient: "from-brand-orange to-amber-500",
+    bg: "bg-brand-cream",
+    iconColor: "text-brand-orange",
+    accent: "ring-brand-orange/20",
   },
   {
     id: "schedules" as TabId,
