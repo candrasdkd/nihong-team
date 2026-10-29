@@ -133,16 +133,6 @@ export function validateJapanDeliveryAddress(
     errors.namaPenerima = "Nama penerima wajib diisi.";
   }
 
-  if (!address.alamatPenerimaRomaji) {
-    errors.alamatPenerimaRomaji = "Alamat penerima Romaji wajib diisi.";
-  } else if (
-    !ROMAJI_ADDRESS_PATTERN.test(address.alamatPenerimaRomaji)
-    || !/\p{Script=Latin}/u.test(address.alamatPenerimaRomaji)
-  ) {
-    errors.alamatPenerimaRomaji = "Gunakan alamat berhuruf Latin/Romaji; angka dan tanda alamat diperbolehkan.";
-  }
-
-
   if (!address.kodePos) {
     errors.kodePos = "Kode pos wajib diisi.";
   } else if (!/^\d{7}$/.test(address.kodePos)) {
@@ -170,9 +160,10 @@ export function isDeliveryAddressComplete(
   country: DeliveryCountry,
 ) {
   if (country === "japan") {
+    const address = getJapanDeliveryAddress(customer);
     return Object.keys(
-      validateJapanDeliveryAddress(getJapanDeliveryAddress(customer)),
-    ).length === 0;
+      validateJapanDeliveryAddress(address),
+    ).length === 0 && Boolean(address.alamatPenerimaRomaji || address.alamatPenerimaKanji);
   }
 
   const address = cleanIndonesiaDeliveryAddress(

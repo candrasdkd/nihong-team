@@ -171,3 +171,43 @@ test("marks only complete delivery addresses as filled", () => {
     },
   }, "japan"), false);
 });
+
+test("does not validate or block Romaji and Kanji address fields on submission", () => {
+  const addressWithKanjiInRomaji = {
+    namaPenerima: "Taro Yamada",
+    alamatPenerimaRomaji: "〒100-0001 東京都千代田区千代田1-1 301号室",
+    alamatPenerimaKanji: "",
+    kodePos: "100-0001",
+    noHpAktif: "090-1234-5678",
+    jamPenerimaPaket: "Morning (before 12:00)",
+  };
+  const errors1 = validateJapanDeliveryAddress(addressWithKanjiInRomaji);
+  assert.equal(errors1.alamatPenerimaRomaji, undefined);
+  assert.equal(errors1.alamatPenerimaKanji, undefined);
+
+  const addressWithOnlyKanji = {
+    namaPenerima: "Taro Yamada",
+    alamatPenerimaRomaji: "",
+    alamatPenerimaKanji: "東京都千代田区千代田1-1",
+    kodePos: "100-0001",
+    noHpAktif: "090-1234-5678",
+    jamPenerimaPaket: "Morning (before 12:00)",
+  };
+  const errors2 = validateJapanDeliveryAddress(addressWithOnlyKanji);
+  assert.equal(errors2.alamatPenerimaRomaji, undefined);
+  assert.equal(errors2.alamatPenerimaKanji, undefined);
+
+  assert.equal(isDeliveryAddressComplete({
+    nama: "CUSTOMER KANJI ONLY",
+    alamatPengirimanJepang: addressWithOnlyKanji,
+  }, "japan"), true);
+
+  assert.equal(isDeliveryAddressComplete({
+    nama: "CUSTOMER NO ADDRESS",
+    alamatPengirimanJepang: {
+      ...addressWithOnlyKanji,
+      alamatPenerimaKanji: "",
+      alamatPenerimaRomaji: "",
+    },
+  }, "japan"), false);
+});

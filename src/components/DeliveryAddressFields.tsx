@@ -140,13 +140,13 @@ export function JapanDeliveryAddressFields({
         />
       </div>
       <div className="sm:col-span-2">
-        <FieldLabel required={required}>Alamat Penerima (Romaji)</FieldLabel>
+        <FieldLabel optional>Alamat Penerima (Romaji)</FieldLabel>
         <TextArea
           rows={3}
           value={value.alamatPenerimaRomaji}
           onChange={(event) => setField("alamatPenerimaRomaji", event.target.value)}
           disabled={disabled}
-          required={required}
+          required={false}
           autoComplete="street-address"
           title="Alamat Penerima dalam Romaji"
           placeholder="Contoh: 1-2-3 Nishi-Shinjuku, Shinjuku-ku, Tokyo"
